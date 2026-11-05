@@ -8,6 +8,11 @@ import fs from 'fs';
 import path from 'path';
 import packageJson from './package.json';
 
+const externalPackages = Object.keys({
+  ...packageJson.dependencies,
+  ...packageJson.peerDependencies,
+});
+
 const getOutput = (path, format) => ({
   file: path,
   format: format,
@@ -19,8 +24,8 @@ const getOutput = (path, format) => ({
 const getConfig = () => ({
   input: 'src/index.ts',
   output: [getOutput(packageJson.main, 'cjs'), getOutput(packageJson.module, 'esm')],
-  external: Object.keys(packageJson.dependencies || {}),
-  context: 'window',
+  external: (id) => externalPackages.some((name) => id === name || id.startsWith(`${name}/`)),
+  context: 'globalThis',
   plugins: [
     (typeof del === 'function' ? del : del.default)({ targets: 'dist/*' }),
     peerDepsExternal(),
@@ -52,6 +57,18 @@ const getConfig = () => ({
             } else {
               if (filePath.endsWith('.private.d.ts')) {
                 fs.unlinkSync(filePath);
+              } else if (filePath.endsWith('.d.ts')) {
+                const declaration = fs.readFileSync(filePath, 'utf8')
+                  .replace(/(from\s+['"]|import\(['"])(\.\.?\/[^'"]+)(['"])/g, (match, prefix, specifier, quote) =>
+                    `${prefix}${specifier.endsWith('.js') ? specifier : `${specifier}.js`}${quote}`
+                  )
+                  .replace(/import\("\."\)/g, 'import("./index.js")')
+                  .replace(/import\("\.\."\)/g, 'import("../index.js")');
+                fs.writeFileSync(filePath, declaration);
+                fs.writeFileSync(
+                  filePath.replace(/\.d\.ts$/, '.d.cts'),
+                  declaration.replace(/(from\s+['"]|import\(['"])(\.\.?\/[^'"]+)\.js(['"])/g, '$1$2.cjs$3')
+                );
               }
             }
           });

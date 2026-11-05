@@ -1,28 +1,33 @@
 {
-  "name": "@pdg/npm-template",
-  "title": "NPM Template",
-  "description": "NPM Template",
+  "name": "@pdg/drizzle-mysql",
+  "title": "Drizzle for MySql",
+  "description": "Drizzle for MySql",
   "version": "1.0.0",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.esm.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.esm.js",
-      "require": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.esm.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/parkdigy/npm-template.git",
-    "baseUrl": "https://github.com/parkdigy/npm-template"
+    "url": "git+https://github.com/parkdigy/drizzle-mysql.git",
+    "baseUrl": "https://github.com/parkdigy/drizzle-mysql"
   },
   "bugs": {
-    "url": "https://github.com/parkdigy/npm-template/issues"
+    "url": "https://github.com/parkdigy/drizzle-mysql/issues"
   },
-  "homepage": "https://github.com/parkdigy/npm-template#readme",
+  "homepage": "https://github.com/parkdigy/drizzle-mysql#readme",
   "files": [
     "dist",
     "README.md"
@@ -51,6 +56,10 @@
     "typescript",
     "javascript"
   ],
+  "peerDependencies": {
+    "drizzle-orm": "1.0.0-rc.5",
+    "mysql2": "^3.24.6"
+  },
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "@rollup/plugin-commonjs": "29.0.3",
@@ -75,6 +84,7 @@
   },
   "allowScripts": {
     "@parcel/watcher": true,
-    "fsevents": true
+    "fsevents": true,
+    "esbuild": true
   }
 }

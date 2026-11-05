@@ -1,5 +1,8 @@
 # 최종 프로젝트에서는 dist 주석 처리
-dist
+# dist
+
+# ENV
+.env
 
 # 기본
 node_modules

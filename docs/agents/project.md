@@ -1,85 +1,81 @@
 # 프로젝트 구조와 개발 참고
 
-## 분석 범위
+## 프로젝트 개요
 
-2026-11-02 기준 저장소의 소스, 설정, npm 스크립트를 분석했다. 이 문서는 탐색 안내이며, 실제 코드와 설정이 변경되면 해당 파일을 우선하고 문서도 갱신한다.
+`@pdg/drizzle-mysql`은 Drizzle ORM `1.0.0-rc.5`와 `mysql2`를 사용하는 Node.js용 TypeScript npm 라이브러리다. 연결별 쿼리 객체, 조건 생성, 컬럼·별칭 도구, 트랜잭션 및 페이지네이션을 제공한다. 서버 애플리케이션이나 브라우저용 패키지가 아니다.
 
-이 프로젝트는 `@pdg/npm-template`라는 TypeScript 라이브러리 템플릿이다. 업무 도메인, 서버, 데이터베이스, UI는 없다. `src/index.ts`의 `export {};`, 문자열 소문자 변환을 확인하는 샘플 테스트 1개, 콘솔 출력 예제가 현재 구현의 전부다. 테스트 통과는 패키지 API 동작 검증을 뜻하지 않는다.
+실제 구현과 설정이 이 문서보다 우선한다. 설정이나 공개 동작을 변경하면 관련 설명도 함께 갱신한다.
 
-## 파일별 책임
+## 주요 파일
 
-| 경로 | 책임과 수정 시점 |
+| 경로 | 책임 |
 | --- | --- |
-| `src/index.ts` | 번들 진입점. 외부에서 사용할 함수·클래스·타입을 명시적으로 내보낼 위치 |
-| `src/` | 라이브러리 구현. 기능이 생길 때 필요한 모듈만 추가 |
-| `test/template.test.ts` | 현재 샘플 테스트. 기능 추가 시 실제 API의 입력·출력과 오류를 검증하는 테스트 추가 |
-| `examples/src/example.ts` | 현재 `Hello, World!` 출력. 실제 API 사용 예제가 필요하면 갱신 |
-| `examples/package.json` | `tsx` 실행 환경. 루트 패키지 의존성이나 workspace 연결은 현재 없음 |
-| `package.json` | 공개 진입점, 배포 파일, 개발·빌드·게시 명령 |
-| `rollup.config.js` | JS 두 형식 번들, 타입 선언 생성, 배포용 선언 정리 |
-| `tsconfig.json` | `src/` 대상 엄격한 타입 검사와 선언 출력 설정 |
-| `tsconfig.test.json` / `jest.config.ts` | ts-jest 변환, Node 테스트 환경 설정 |
-| `eslint.config.js` / `.prettierrc.cjs` | 정적 검사와 포맷 기준 |
-| `.nvmrc` | Node `24.22.1` 지정 |
-| `.gitignore` / `.npmignore` | Git 추적 제외 및 npm 배포 제외 설정 |
-| `.git-commit.cjs` / `.git-merge.cjs` | 전체 변경 스테이징·커밋 및 원격 병합 보조 스크립트 |
+| `src/index.ts` | npm 공개 진입점. 라이브러리 API, 타입 및 일부 Drizzle MySQL 스키마 API를 재수출 |
+| `src/drizzleMySql.ts` | mysql2 풀 및 Drizzle 연결 생성, 쿼리 팩토리, 별칭·조건 함수, 현재 연결, 트랜잭션, 페이지네이션, SQL 값 매퍼 |
+| `src/MySqlQuery.ts` | 단일 테이블 조회·삽입·수정·삭제, 기본 키 헬퍼, 조건·컬럼 선택 API |
+| `src/conditions.ts` | Drizzle 조건 연산자 확장: 테이블/스키마 키와 값 객체 형식 및 네이티브 SQL 연산자 형식 |
+| `src/columns.ts` | 컬럼 선택·결과 별칭, 테이블·컬럼 그룹과 관련 타입 |
+| `src/alias.ts` | 스키마 테이블 별칭 팩토리 |
+| `src/@types/` | 조건·입력 값과 공통 타입, 타입 배럴 |
+| `test/library.test.ts` | DB 접속 없이 공개 API와 SQL 생성 동작을 검증 |
+| `test/schema.test.ts` | 재수출한 MySQL 컬럼·테이블·제약조건 스키마 API 검증 |
+| `test/mysql.test.ts` | 환경 변수로 활성화하는 MySQL CRUD·조건·페이지네이션·트랜잭션 통합 테스트 |
+| `test/template.test.ts` | 기본 Jest 예제 |
+| `examples/src/example.ts` | 별도 예제 프로젝트의 실행 파일 |
+| `package.json` | 패키지 진입점·배포 파일·의존성과 명령 |
+| `rollup.config.js` | CJS/ESM 번들과 선언 생성 및 선언 경로 변환 |
+| `tsconfig.json` | `src/` 타입 검사 및 선언 설정 |
+| `tsconfig.test.json`, `jest.config.ts` | 테스트 타입 설정, ts-jest와 Node 실행 환경 |
+| `eslint.config.js`, `.prettierrc.cjs` | ESLint 및 Prettier 설정 |
+| `.nvmrc` | Node `24.22.1` |
+| `.npmignore`, `package.json`의 `files` | npm 게시물 파일 범위 |
 
-## 코드에서 배포물까지
+## API와 동작 경계
+
+- `drizzleMySql({ url, schema, timestamp?, timestampColumns? })`는 연결 풀과 편의 API를 만든다. `db.query(table)`은 해당 테이블용 `MySqlQuery` 인스턴스를 반환한다. `db.current()`는 비동기 실행 문맥의 트랜잭션 또는 기본 Drizzle 연결을 반환한다.
+- `db.trans(callback)`은 현재 연결의 트랜잭션을 실행하고 중첩 호출은 savepoint를 사용한다. 콜백의 비동기 작업은 완료 전에 모두 기다려야 한다. 연결 종료에는 `db.close()`를 사용한다.
+- `MySqlQuery`는 조회 빌더와 `find`, 기본 키 조회, 존재 여부·개수, CRUD, 생성·수정 시각 헬퍼, 테이블별 조건 메서드를 제공한다. 일반 `edit` / `remove`에는 SQL 조건이 필요하다.
+- `db`와 쿼리 객체의 조건 API는 비교, 배열·범위, 패턴, NULL, 그룹 조건을 제공한다. `query.and/or({ ... })`는 객체 그룹 결합이며 같은 객체 안에 and/or 그룹을 재귀 중첩하지 않는다. 함수 오버로드는 Drizzle SQL 조건에도 사용할 수 있다.
+- 조건 구현은 `ilike` / `notIlike`도 노출하지만 이들은 `ILIKE` SQL을 생성한다. MySQL은 `ILIKE` 문법을 지원하지 않으므로 MySQL 실행 쿼리에는 사용하지 않는다. `LIKE`의 대소문자 처리는 컬럼 collation에 따른다.
+- `db.paginate(builder, page, limit)`는 데이터와 페이지 정보를 반환하고 양의 정수 page/limit를 요구한다. 전달할 query builder는 해당 트랜잭션 문맥 안에서 생성해야 한다.
+- 기본 전체 조회 결과는 SQL 컬럼명을 결과 키로 사용한다. Drizzle이 SQL 컬럼명을 모든 TypeScript 추론에서 보존하지 않을 수 있으므로, 스키마 속성명과 SQL 컬럼명을 일치시키거나 컬럼을 명시적으로 선택·별칭 지정한다.
+- 공개 타입은 `src/@types/index.ts`와 `src/columns.ts`에서 재수출된다. `src/index.ts`의 상대 디렉터리 재수출은 선언 출력 경로가 배포물 구조와 맞는지 함께 점검한다.
+- README에는 지원 사용법과 제한사항을 기록한다. 패키지 루트에서 재수출하지 않은 Drizzle API는 소비자가 `drizzle-orm` 또는 `drizzle-orm/mysql-core`에서 가져온다.
+
+## 빌드와 배포 흐름
 
 ```text
 src/index.ts
-  └─ Rollup + TypeScript
-      ├─ dist/index.js       (CommonJS 코드 출력)
-      ├─ dist/index.esm.js   (ES module 코드 출력)
-      └─ dist/index.d.ts    (공개 타입 선언)
+  └─ Rollup + rollup-plugin-typescript2
+      ├─ dist/index.cjs       (CommonJS 번들)
+      ├─ dist/index.esm.js    (ES module 번들)
+      ├─ dist/**/*.d.ts       (ESM 타입 선언)
+      └─ dist/**/*.d.cts      (CJS 타입 선언)
 
-test/*.test.ts ─ ts-jest ─ Node 환경 테스트
-examples/src/example.ts ─ tsx ─ 콘솔 예제
+test/*.test.ts ─ Jest + ts-jest ─ Node 환경
+examples/ ─ 독립 npm 프로젝트
 ```
 
-- `package.json`의 `main`과 `exports.require`는 `dist/index.js`, `module`과 `exports.import`는 `dist/index.esm.js`, `types`와 `exports.types`는 `dist/index.d.ts`를 가리킨다.
-- Rollup은 `dependencies`와 `peerDependencies`를 외부 의존성으로 처리하도록 구성돼 있다. 의존성 추가 시 번들 포함 여부와 소비자 설치 책임을 확인한다.
-- 타입 선언은 `dist/`에 생성된다. Rollup의 사용자 플러그인은 `.private`로 끝나는 디렉터리와 `.private.d.ts` 파일을 제거한다. 공개 선언이 삭제 대상 타입을 참조하지 않는지 확인한다. 이는 런타임 코드의 접근 제한 기능이 아니다.
-- TypeScript는 ES2017, ESNext 모듈, `strict`, `noImplicitAny`, `verbatimModuleSyntax`를 사용한다. 타입 전용 의존성에는 `import type` / `export type`을 사용한다.
-- TypeScript 6의 `moduleResolution: bundler`를 사용하며, 이전 `baseUrl: ./src`를 통한 절대 경로 해석은 사용하지 않는다. 테스트 설정은 Jest와 Node 전역 타입을 명시한다.
-- `@rollup/plugin-eslint`의 peer dependency 때문에 ESLint와 `@eslint/js`는 9.x를 사용한다. ESLint 9는 지원이 종료됐으므로 플러그인의 ESLint 10 지원 여부를 확인해 함께 갱신해야 한다. TypeScript는 `ts-jest`와 `typescript-eslint`의 지원 범위에 맞춰 6.x를 사용한다.
-- 루트 타입 검사는 `src/`만 대상으로 한다. 예제와 테스트의 전체 검증을 대신하지 않는다.
-- `npm run lint`는 `src/**/*.ts`만 검사한다. Rollup은 경고에도 실패하도록 설정돼 있으므로 lint 명령 성공만으로 번들 성공을 보장하지 않는다.
+- `package.json`의 `exports["."]`는 `import`에 `dist/index.esm.js` / `dist/index.d.ts`, `require`에 `dist/index.cjs` / `dist/index.d.cts`를 연결한다. `main`, `module`, `types`도 패키지 메타데이터에 별도로 선언되어 있다.
+- `rollup.config.js`는 `src/index.ts`에서 두 런타임 번들을 만들고 TypeScript 선언을 `dist/`에 출력한다. 생성 선언의 상대 경로에 `.js`를 넣고, CommonJS 선언 복사본의 내부 경로를 `.cjs`로 변환한다. 공개 진입점의 재수출과 실제 선언 경로를 점검한다.
+- peer dependency와 그 하위 경로를 Rollup 외부 의존성으로 둔다. 런타임에 필요한 `drizzle-orm`과 `mysql2`는 소비자 프로젝트가 설치해야 한다.
+- `package.json`의 `files`는 `dist`, `README.md`를 지정한다. `.npmignore`도 빌드·개발 파일을 제외하므로 배포 변경 시 `npm pack --dry-run`의 실제 파일 목록을 확인한다.
+- `dist/`는 생성물이며 Gitignore 설정과 무관하게 직접 수정하지 않는다. `npm run build`와 Rollup은 `dist/*`를 지우고 다시 생성할 수 있으므로, 기존 파일이나 작업 트리를 확인한 뒤 실행한다.
+- 예제는 별도 `examples/package.json`을 가지며 루트 패키지 의존성이나 npm workspace가 없다. 현재 예제 실행은 `tsx` 기반이며, 배포된 패키지의 설치 소비 검증을 대신하지 않는다.
 
-## 명령 안내
+## 개발 명령과 주의점
 
-루트 기준이다. 설치된 의존성이 있어야 개발 명령을 실행할 수 있다.
+루트에서 실행한다. `.nvmrc` 버전에 맞춘 Node와 설치된 의존성을 사용한다.
 
-| 목적 | 명령 | 주의점 |
+| 목적 | 명령 | 참고 |
 | --- | --- | --- |
-| 의존성 설치 | `npm install` | 잠금 파일은 현재 Git 제외 대상 |
-| 타입 검사 | `npm run tsc` | `tsc --noEmit`, `src/` 대상 |
-| 소스 정적 검사 | `npm run lint` | 테스트·예제는 검사 범위 밖 |
-| 테스트 | `npm test -- --runInBand --watchman=false` | Watchman 없이 단일 프로세스로 실행 |
-| 표준 빌드 | `npm run build` | Watchman 재등록과 기본 Jest 실행 포함 |
-| 번들만 확인 | `./node_modules/.bin/rollup -c --bundleConfigAsCjs` | 테스트를 별도로 실행해야 함. `dist/*` 정리 후 생성 |
-| 예제 실행 | `npm run dev` | `examples/` 의존성 별도 설치 필요. 현재 단발 실행이며 감시 모드 아님 |
-| 배포 파일 확인 | `npm pack --dry-run` | 게시하지 않고 포함 목록 확인 |
+| 타입 검사 | `npm run tsc` | `tsc --noEmit`; `src/` 대상 |
+| 소스 lint | `npm run lint` | `src/**/*.ts` 대상 |
+| 기본 테스트 | `npm test -- --runInBand --watchman=false` | Jest; MySQL 통합 테스트는 기본 비활성 |
+| 통합 테스트 | `MYSQL_INTEGRATION=1 node --env-file=.env ./node_modules/jest/bin/jest.js --runInBand --watchman=false test/mysql.test.ts` | 테스트 DB에서만 실행. 테이블 생성·삭제 및 데이터 읽기·쓰기 권한 필요 |
+| 전체 빌드 | `npm run build` | Watchman 재등록 → Jest → Rollup. Watchman 환경에 따라 실패 가능 |
+| Rollup만 실행 | `./node_modules/.bin/rollup -c --bundleConfigAsCjs` | 테스트는 별도 실행. `dist/*`를 재생성 |
+| 게시 파일 미리보기 | `npm pack --dry-run` | 패키지를 게시하지 않고 포함 파일 표시 |
+| 예제 실행 | `npm run dev` | `examples/`의 별도 `tsx` 의존성 설치 필요 |
 
-`npm run pub`는 설치·빌드·공개 npm 게시를 수행한다. 마지막의 `|| true` 때문에 종료 코드만으로 게시 성공을 판단하면 안 된다. `git:commit`은 `git add .`를 실행하고, `reset:gitignore`는 전체 인덱스를 재구성하며, `reinstall:module`은 의존성과 잠금 파일을 삭제한다. 일반 검증 명령으로 사용하지 않는다.
-
-## 배포·설정 변경 시 확인할 사항
-
-1. **모듈 형식:** 패키지에 `"type": "module"`이 있는데 CommonJS 출력 경로가 `.js`이다. Node에서 해당 파일은 ESM으로 해석되므로 `require` 진입점 호환성을 보장할 수 없다. 기능 구현과 별개인 기존 설정 문제로 기록하며, 모듈 설정을 변경하거나 게시할 때 실제 패키지를 소비하는 `import` / `require` 검증을 수행한다.
-2. **실행 환경:** Rollup의 `context: 'window'`는 브라우저 API 지원을 보장하지 않는다. 현재 테스트는 Node 환경이고 TypeScript `lib`는 ES2017이다. 브라우저 전용 기능을 추가하려면 지원 환경부터 정한다.
-3. **배포 범위:** `files`는 `dist`, `README.md`를 지정한다. 진입점 파일 존재와 선언 파일 누락 여부는 `npm pack --dry-run`으로 확인한다. 에이전트 문서와 작업 기록을 배포물에 포함할 이유는 없다.
-4. **예제 연결:** 예제에는 루트 패키지 의존성이 선언돼 있지 않다. 소스 직접 호출과 설치 패키지 소비 검증을 구분한다. 공개 진입점 검증이 목적이면 빌드된 패키지를 실제로 설치한 소비 환경이 필요하다.
-5. **생성 파일:** `dist/`는 현재 Git 제외 대상이다. `.gitignore`의 주석은 최종 프로젝트에서 이를 바꿀 수 있음을 안내할 뿐, 이 저장소에서 추적하도록 설정한 것은 아니다.
-
-## 분석 시 실행한 검증
-
-Node `v24.22.1`, npm `11.19.1`, 기존 설치 의존성으로 다음 결과를 확인했다.
-
-| 항목 | 결과 |
-| --- | --- |
-| `npm run tsc` | 통과 |
-| `npm run lint` | 통과 |
-| `npm test -- --runInBand --watchman=false` | 1개 테스트 통과 |
-| `./node_modules/.bin/rollup -c --bundleConfigAsCjs` | 성공. 빈 진입점으로 인한 empty chunk 경고 발생 |
-
-`npm run build` 전체, 깨끗한 의존성 재설치, npm 게시, 설치 소비자의 `import` / `require` 호환성은 검증하지 않았다. 위 기록은 분석 당시 결과이며 다음 작업의 검증을 대체하지 않는다.
+`npm run pub`는 의존성 설치, 전체 빌드, `npm publish --access=public`을 실행하는 실제 공개 게시 명령이다. 요청이 없는 한 실행하지 않는다. `npm run git:commit`은 `.git-commit.cjs`를 통해 전체 변경을 스테이징할 수 있으므로 임의로 사용하지 않는다. `reinstall:module`은 `node_modules`와 잠금 파일을 삭제하고 재설치하므로 일반 검증 명령이 아니다.
