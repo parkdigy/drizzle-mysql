@@ -69,6 +69,15 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
   }
 
   async addTest() {
+    await this.add({
+      name: 'name',
+      email: 'email',
+      password: 'password',
+      tel: 'tel',
+    });
+  }
+
+  async addInsertValuesTest() {
     const insertValues = this.insertValues({
       name: 'name',
       email: 'email',
@@ -80,13 +89,14 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
   }
 
   async editTest() {
-    const editValues = this.updateValues({
-      is_lock: true,
-    });
-    await this.edit(editValues, this.eq({ id: 1 }));
+    await this.edit({ is_lock: true }, this.eq({ id: 1 }));
   }
 
   async editByPrimaryKeyTest() {
+    await this.editByPrimaryKey({ is_lock: true }, 1);
+  }
+
+  async editUpdateValuesTest() {
     const editValues = this.updateValues({
       is_lock: true,
     });
@@ -99,5 +109,9 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
 
   async removeByPrimaryKeyTest() {
     await this.removeByPrimaryKey(1);
+  }
+
+  async paginateTest() {
+    await mysql.paginate(this.select(), 1, 10);
   }
 }

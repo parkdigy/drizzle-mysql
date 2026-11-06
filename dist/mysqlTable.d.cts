@@ -1,4 +1,4 @@
-import { type ColumnBuilderBase } from 'drizzle-orm/column-builder';
+import type { ColumnBuilderBase, ColumnBuilderBaseConfig, ColumnBuilderExtraConfig, ColumnType } from 'drizzle-orm/column-builder';
 import { type MySqlTable, type MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
 import type { BuildColumns } from 'drizzle-orm/column-builder';
 import type { MySqlColumnBuilders } from 'drizzle-orm/mysql-core/columns/all';
@@ -18,8 +18,8 @@ declare const tableMutationPolicyType: unique symbol;
 type Mark<T, P extends ColumnPolicy> = T & {
     readonly [policyType]: P;
 };
-declare module 'drizzle-orm/column-builder' {
-    interface ColumnBuilder<T, TRuntimeConfig, TExtraConfig> {
+declare module 'drizzle-orm/mysql-core/columns/common' {
+    interface MySqlColumnBuilder<T extends ColumnBuilderBaseConfig<ColumnType>, TRuntimeConfig extends object, TExtraConfig extends ColumnBuilderExtraConfig> {
         insertBlocked(): Mark<this, {
             insert: 'blocked';
         }>;
