@@ -320,7 +320,7 @@ await db.trans(async () => {
 
 ### 생성·수정 시각
 
-컬럼 정책은 이 패키지에서 가져온 `mysqlTable`에 선언합니다. 자동 증가 컬럼은 기본적으로 등록과 수정이 금지되며, 각각 `insertAllowed()`와 `updateAllowed()`로 허용할 수 있습니다. 다른 컬럼은 `insertBlocked()`와 `updateBlocked()`로 금지하거나 `updateRequired()`로 수정 시 필수로 지정합니다. 금지된 값을 전달하거나 필수 수정 값을 누락하면 런타임에도 오류가 발생합니다.
+컬럼 정책은 이 패키지에서 가져온 `mysqlTable`에 선언합니다. 자동 증가 컬럼은 기본적으로 등록과 수정이 금지되며, 각각 `insertAllowed()`와 `updateAllowed()`로 허용할 수 있습니다. `primaryKey()`로 지정한 컬럼도 기본적으로 수정이 금지되며, `updateAllowed()`를 명시해야 수정할 수 있습니다. 다른 컬럼은 `insertBlocked()`와 `updateBlocked()`로 금지하거나 `updateRequired()`로 수정 시 필수로 지정합니다. 금지된 값을 전달하거나 필수 수정 값을 누락하면 런타임에도 오류가 발생합니다.
 
 ```ts
 import { drizzleMySql, mysqlTable, int, varchar, datetime } from '@pdg/drizzle-mysql';

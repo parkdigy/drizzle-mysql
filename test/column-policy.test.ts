@@ -59,3 +59,41 @@ test('컬럼 정책과 시각을 등록 및 수정에 적용한다', async () =>
   expect(() => query.edit({} as never, sql`1 = 1`)).toThrow('required');
   expect(() => query.add({ name: 'x', id: 1 } as never)).toThrow('id');
 });
+
+const primaryKeyTable = mysqlTable('primary_key_policy', {
+  id: varchar({ length: 50 }).primaryKey(),
+  allowedBefore: varchar({ length: 50 }).updateAllowed().primaryKey(),
+  allowedAfter: varchar({ length: 50 }).primaryKey().updateAllowed(),
+  requiredKey: varchar({ length: 50 }).primaryKey().updateRequired(),
+  value: int(),
+});
+
+if (false) {
+  const allowed: MySqlUpdateValues<typeof primaryKeyTable> = { allowedBefore: 'a', allowedAfter: 'b' };
+  // @ts-expect-error 자동 증가가 아닌 기본 키도 수정이 금지된다.
+  const blocked: MySqlUpdateValues<typeof primaryKeyTable> = { id: 'a' };
+  // @ts-expect-error updateRequired는 기본 키 수정 허용을 의미하지 않는다.
+  const requiredBlocked: MySqlUpdateValues<typeof primaryKeyTable> = { requiredKey: 'a' };
+  void [allowed, blocked, requiredBlocked];
+}
+
+test('기본 키는 updateAllowed를 명시한 경우에만 수정한다', async () => {
+  const updated: unknown[] = [];
+  const fake = {
+    update: () => ({
+      set: (value: unknown) => {
+        updated.push(value);
+        return { where: () => Promise.resolve() };
+      },
+    }),
+  } as unknown as MySql2Database;
+  const query = new MySqlQuery(
+    primaryKeyTable,
+    () => fake,
+    () => 'now'
+  );
+  await query.edit({ allowedBefore: 'a', allowedAfter: 'b', value: 1 }, sql`1 = 1`);
+  expect(updated).toEqual([{ allowedBefore: 'a', allowedAfter: 'b', value: 1 }]);
+  expect(() => query.edit({ id: 'a' } as never, sql`1 = 1`)).toThrow('id');
+  expect(() => query.edit({ requiredKey: 'a' } as never, sql`1 = 1`)).toThrow('requiredKey');
+});

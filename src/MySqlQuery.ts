@@ -446,9 +446,14 @@ export class MySqlQuery<
       const policy = policies[key] ?? {};
       const auto = 'autoIncrement' in column && column.autoIncrement === true;
       const rule = operation === 'insert' ? policy.insert : policy.update;
-      const blocked = !!policy.timestamp || rule === 'blocked' || (auto && rule !== 'allowed' && rule !== 'required');
+      const primary = column.primary;
+      const blocked =
+        !!policy.timestamp ||
+        rule === 'blocked' ||
+        (operation === 'update' && primary && rule !== 'allowed') ||
+        (auto && rule !== 'allowed' && rule !== 'required');
       if (blocked && Object.hasOwn(values, key)) throw new Error(`${operation}: column "${key}" is blocked.`);
-      if (operation === 'update' && rule === 'required' && values[key] === undefined) {
+      if (operation === 'update' && !blocked && rule === 'required' && values[key] === undefined) {
         throw new Error(`update: column "${key}" is required.`);
       }
       if (policy.timestamp && (operation === 'insert' || policy.timestamp === 'updated')) {

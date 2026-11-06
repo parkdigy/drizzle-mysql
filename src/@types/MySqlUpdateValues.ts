@@ -2,22 +2,27 @@ import type { MySqlTable } from 'drizzle-orm/mysql-core/table';
 import type { MySqlUpdateSetSource } from 'drizzle-orm/mysql-core/query-builders/update';
 import type { TablePolicies } from '../mysqlTable';
 
+type DefaultBlocked<T extends MySqlTable, K> = K extends keyof T['_']['columns']
+  ? T['_']['columns'][K]['_']['isPrimaryKey'] extends true
+    ? K
+    : T['_']['columns'][K]['_']['isAutoincrement'] extends true
+      ? K
+      : never
+  : never;
 type Blocked<T extends MySqlTable> = {
   [K in keyof MySqlUpdateSetSource<T>]-?: K extends keyof TablePolicies<T>
     ? TablePolicies<T>[K] extends { timestamp: string } | { update: 'blocked' }
       ? K
-      : TablePolicies<T>[K] extends { update: 'allowed' | 'required' }
+      : TablePolicies<T>[K] extends { update: 'allowed' }
         ? never
         : K extends keyof T['_']['columns']
-          ? T['_']['columns'][K]['_']['isAutoincrement'] extends true
+          ? T['_']['columns'][K]['_']['isPrimaryKey'] extends true
             ? K
-            : never
+            : TablePolicies<T>[K] extends { update: 'required' }
+              ? never
+              : DefaultBlocked<T, K>
           : never
-    : K extends keyof T['_']['columns']
-      ? T['_']['columns'][K]['_']['isAutoincrement'] extends true
-        ? K
-        : never
-      : never;
+    : DefaultBlocked<T, K>;
 }[keyof MySqlUpdateSetSource<T>] &
   keyof MySqlUpdateSetSource<T>;
 type RequiredKeys<T extends MySqlTable> = {
