@@ -16,7 +16,7 @@ import type {
   MySqlAliasTable,
 } from './columns';
 import { TableColumns } from './columns';
-import { getColumnPolicies } from './mysqlTable';
+import { getColumnPolicies, getTablePolicy, type TableMutationPolicy } from './mysqlTable';
 import type {
   MySqlInsertValues,
   MySqlUpdateValues,
@@ -462,11 +462,7 @@ export class MySqlQuery<
       ) {
         throw new Error(`update: column "${key}" is required.`);
       }
-      if (
-        policy.timestamp &&
-        values[key] === undefined &&
-        (operation === 'insert' || policy.timestamp === 'updated')
-      ) {
+      if (policy.timestamp && values[key] === undefined && (operation === 'insert' || policy.timestamp === 'updated')) {
         if (!generated) {
           const getTimestamp = this.getTimestamp ?? this.current.getTimestamp;
           if (!getTimestamp) throw new Error('timestamp generator is not configured');
@@ -544,7 +540,12 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * edit
    * ******************************************************************************************************************/
-  edit(set: UV, where: BaseWhere<this>) {
+  edit(
+    this: this & (TableMutationPolicy<TTable> extends { updateBlocked: true } ? never : unknown),
+    set: UV,
+    where: BaseWhere<this>
+  ) {
+    this.assertMutationAllowed('update', 'edit');
     const condition = typeof where === 'function' ? where(this) : where;
 
     if (!is(condition, SQL)) {
@@ -562,14 +563,23 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * editByPrimaryKey
    * ******************************************************************************************************************/
-  editByPrimaryKey(set: UV, key: PrimaryKeyInput<TTable>) {
+  editByPrimaryKey(
+    this: this & (TableMutationPolicy<TTable> extends { updateBlocked: true } ? never : unknown),
+    set: UV,
+    key: PrimaryKeyInput<TTable>
+  ) {
+    this.assertMutationAllowed('update', 'editByPrimaryKey');
     return this.edit(set, this.primaryKeyCondition(key, 'editByPrimaryKey'));
   }
 
   /********************************************************************************************************************
    * remove
    * ******************************************************************************************************************/
-  remove(where: BaseWhere<this>) {
+  remove(
+    this: this & (TableMutationPolicy<TTable> extends { deleteBlocked: true } ? never : unknown),
+    where: BaseWhere<this>
+  ) {
+    this.assertMutationAllowed('delete', 'remove');
     const condition = typeof where === 'function' ? where(this) : where;
 
     if (!is(condition, SQL)) {
@@ -584,8 +594,19 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * removeByPrimaryKey
    * ******************************************************************************************************************/
-  removeByPrimaryKey(key: PrimaryKeyInput<TTable>) {
+  removeByPrimaryKey(
+    this: this & (TableMutationPolicy<TTable> extends { deleteBlocked: true } ? never : unknown),
+    key: PrimaryKeyInput<TTable>
+  ) {
+    this.assertMutationAllowed('delete', 'removeByPrimaryKey');
     return this.remove(this.primaryKeyCondition(key, 'removeByPrimaryKey'));
+  }
+
+  private assertMutationAllowed(operation: 'update' | 'delete', method: string): void {
+    const policy = getTablePolicy(this.t);
+    if (operation === 'update' ? policy.updateBlocked : policy.deleteBlocked) {
+      throw new Error(`${method}: ${operation} is blocked for table "${getTableConfig(this.t).name}".`);
+    }
   }
 
   /********************************************************************************************************************

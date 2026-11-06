@@ -83,7 +83,21 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     const editValues = this.updateValues({
       is_lock: true,
     });
+    await this.edit(editValues, this.eq({ id: 1 }));
+  }
 
+  async editByPrimaryKeyTest() {
+    const editValues = this.updateValues({
+      is_lock: true,
+    });
     await this.editByPrimaryKey(editValues, 1);
+  }
+
+  async removeTest() {
+    await this.remove(this.eq({ id: 1 }));
+  }
+
+  async removeByPrimaryKeyTest() {
+    await this.removeByPrimaryKey(1);
   }
 }

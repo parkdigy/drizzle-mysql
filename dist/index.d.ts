@@ -2,7 +2,7 @@ import { drizzleMySql } from './drizzleMySql.js';
 export default drizzleMySql;
 export * from './@types/index.js';
 export * from './columns.js';
-export { mysqlTable } from './mysqlTable.js';
+export { mysqlTable, type TablePolicy } from './mysqlTable.js';
 export * from './conditions.js';
 export * from './drizzleMySql.js';
 export * from './MySqlQuery.js';

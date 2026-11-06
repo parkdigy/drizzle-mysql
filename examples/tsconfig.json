@@ -1,16 +1,16 @@
 {
   "compilerOptions": {
-    "target": "Es2017",
+    "target": "ES2022",
     "module": "ESNext",
-    "lib": ["DOM", "ES2017"],
-    "moduleResolution": "node",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "preserveSymlinks": true,
-    "baseUrl": "./"
+    "preserveSymlinks": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/**/*.test.tsx"]

@@ -4,7 +4,7 @@ export default drizzleMySql;
 
 export * from './@types/index';
 export * from './columns';
-export { mysqlTable } from './mysqlTable';
+export { mysqlTable, type TablePolicy } from './mysqlTable';
 export * from './conditions';
 export * from './drizzleMySql';
 export * from './MySqlQuery';

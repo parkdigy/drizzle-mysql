@@ -211,15 +211,28 @@ for (const [method, policy] of Object.entries({
     });
 }
 const tablePolicies = new WeakMap();
+const tableMutationPolicies = new WeakMap();
 function getColumnPolicies(table) {
     return tablePolicies.get(table) ?? {};
 }
-function mysqlTable(name, columns, extraConfig) {
+function getTablePolicy(table) {
+    return tableMutationPolicies.get(table) ?? {};
+}
+function mysqlTable(name, columns, extraConfigOrPolicy, policy) {
+    const extraConfig = typeof extraConfigOrPolicy === 'function' ? extraConfigOrPolicy : undefined;
+    const mutationPolicy = typeof extraConfigOrPolicy === 'object' ? extraConfigOrPolicy : policy;
+    const nativeExtraConfig = extraConfig
+        ? (self) => {
+            const config = extraConfig(self);
+            return Array.isArray(config) ? config : Object.values(config);
+        }
+        : undefined;
     let builders = {};
     const table = typeof columns === 'function'
-        ? mysqlTable$1(name, (types) => (builders = columns(types)), extraConfig)
-        : mysqlTable$1(name, (builders = columns), extraConfig);
+        ? mysqlTable$1(name, (types) => (builders = columns(types)), nativeExtraConfig)
+        : mysqlTable$1(name, (builders = columns), nativeExtraConfig);
     tablePolicies.set(table, Object.fromEntries(Object.entries(builders).map(([key, builder]) => [key, policies.get(builder) ?? {}])));
+    tableMutationPolicies.set(table, { ...mutationPolicy });
     return table;
 }/********************************************************************************************************************
  * MySqlQuery
@@ -419,9 +432,7 @@ class MySqlQuery {
                 values[key] === undefined) {
                 throw new Error(`update: column "${key}" is required.`);
             }
-            if (policy.timestamp &&
-                values[key] === undefined &&
-                (operation === 'insert' || policy.timestamp === 'updated')) {
+            if (policy.timestamp && values[key] === undefined && (operation === 'insert' || policy.timestamp === 'updated')) {
                 if (!generated) {
                     const getTimestamp = this.getTimestamp ?? this.current.getTimestamp;
                     if (!getTimestamp)
@@ -482,6 +493,7 @@ class MySqlQuery {
      * edit
      * ******************************************************************************************************************/
     edit(set, where) {
+        this.assertMutationAllowed('update', 'edit');
         const condition = typeof where === 'function' ? where(this) : where;
         if (!is(condition, SQL)) {
             throw new Error('edit: a SQL where condition is required.');
@@ -496,12 +508,14 @@ class MySqlQuery {
      * editByPrimaryKey
      * ******************************************************************************************************************/
     editByPrimaryKey(set, key) {
+        this.assertMutationAllowed('update', 'editByPrimaryKey');
         return this.edit(set, this.primaryKeyCondition(key, 'editByPrimaryKey'));
     }
     /********************************************************************************************************************
      * remove
      * ******************************************************************************************************************/
     remove(where) {
+        this.assertMutationAllowed('delete', 'remove');
         const condition = typeof where === 'function' ? where(this) : where;
         if (!is(condition, SQL)) {
             throw new Error('remove: a SQL where condition is required.');
@@ -513,7 +527,14 @@ class MySqlQuery {
      * removeByPrimaryKey
      * ******************************************************************************************************************/
     removeByPrimaryKey(key) {
+        this.assertMutationAllowed('delete', 'removeByPrimaryKey');
         return this.remove(this.primaryKeyCondition(key, 'removeByPrimaryKey'));
+    }
+    assertMutationAllowed(operation, method) {
+        const policy = getTablePolicy(this.t);
+        if (operation === 'update' ? policy.updateBlocked : policy.deleteBlocked) {
+            throw new Error(`${method}: ${operation} is blocked for table "${getTableConfig(this.t).name}".`);
+        }
     }
     /********************************************************************************************************************
      * eq

@@ -333,6 +333,35 @@ await db.trans(async () => {
 
 `db.current()`는 현재 문맥의 Drizzle 데이터베이스 인스턴스를 반환합니다. 래퍼가 제공하지 않는 Drizzle 기능은 이 API로 직접 사용할 수 있습니다.
 
+### 테이블 수정·삭제 금지
+
+이 패키지의 `mysqlTable`에 `{ updateBlocked: true, deleteBlocked: true }`를 전달하면 등록과 조회는 유지하면서 테이블 전체의 수정·삭제를 금지합니다. 정책은 세 번째 인자에 전달하거나, 인덱스·제약조건 설정 콜백을 사용하는 경우 네 번째 인자에 전달합니다. 각 옵션을 생략하거나 `false`로 지정하면 해당 작업은 기존처럼 허용됩니다. 별도로 선언하는 정책 객체에는 `as const` 또는 `satisfies TablePolicy`를 사용해 `true` 리터럴 타입을 유지하면 타입 검사에서도 차단됩니다.
+
+```ts
+import { mysqlTable, int, varchar, index } from '@pdg/drizzle-mysql';
+
+const logs = mysqlTable(
+  'logs',
+  {
+    id: int().autoincrement().primaryKey(),
+    message: varchar({ length: 100 }).notNull(),
+  },
+  { updateBlocked: true, deleteBlocked: true },
+);
+
+const indexedLogs = mysqlTable(
+  'indexed_logs',
+  {
+    id: int().autoincrement().primaryKey(),
+    message: varchar({ length: 100 }).notNull(),
+  },
+  (t) => [index('indexed_logs_message_idx').on(t.message)],
+  { updateBlocked: true, deleteBlocked: true },
+);
+```
+
+`updateBlocked`는 `MySqlQuery.edit`와 `editByPrimaryKey`, `deleteBlocked`는 `remove`와 `removeByPrimaryKey` 호출을 TypeScript에서 차단합니다. 타입 정보가 사라지거나 JavaScript에서 호출하더라도 조건 콜백과 DB 접근 전에 명시적인 오류가 발생합니다. 테이블 수정 금지는 컬럼의 `updateAllowed()`보다 우선합니다. 정책은 `db.query(table)`과 직접 생성한 `MySqlQuery` 모두에 적용되지만, 원본 Drizzle 쿼리나 직접 실행한 SQL에는 적용되지 않습니다. DB 수준의 제한이 필요하면 별도로 `UPDATE`·`DELETE` 권한을 제한해야 합니다.
+
 ### 생성·수정 시각
 
 컬럼 정책은 이 패키지에서 가져온 `mysqlTable`에 선언합니다. 자동 증가 컬럼은 기본적으로 등록과 수정이 금지되며, 각각 `insertAllowed()`와 `updateAllowed()`로 허용할 수 있습니다. `primaryKey()`로 지정한 컬럼도 기본적으로 수정이 금지되며, `updateAllowed()`를 명시해야 수정할 수 있습니다. 다른 컬럼은 `insertBlocked()`와 `updateBlocked()`로 금지하거나 `updateRequired()`로 수정 시 필수로 지정합니다. 금지된 값을 전달하거나 필수 수정 값을 누락하면 런타임에도 오류가 발생합니다.

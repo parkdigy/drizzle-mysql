@@ -2,7 +2,7 @@ import { drizzleMySql } from './drizzleMySql.cjs';
 export default drizzleMySql;
 export * from './@types/index.cjs';
 export * from './columns.cjs';
-export { mysqlTable } from './mysqlTable.cjs';
+export { mysqlTable, type TablePolicy } from './mysqlTable.cjs';
 export * from './conditions.cjs';
 export * from './drizzleMySql.cjs';
 export * from './MySqlQuery.cjs';
