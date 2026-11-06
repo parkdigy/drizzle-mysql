@@ -42,7 +42,7 @@ const db = drizzleMySql({
 const user = db.query(users);
 ```
 
-`drizzleMySql` 옵션은 `url`, `schema`, 선택 사항인 `timestamp`, `timestampColumns`입니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
+`drizzleMySql` 옵션은 `url`, `schema`, 선택 사항인 `timestamp`입니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
 
 ### 데이터 추가·수정·삭제
 
@@ -320,23 +320,25 @@ await db.trans(async () => {
 
 ### 생성·수정 시각
 
-시각 자동 입력 메서드를 사용하려면 `timestamp` 생성 함수를 설정합니다. 기본 컬럼 이름은 `created_at`과 `updated_at`이며, `timestampColumns`의 `createdAt`과 `updatedAt`으로 변경할 수 있습니다.
+컬럼 정책은 이 패키지에서 가져온 `mysqlTable`에 선언합니다. 자동 증가 컬럼은 기본적으로 등록과 수정이 금지되며, 각각 `insertAllowed()`와 `updateAllowed()`로 허용할 수 있습니다. 다른 컬럼은 `insertBlocked()`와 `updateBlocked()`로 금지하거나 `updateRequired()`로 수정 시 필수로 지정합니다. 금지된 값을 전달하거나 필수 수정 값을 누락하면 런타임에도 오류가 발생합니다.
 
 ```ts
-const dbWithTimestamp = drizzleMySql({
-  url: process.env.DATABASE_URL!,
-  schema: { users },
-  timestamp: () => new Date(),
-  timestampColumns: { createdAt: 'created_at', updatedAt: 'updated_at' },
-});
-const timestampedUser = dbWithTimestamp.query(users);
+import { drizzleMySql, mysqlTable, int, varchar, datetime } from '@pdg/drizzle-mysql';
 
-await timestampedUser.addWithCreatedAt({ name: '생성 시각 입력' });
-await timestampedUser.addWithCreatedUpdatedAt({ name: '생성·수정 시각 입력' });
-await timestampedUser.editWithUpdatedAtByPrimaryKey({ name: '수정 시각 갱신' }, id);
+const users = mysqlTable('users', {
+  id: int().autoincrement().primaryKey(),
+  name: varchar({ length: 50 }).notNull(),
+  locked: int().default(0).notNull().updateBlocked(),
+  created_at: datetime({ mode: 'string' }).notNull().createdAt(),
+  updated_at: datetime({ mode: 'string' }).notNull().updatedAt(),
+});
+const db = drizzleMySql({ url: process.env.DATABASE_URL!, schema: { users }, timestamp: () => new Date().toISOString() });
+const usersQuery = db.query(users);
+const id = await usersQuery.add({ name: '사용자' });
+await usersQuery.editByPrimaryKey({ name: '수정' }, id);
 ```
 
-시각 관련 메서드는 `addWithCreatedAt`, `addWithCreatedUpdatedAt`, `editWithUpdatedAt`, `editWithUpdatedAtByPrimaryKey`입니다. 직접 시각 값을 지정하는 대신 설정한 생성 함수의 값을 사용합니다.
+`createdAt()`은 등록 시, `updatedAt()`은 등록과 수정 시 `timestamp` 생성 함수의 값을 자동으로 넣습니다. 지정된 시각 컬럼은 직접 입력할 수 없으며 생성 함수를 설정하지 않으면 해당 작업에서 오류가 발생합니다. 컬럼의 데이터 형식에 맞는 값을 반환해야 합니다. 정책은 `MySqlQuery`에만 적용되며 `db.current()`의 원본 Drizzle 쿼리에는 적용되지 않습니다. `mysqlTableCreator`, `mysqlSchema` 또는 Drizzle에서 직접 가져온 `mysqlTable`은 컬럼 정책을 수집하지 않으므로 정책이 필요한 테이블에는 이 패키지의 `mysqlTable`을 사용합니다.
 
 ### 집계·SQL 표현식
 

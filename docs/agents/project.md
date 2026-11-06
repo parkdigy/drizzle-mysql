@@ -32,9 +32,9 @@
 
 ## API와 동작 경계
 
-- `drizzleMySql({ url, schema, timestamp?, timestampColumns? })`는 연결 풀과 편의 API를 만든다. `db.query(table)`은 해당 테이블용 `MySqlQuery` 인스턴스를 반환한다. `db.current()`는 비동기 실행 문맥의 트랜잭션 또는 기본 Drizzle 연결을 반환한다.
+- `drizzleMySql({ url, schema, timestamp? })`는 연결 풀과 편의 API를 만든다. `db.query(table)`은 해당 테이블용 `MySqlQuery` 인스턴스를 반환한다. `db.current()`는 비동기 실행 문맥의 트랜잭션 또는 기본 Drizzle 연결을 반환한다.
 - `db.trans(callback)`은 현재 연결의 트랜잭션을 실행하고 중첩 호출은 savepoint를 사용한다. 콜백의 비동기 작업은 완료 전에 모두 기다려야 한다. 연결 종료에는 `db.close()`를 사용한다.
-- `MySqlQuery`는 조회 빌더와 `find`, 기본 키 조회, 존재 여부·개수, CRUD, 생성·수정 시각 헬퍼, 테이블별 조건 메서드를 제공한다. 일반 `edit` / `remove`에는 SQL 조건이 필요하다.
+- `MySqlQuery`는 조회 빌더와 `find`, 기본 키 조회, 존재 여부·개수, CRUD, 컬럼 정책에 따른 생성·수정 시각 자동 입력, 테이블별 조건 메서드를 제공한다. 일반 `edit` / `remove`에는 SQL 조건이 필요하다.
 - `db`와 쿼리 객체의 조건 API는 비교, 배열·범위, 패턴, NULL, 그룹 조건을 제공한다. `query.and/or({ ... })`는 객체 그룹 결합이며 같은 객체 안에 and/or 그룹을 재귀 중첩하지 않는다. 함수 오버로드는 Drizzle SQL 조건에도 사용할 수 있다.
 - 조건 구현은 `ilike` / `notIlike`도 노출하지만 이들은 `ILIKE` SQL을 생성한다. MySQL은 `ILIKE` 문법을 지원하지 않으므로 MySQL 실행 쿼리에는 사용하지 않는다. `LIKE`의 대소문자 처리는 컬럼 collation에 따른다.
 - `db.paginate(builder, page, limit)`는 데이터와 페이지 정보를 반환하고 양의 정수 page/limit를 요구한다. 전달할 query builder는 해당 트랜잭션 문맥 안에서 생성해야 한다.

@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto';
-import { int, mysqlTable, varchar } from 'drizzle-orm/mysql-core';
+import { int, mysqlTable, varchar } from '../src';
 import { sql } from 'drizzle-orm';
 import { drizzleMySql } from '../src';
 
 const table = mysqlTable(`codex_test_${randomBytes(8).toString('hex')}`, {
   user_id: int('user_id').autoincrement().primaryKey(),
   name: varchar('name', { length: 50 }).notNull(),
-  created_at: varchar('created_at', { length: 50 }),
-  updated_at: varchar('updated_at', { length: 50 }),
+  created_at: varchar('created_at', { length: 50 }).createdAt(),
+  updated_at: varchar('updated_at', { length: 50 }).updatedAt(),
 });
 const runIntegration = process.env.MYSQL_INTEGRATION === '1' && process.env.DATABASE_URL ? describe : describe.skip;
 
@@ -16,12 +16,11 @@ runIntegration('MySQL 통합 테스트', () => {
     url: process.env.DATABASE_URL!,
     schema: { table },
     timestamp: () => 'now',
-    timestampColumns: { createdAt: 'created_at', updatedAt: 'updated_at' },
   });
   const query = db.query(table);
   if (false) {
     // @ts-expect-error 자동 생성 컬럼을 직접 설정할 수 없다.
-    query.addWithCreateUpdateDate({ name: 'invalid', created_at: 'manual' });
+    query.add({ name: 'invalid', created_at: 'manual' });
     // @ts-expect-error 존재하지 않는 컬럼이다.
     query.eq({ missing: 1 });
   }
@@ -52,10 +51,10 @@ runIntegration('MySQL 통합 테스트', () => {
     expect(await query.existsByPrimaryKey(id)).toBe(false);
   });
   test('설정한 컬럼에 생성 및 수정 시각을 입력한다', async () => {
-    const id = await query.addWithCreatedUpdatedAt({ name: 'dated' });
+    const id = await query.add({ name: 'dated' });
     const row = await query.findByPrimaryKey(id);
     expect(row).toMatchObject({ created_at: 'now', updated_at: 'now' });
-    await query.editWithUpdatedAtByPrimaryKey({ name: 'dated-2' }, id);
+    await query.editByPrimaryKey({ name: 'dated-2' }, id);
     expect((await query.findByPrimaryKey(id))?.updated_at).toBe('now');
   });
   test('중첩 트랜잭션 롤백과 원본 Drizzle 접근', async () => {

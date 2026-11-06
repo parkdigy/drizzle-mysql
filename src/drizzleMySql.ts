@@ -9,15 +9,10 @@ import { createConditions } from './conditions';
 import { TableColumns } from './columns';
 import { MySqlQuery } from './MySqlQuery';
 
-export function drizzleMySql<
-  TSchema extends Record<string, MySqlTable>,
-  TCreatedAt extends string = 'created_at',
-  TUpdatedAt extends string = 'updated_at',
->(options: {
+export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(options: {
   url: string;
   schema: TSchema;
   timestamp?: () => unknown;
-  timestampColumns?: { createdAt?: TCreatedAt; updatedAt?: TUpdatedAt };
 }) {
   const pool = mysql.createPool({ uri: options.url });
   const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
@@ -85,15 +80,10 @@ export function drizzleMySql<
       (is(value, SQL) ? value : sql`${value}`).mapWith((v) => v === true || v === 1),
     current,
     query: <TTable extends TSchema[keyof TSchema]>(table: TTable) =>
-      new MySqlQuery(
-        table,
-        current,
-        () => {
-          if (!options.timestamp) throw new Error('timestamp generator is not configured');
-          return options.timestamp();
-        },
-        options.timestampColumns
-      ),
+      new MySqlQuery(table, current, () => {
+        if (!options.timestamp) throw new Error('timestamp generator is not configured');
+        return options.timestamp();
+      }),
     trans,
     paginate,
     close: () => pool.end(),

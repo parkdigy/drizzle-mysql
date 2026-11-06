@@ -4,14 +4,10 @@ import type { MySqlTable } from 'drizzle-orm/mysql-core';
 import * as native from 'drizzle-orm';
 import { TableColumns } from './columns.cjs';
 import { MySqlQuery } from './MySqlQuery.cjs';
-export declare function drizzleMySql<TSchema extends Record<string, MySqlTable>, TCreatedAt extends string = 'created_at', TUpdatedAt extends string = 'updated_at'>(options: {
+export declare function drizzleMySql<TSchema extends Record<string, MySqlTable>>(options: {
     url: string;
     schema: TSchema;
     timestamp?: () => unknown;
-    timestampColumns?: {
-        createdAt?: TCreatedAt;
-        updatedAt?: TUpdatedAt;
-    };
 }): {
     columns: typeof TableColumns;
     sql: typeof sql;
@@ -21,7 +17,7 @@ export declare function drizzleMySql<TSchema extends Record<string, MySqlTable>,
     current: () => (import("drizzle-orm/mysql2").MySql2Database<native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>> & {
         $client: mysql.Pool;
     }) | import("drizzle-orm/mysql-core").MySqlAsyncTransaction<import("drizzle-orm/mysql2").MySql2QueryResultHKT, native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>>;
-    query: <TTable extends TSchema[keyof TSchema]>(table: TTable) => MySqlQuery<TTable, ({ [Key in keyof TTable["_"]["columns"] & string as native.RequiredKeyOnly<Key, TTable["_"]["columns"][Key]>]: TTable["_"]["columns"][Key]["_"]["notNull"] extends true ? TTable["_"]["columns"][Key]["_"]["data"] : TTable["_"]["columns"][Key]["_"]["data"] | null; } & { [Key_1 in keyof TTable["_"]["columns"] & string as native.OptionalKeyOnly<Key_1, TTable["_"]["columns"][Key_1], false>]?: (TTable["_"]["columns"][Key_1]["_"]["notNull"] extends true ? TTable["_"]["columns"][Key_1]["_"]["data"] : TTable["_"]["columns"][Key_1]["_"]["data"] | null) | undefined; } extends infer T_1 ? { [K_1 in keyof T_1]: T_1[K_1]; } : never) extends infer T extends Record<string, any> ? { [K in keyof T as K]: SQL<unknown> | native.Placeholder<string, any> | T[K]; } : never, import("./@types.cjs").MySqlUpdateValues<TTable>, TCreatedAt, TUpdatedAt, ([{ [P in keyof TTable["_"]["columns"]]: TTable["_"]["columns"][P]["_"] extends {
+    query: <TTable extends TSchema[keyof TSchema]>(table: TTable) => MySqlQuery<TTable, import("./@types.cjs").MySqlInsertValues<TTable>, import("./@types.cjs").MySqlUpdateValues<TTable>, ([{ [P in keyof TTable["_"]["columns"]]: TTable["_"]["columns"][P]["_"] extends {
         isAutoincrement: true;
     } ? P : never; }[keyof TTable["_"]["columns"]]] extends [never] ? false : true) extends true ? number : undefined>;
     trans: <T>(callback: () => Promise<T>) => Promise<T>;

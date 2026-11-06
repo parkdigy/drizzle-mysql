@@ -1,4 +1,4 @@
-'use strict';Object.defineProperty(exports,'__esModule',{value:true});var mysql=require('mysql2/promise'),mysql2=require('drizzle-orm/mysql2'),native=require('drizzle-orm'),node_async_hooks=require('node:async_hooks'),alias=require('drizzle-orm/mysql-core/alias'),mysqlCore=require('drizzle-orm/mysql-core');function _interopNamespaceDefault(e){var n=Object.create(null);if(e){Object.keys(e).forEach(function(k){if(k!=='default'){var d=Object.getOwnPropertyDescriptor(e,k);Object.defineProperty(n,k,d.get?d:{enumerable:true,get:function(){return e[k]}});}})}n.default=e;return Object.freeze(n)}var native__namespace=/*#__PURE__*/_interopNamespaceDefault(native);function createAlias(schema) {
+'use strict';Object.defineProperty(exports,'__esModule',{value:true});var mysql=require('mysql2/promise'),mysql2=require('drizzle-orm/mysql2'),native=require('drizzle-orm'),node_async_hooks=require('node:async_hooks'),alias=require('drizzle-orm/mysql-core/alias'),mysqlCore=require('drizzle-orm/mysql-core'),columnBuilder=require('drizzle-orm/column-builder');function _interopNamespaceDefault(e){var n=Object.create(null);if(e){Object.keys(e).forEach(function(k){if(k!=='default'){var d=Object.getOwnPropertyDescriptor(e,k);Object.defineProperty(n,k,d.get?d:{enumerable:true,get:function(){return e[k]}});}})}n.default=e;return Object.freeze(n)}var native__namespace=/*#__PURE__*/_interopNamespaceDefault(native);function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
      * ******************************************************************************************************************/
@@ -192,22 +192,49 @@
             throw new Error('columns: expected a column object.');
         return [column.name, column];
     }));
+}const policies = new WeakMap();
+for (const [method, policy] of Object.entries({
+    insertBlocked: { insert: 'blocked' },
+    insertAllowed: { insert: 'allowed' },
+    updateBlocked: { update: 'blocked' },
+    updateAllowed: { update: 'allowed' },
+    updateRequired: { update: 'required' },
+    createdAt: { timestamp: 'created' },
+    updatedAt: { timestamp: 'updated' },
+})) {
+    Object.defineProperty(columnBuilder.ColumnBuilder.prototype, method, {
+        configurable: true,
+        value: function () {
+            policies.set(this, { ...policies.get(this), ...policy });
+            return this;
+        },
+    });
+}
+const tablePolicies = new WeakMap();
+function getColumnPolicies(table) {
+    return tablePolicies.get(table) ?? {};
+}
+function mysqlTable(name, columns, extraConfig) {
+    let builders = {};
+    const table = typeof columns === 'function'
+        ? mysqlCore.mysqlTable(name, (types) => (builders = columns(types)), extraConfig)
+        : mysqlCore.mysqlTable(name, (builders = columns), extraConfig);
+    tablePolicies.set(table, Object.fromEntries(Object.entries(builders).map(([key, builder]) => [key, policies.get(builder) ?? {}])));
+    return table;
 }/********************************************************************************************************************
  * MySqlQuery
  * ******************************************************************************************************************/
 class MySqlQuery {
     current;
     getTimestamp;
-    timestampColumns;
     // Table
     t;
     /********************************************************************************************************************
      * constructor
      * ******************************************************************************************************************/
-    constructor(table, current, getTimestamp, timestampColumns = {}) {
+    constructor(table, current, getTimestamp) {
         this.current = current;
         this.getTimestamp = getTimestamp;
-        this.timestampColumns = timestampColumns;
         this.t = table;
     }
     drizzle = { ...createConditions({}), sqlNumber: (value) => native.sql `${value}`.mapWith(Number) };
@@ -368,6 +395,32 @@ class MySqlQuery {
         const [{ cnt }] = await this.select({ cnt: native.count() }).where(condition);
         return cnt;
     }
+    prepareValues(input, operation) {
+        const values = { ...input };
+        const columns = native.getTableColumns(this.t);
+        const policies = getColumnPolicies(this.t);
+        let timestamp;
+        let generated = false;
+        for (const [key, column] of Object.entries(columns)) {
+            const policy = policies[key] ?? {};
+            const auto = 'autoIncrement' in column && column.autoIncrement === true;
+            const rule = operation === 'insert' ? policy.insert : policy.update;
+            const blocked = !!policy.timestamp || rule === 'blocked' || (auto && rule !== 'allowed' && rule !== 'required');
+            if (blocked && Object.hasOwn(values, key))
+                throw new Error(`${operation}: column "${key}" is blocked.`);
+            if (operation === 'update' && rule === 'required' && values[key] === undefined) {
+                throw new Error(`update: column "${key}" is required.`);
+            }
+            if (policy.timestamp && (operation === 'insert' || policy.timestamp === 'updated')) {
+                if (!generated) {
+                    timestamp = this.getTimestamp();
+                    generated = true;
+                }
+                values[key] = timestamp;
+            }
+        }
+        return values;
+    }
     /********************************************************************************************************************
      * (PRIVATE) insertValues
      * ******************************************************************************************************************/
@@ -399,26 +452,9 @@ class MySqlQuery {
         }
     }
     add(value) {
-        return this.insertValues(value);
-    }
-    addWithCreatedAt(value) {
-        const created_at = this.getTimestamp();
         const items = Array.isArray(value) ? value : [value];
-        const values = items.map((item) => ({
-            ...item,
-            [this.timestampColumns.createdAt ?? 'created_at']: created_at,
-        }));
-        return this.insertValues(Array.isArray(value) ? values : values[0]);
-    }
-    addWithCreatedUpdatedAt(value) {
-        const dateTime = this.getTimestamp();
-        const items = Array.isArray(value) ? value : [value];
-        const values = items.map((item) => ({
-            ...item,
-            [this.timestampColumns.createdAt ?? 'created_at']: dateTime,
-            [this.timestampColumns.updatedAt ?? 'updated_at']: dateTime,
-        }));
-        return this.insertValues(Array.isArray(value) ? values : values[0]);
+        const values = items.map((item) => this.prepareValues(item, 'insert'));
+        return this.insertValues((Array.isArray(value) ? values : values[0]));
     }
     /********************************************************************************************************************
      * edit
@@ -429,34 +465,16 @@ class MySqlQuery {
             throw new Error('edit: a SQL where condition is required.');
         }
         const tx = this.getTx();
-        return tx.update(this.t).set(set).where(condition);
+        return tx
+            .update(this.t)
+            .set(this.prepareValues(set, 'update'))
+            .where(condition);
     }
     /********************************************************************************************************************
      * editByPrimaryKey
      * ******************************************************************************************************************/
     editByPrimaryKey(set, key) {
         return this.edit(set, this.primaryKeyCondition(key, 'editByPrimaryKey'));
-    }
-    /********************************************************************************************************************
-     * editWithUpdatedAt
-     * ******************************************************************************************************************/
-    editWithUpdatedAt(set, where) {
-        const condition = typeof where === 'function' ? where(this) : where;
-        if (!native.is(condition, native.SQL)) {
-            throw new Error('editWithUpdatedAt: a SQL where condition is required.');
-        }
-        const tx = this.getTx();
-        const values = {
-            ...set,
-            [this.timestampColumns.updatedAt ?? 'updated_at']: this.getTimestamp(),
-        };
-        return tx.update(this.t).set(values).where(condition);
-    }
-    /********************************************************************************************************************
-     * editWithUpdatedAtByPrimaryKey
-     * ******************************************************************************************************************/
-    editWithUpdatedAtByPrimaryKey(set, key) {
-        return this.editWithUpdatedAt(set, this.primaryKeyCondition(key, 'editWithUpdatedAtByPrimaryKey'));
     }
     /********************************************************************************************************************
      * remove
@@ -658,9 +676,9 @@ const normalizeFields = (fields) => {
             if (!options.timestamp)
                 throw new Error('timestamp generator is not configured');
             return options.timestamp();
-        }, options.timestampColumns),
+        }),
         trans,
         paginate,
         close: () => pool.end(),
     };
-}Object.defineProperty(exports,"asc",{enumerable:true,get:function(){return native.asc}});Object.defineProperty(exports,"avg",{enumerable:true,get:function(){return native.avg}});Object.defineProperty(exports,"avgDistinct",{enumerable:true,get:function(){return native.avgDistinct}});Object.defineProperty(exports,"count",{enumerable:true,get:function(){return native.count}});Object.defineProperty(exports,"countDistinct",{enumerable:true,get:function(){return native.countDistinct}});Object.defineProperty(exports,"desc",{enumerable:true,get:function(){return native.desc}});Object.defineProperty(exports,"exists",{enumerable:true,get:function(){return native.exists}});Object.defineProperty(exports,"max",{enumerable:true,get:function(){return native.max}});Object.defineProperty(exports,"min",{enumerable:true,get:function(){return native.min}});Object.defineProperty(exports,"not",{enumerable:true,get:function(){return native.not}});Object.defineProperty(exports,"notExists",{enumerable:true,get:function(){return native.notExists}});Object.defineProperty(exports,"sum",{enumerable:true,get:function(){return native.sum}});Object.defineProperty(exports,"sumDistinct",{enumerable:true,get:function(){return native.sumDistinct}});Object.defineProperty(exports,"bigint",{enumerable:true,get:function(){return mysqlCore.bigint}});Object.defineProperty(exports,"binary",{enumerable:true,get:function(){return mysqlCore.binary}});Object.defineProperty(exports,"blob",{enumerable:true,get:function(){return mysqlCore.blob}});Object.defineProperty(exports,"boolean",{enumerable:true,get:function(){return mysqlCore.boolean}});Object.defineProperty(exports,"char",{enumerable:true,get:function(){return mysqlCore.char}});Object.defineProperty(exports,"check",{enumerable:true,get:function(){return mysqlCore.check}});Object.defineProperty(exports,"customType",{enumerable:true,get:function(){return mysqlCore.customType}});Object.defineProperty(exports,"date",{enumerable:true,get:function(){return mysqlCore.date}});Object.defineProperty(exports,"datetime",{enumerable:true,get:function(){return mysqlCore.datetime}});Object.defineProperty(exports,"decimal",{enumerable:true,get:function(){return mysqlCore.decimal}});Object.defineProperty(exports,"double",{enumerable:true,get:function(){return mysqlCore.double}});Object.defineProperty(exports,"float",{enumerable:true,get:function(){return mysqlCore.float}});Object.defineProperty(exports,"foreignKey",{enumerable:true,get:function(){return mysqlCore.foreignKey}});Object.defineProperty(exports,"index",{enumerable:true,get:function(){return mysqlCore.index}});Object.defineProperty(exports,"int",{enumerable:true,get:function(){return mysqlCore.int}});Object.defineProperty(exports,"json",{enumerable:true,get:function(){return mysqlCore.json}});Object.defineProperty(exports,"longblob",{enumerable:true,get:function(){return mysqlCore.longblob}});Object.defineProperty(exports,"longtext",{enumerable:true,get:function(){return mysqlCore.longtext}});Object.defineProperty(exports,"mediumblob",{enumerable:true,get:function(){return mysqlCore.mediumblob}});Object.defineProperty(exports,"mediumint",{enumerable:true,get:function(){return mysqlCore.mediumint}});Object.defineProperty(exports,"mediumtext",{enumerable:true,get:function(){return mysqlCore.mediumtext}});Object.defineProperty(exports,"mysqlDatabase",{enumerable:true,get:function(){return mysqlCore.mysqlDatabase}});Object.defineProperty(exports,"mysqlEnum",{enumerable:true,get:function(){return mysqlCore.mysqlEnum}});Object.defineProperty(exports,"mysqlSchema",{enumerable:true,get:function(){return mysqlCore.mysqlSchema}});Object.defineProperty(exports,"mysqlTable",{enumerable:true,get:function(){return mysqlCore.mysqlTable}});Object.defineProperty(exports,"mysqlTableCreator",{enumerable:true,get:function(){return mysqlCore.mysqlTableCreator}});Object.defineProperty(exports,"mysqlView",{enumerable:true,get:function(){return mysqlCore.mysqlView}});Object.defineProperty(exports,"primaryKey",{enumerable:true,get:function(){return mysqlCore.primaryKey}});Object.defineProperty(exports,"real",{enumerable:true,get:function(){return mysqlCore.real}});Object.defineProperty(exports,"serial",{enumerable:true,get:function(){return mysqlCore.serial}});Object.defineProperty(exports,"smallint",{enumerable:true,get:function(){return mysqlCore.smallint}});Object.defineProperty(exports,"text",{enumerable:true,get:function(){return mysqlCore.text}});Object.defineProperty(exports,"time",{enumerable:true,get:function(){return mysqlCore.time}});Object.defineProperty(exports,"timestamp",{enumerable:true,get:function(){return mysqlCore.timestamp}});Object.defineProperty(exports,"tinyblob",{enumerable:true,get:function(){return mysqlCore.tinyblob}});Object.defineProperty(exports,"tinyint",{enumerable:true,get:function(){return mysqlCore.tinyint}});Object.defineProperty(exports,"tinytext",{enumerable:true,get:function(){return mysqlCore.tinytext}});Object.defineProperty(exports,"unique",{enumerable:true,get:function(){return mysqlCore.unique}});Object.defineProperty(exports,"uniqueIndex",{enumerable:true,get:function(){return mysqlCore.uniqueIndex}});Object.defineProperty(exports,"varbinary",{enumerable:true,get:function(){return mysqlCore.varbinary}});Object.defineProperty(exports,"varchar",{enumerable:true,get:function(){return mysqlCore.varchar}});Object.defineProperty(exports,"year",{enumerable:true,get:function(){return mysqlCore.year}});exports.MySqlQuery=MySqlQuery;exports.TableColumns=TableColumns;exports.createConditions=createConditions;exports.default=drizzleMySql;exports.drizzleMySql=drizzleMySql;
+}Object.defineProperty(exports,"asc",{enumerable:true,get:function(){return native.asc}});Object.defineProperty(exports,"avg",{enumerable:true,get:function(){return native.avg}});Object.defineProperty(exports,"avgDistinct",{enumerable:true,get:function(){return native.avgDistinct}});Object.defineProperty(exports,"count",{enumerable:true,get:function(){return native.count}});Object.defineProperty(exports,"countDistinct",{enumerable:true,get:function(){return native.countDistinct}});Object.defineProperty(exports,"desc",{enumerable:true,get:function(){return native.desc}});Object.defineProperty(exports,"exists",{enumerable:true,get:function(){return native.exists}});Object.defineProperty(exports,"max",{enumerable:true,get:function(){return native.max}});Object.defineProperty(exports,"min",{enumerable:true,get:function(){return native.min}});Object.defineProperty(exports,"not",{enumerable:true,get:function(){return native.not}});Object.defineProperty(exports,"notExists",{enumerable:true,get:function(){return native.notExists}});Object.defineProperty(exports,"sum",{enumerable:true,get:function(){return native.sum}});Object.defineProperty(exports,"sumDistinct",{enumerable:true,get:function(){return native.sumDistinct}});Object.defineProperty(exports,"bigint",{enumerable:true,get:function(){return mysqlCore.bigint}});Object.defineProperty(exports,"binary",{enumerable:true,get:function(){return mysqlCore.binary}});Object.defineProperty(exports,"blob",{enumerable:true,get:function(){return mysqlCore.blob}});Object.defineProperty(exports,"boolean",{enumerable:true,get:function(){return mysqlCore.boolean}});Object.defineProperty(exports,"char",{enumerable:true,get:function(){return mysqlCore.char}});Object.defineProperty(exports,"check",{enumerable:true,get:function(){return mysqlCore.check}});Object.defineProperty(exports,"customType",{enumerable:true,get:function(){return mysqlCore.customType}});Object.defineProperty(exports,"date",{enumerable:true,get:function(){return mysqlCore.date}});Object.defineProperty(exports,"datetime",{enumerable:true,get:function(){return mysqlCore.datetime}});Object.defineProperty(exports,"decimal",{enumerable:true,get:function(){return mysqlCore.decimal}});Object.defineProperty(exports,"double",{enumerable:true,get:function(){return mysqlCore.double}});Object.defineProperty(exports,"float",{enumerable:true,get:function(){return mysqlCore.float}});Object.defineProperty(exports,"foreignKey",{enumerable:true,get:function(){return mysqlCore.foreignKey}});Object.defineProperty(exports,"index",{enumerable:true,get:function(){return mysqlCore.index}});Object.defineProperty(exports,"int",{enumerable:true,get:function(){return mysqlCore.int}});Object.defineProperty(exports,"json",{enumerable:true,get:function(){return mysqlCore.json}});Object.defineProperty(exports,"longblob",{enumerable:true,get:function(){return mysqlCore.longblob}});Object.defineProperty(exports,"longtext",{enumerable:true,get:function(){return mysqlCore.longtext}});Object.defineProperty(exports,"mediumblob",{enumerable:true,get:function(){return mysqlCore.mediumblob}});Object.defineProperty(exports,"mediumint",{enumerable:true,get:function(){return mysqlCore.mediumint}});Object.defineProperty(exports,"mediumtext",{enumerable:true,get:function(){return mysqlCore.mediumtext}});Object.defineProperty(exports,"mysqlDatabase",{enumerable:true,get:function(){return mysqlCore.mysqlDatabase}});Object.defineProperty(exports,"mysqlEnum",{enumerable:true,get:function(){return mysqlCore.mysqlEnum}});Object.defineProperty(exports,"mysqlSchema",{enumerable:true,get:function(){return mysqlCore.mysqlSchema}});Object.defineProperty(exports,"mysqlTableCreator",{enumerable:true,get:function(){return mysqlCore.mysqlTableCreator}});Object.defineProperty(exports,"mysqlView",{enumerable:true,get:function(){return mysqlCore.mysqlView}});Object.defineProperty(exports,"primaryKey",{enumerable:true,get:function(){return mysqlCore.primaryKey}});Object.defineProperty(exports,"real",{enumerable:true,get:function(){return mysqlCore.real}});Object.defineProperty(exports,"serial",{enumerable:true,get:function(){return mysqlCore.serial}});Object.defineProperty(exports,"smallint",{enumerable:true,get:function(){return mysqlCore.smallint}});Object.defineProperty(exports,"text",{enumerable:true,get:function(){return mysqlCore.text}});Object.defineProperty(exports,"time",{enumerable:true,get:function(){return mysqlCore.time}});Object.defineProperty(exports,"timestamp",{enumerable:true,get:function(){return mysqlCore.timestamp}});Object.defineProperty(exports,"tinyblob",{enumerable:true,get:function(){return mysqlCore.tinyblob}});Object.defineProperty(exports,"tinyint",{enumerable:true,get:function(){return mysqlCore.tinyint}});Object.defineProperty(exports,"tinytext",{enumerable:true,get:function(){return mysqlCore.tinytext}});Object.defineProperty(exports,"unique",{enumerable:true,get:function(){return mysqlCore.unique}});Object.defineProperty(exports,"uniqueIndex",{enumerable:true,get:function(){return mysqlCore.uniqueIndex}});Object.defineProperty(exports,"varbinary",{enumerable:true,get:function(){return mysqlCore.varbinary}});Object.defineProperty(exports,"varchar",{enumerable:true,get:function(){return mysqlCore.varchar}});Object.defineProperty(exports,"year",{enumerable:true,get:function(){return mysqlCore.year}});exports.MySqlQuery=MySqlQuery;exports.TableColumns=TableColumns;exports.createConditions=createConditions;exports.default=drizzleMySql;exports.drizzleMySql=drizzleMySql;exports.mysqlTable=mysqlTable;

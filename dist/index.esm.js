@@ -1,4 +1,4 @@
-import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,getTableColumns,sql,is,SQL,eq,and,count,defineRelations}from'drizzle-orm';export{asc,avg,avgDistinct,count,countDistinct,desc,exists,max,min,not,notExists,sum,sumDistinct}from'drizzle-orm';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlTable,getTableConfig,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTable,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';function createAlias(schema) {
+import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,getTableColumns,sql,is,SQL,eq,and,count,defineRelations}from'drizzle-orm';export{asc,avg,avgDistinct,count,countDistinct,desc,exists,max,min,not,notExists,sum,sumDistinct}from'drizzle-orm';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlTable,mysqlTable as mysqlTable$1,getTableConfig,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {ColumnBuilder}from'drizzle-orm/column-builder';function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
      * ******************************************************************************************************************/
@@ -192,22 +192,49 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
             throw new Error('columns: expected a column object.');
         return [column.name, column];
     }));
+}const policies = new WeakMap();
+for (const [method, policy] of Object.entries({
+    insertBlocked: { insert: 'blocked' },
+    insertAllowed: { insert: 'allowed' },
+    updateBlocked: { update: 'blocked' },
+    updateAllowed: { update: 'allowed' },
+    updateRequired: { update: 'required' },
+    createdAt: { timestamp: 'created' },
+    updatedAt: { timestamp: 'updated' },
+})) {
+    Object.defineProperty(ColumnBuilder.prototype, method, {
+        configurable: true,
+        value: function () {
+            policies.set(this, { ...policies.get(this), ...policy });
+            return this;
+        },
+    });
+}
+const tablePolicies = new WeakMap();
+function getColumnPolicies(table) {
+    return tablePolicies.get(table) ?? {};
+}
+function mysqlTable(name, columns, extraConfig) {
+    let builders = {};
+    const table = typeof columns === 'function'
+        ? mysqlTable$1(name, (types) => (builders = columns(types)), extraConfig)
+        : mysqlTable$1(name, (builders = columns), extraConfig);
+    tablePolicies.set(table, Object.fromEntries(Object.entries(builders).map(([key, builder]) => [key, policies.get(builder) ?? {}])));
+    return table;
 }/********************************************************************************************************************
  * MySqlQuery
  * ******************************************************************************************************************/
 class MySqlQuery {
     current;
     getTimestamp;
-    timestampColumns;
     // Table
     t;
     /********************************************************************************************************************
      * constructor
      * ******************************************************************************************************************/
-    constructor(table, current, getTimestamp, timestampColumns = {}) {
+    constructor(table, current, getTimestamp) {
         this.current = current;
         this.getTimestamp = getTimestamp;
-        this.timestampColumns = timestampColumns;
         this.t = table;
     }
     drizzle = { ...createConditions({}), sqlNumber: (value) => sql `${value}`.mapWith(Number) };
@@ -368,6 +395,32 @@ class MySqlQuery {
         const [{ cnt }] = await this.select({ cnt: count() }).where(condition);
         return cnt;
     }
+    prepareValues(input, operation) {
+        const values = { ...input };
+        const columns = getTableColumns(this.t);
+        const policies = getColumnPolicies(this.t);
+        let timestamp;
+        let generated = false;
+        for (const [key, column] of Object.entries(columns)) {
+            const policy = policies[key] ?? {};
+            const auto = 'autoIncrement' in column && column.autoIncrement === true;
+            const rule = operation === 'insert' ? policy.insert : policy.update;
+            const blocked = !!policy.timestamp || rule === 'blocked' || (auto && rule !== 'allowed' && rule !== 'required');
+            if (blocked && Object.hasOwn(values, key))
+                throw new Error(`${operation}: column "${key}" is blocked.`);
+            if (operation === 'update' && rule === 'required' && values[key] === undefined) {
+                throw new Error(`update: column "${key}" is required.`);
+            }
+            if (policy.timestamp && (operation === 'insert' || policy.timestamp === 'updated')) {
+                if (!generated) {
+                    timestamp = this.getTimestamp();
+                    generated = true;
+                }
+                values[key] = timestamp;
+            }
+        }
+        return values;
+    }
     /********************************************************************************************************************
      * (PRIVATE) insertValues
      * ******************************************************************************************************************/
@@ -399,26 +452,9 @@ class MySqlQuery {
         }
     }
     add(value) {
-        return this.insertValues(value);
-    }
-    addWithCreatedAt(value) {
-        const created_at = this.getTimestamp();
         const items = Array.isArray(value) ? value : [value];
-        const values = items.map((item) => ({
-            ...item,
-            [this.timestampColumns.createdAt ?? 'created_at']: created_at,
-        }));
-        return this.insertValues(Array.isArray(value) ? values : values[0]);
-    }
-    addWithCreatedUpdatedAt(value) {
-        const dateTime = this.getTimestamp();
-        const items = Array.isArray(value) ? value : [value];
-        const values = items.map((item) => ({
-            ...item,
-            [this.timestampColumns.createdAt ?? 'created_at']: dateTime,
-            [this.timestampColumns.updatedAt ?? 'updated_at']: dateTime,
-        }));
-        return this.insertValues(Array.isArray(value) ? values : values[0]);
+        const values = items.map((item) => this.prepareValues(item, 'insert'));
+        return this.insertValues((Array.isArray(value) ? values : values[0]));
     }
     /********************************************************************************************************************
      * edit
@@ -429,34 +465,16 @@ class MySqlQuery {
             throw new Error('edit: a SQL where condition is required.');
         }
         const tx = this.getTx();
-        return tx.update(this.t).set(set).where(condition);
+        return tx
+            .update(this.t)
+            .set(this.prepareValues(set, 'update'))
+            .where(condition);
     }
     /********************************************************************************************************************
      * editByPrimaryKey
      * ******************************************************************************************************************/
     editByPrimaryKey(set, key) {
         return this.edit(set, this.primaryKeyCondition(key, 'editByPrimaryKey'));
-    }
-    /********************************************************************************************************************
-     * editWithUpdatedAt
-     * ******************************************************************************************************************/
-    editWithUpdatedAt(set, where) {
-        const condition = typeof where === 'function' ? where(this) : where;
-        if (!is(condition, SQL)) {
-            throw new Error('editWithUpdatedAt: a SQL where condition is required.');
-        }
-        const tx = this.getTx();
-        const values = {
-            ...set,
-            [this.timestampColumns.updatedAt ?? 'updated_at']: this.getTimestamp(),
-        };
-        return tx.update(this.t).set(values).where(condition);
-    }
-    /********************************************************************************************************************
-     * editWithUpdatedAtByPrimaryKey
-     * ******************************************************************************************************************/
-    editWithUpdatedAtByPrimaryKey(set, key) {
-        return this.editWithUpdatedAt(set, this.primaryKeyCondition(key, 'editWithUpdatedAtByPrimaryKey'));
     }
     /********************************************************************************************************************
      * remove
@@ -658,9 +676,9 @@ const normalizeFields = (fields) => {
             if (!options.timestamp)
                 throw new Error('timestamp generator is not configured');
             return options.timestamp();
-        }, options.timestampColumns),
+        }),
         trans,
         paginate,
         close: () => pool.end(),
     };
-}export{MySqlQuery,TableColumns,createConditions,drizzleMySql as default,drizzleMySql};
+}export{MySqlQuery,TableColumns,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable};

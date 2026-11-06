@@ -8,18 +8,14 @@ import type { MySql2Database } from 'drizzle-orm/mysql2';
 /********************************************************************************************************************
  * MySqlQuery
  * ******************************************************************************************************************/
-export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInsertValues<TTable> = MySqlInsertValues<TTable>, UV extends MySqlUpdateValues<TTable> = MySqlUpdateValues<TTable>, TCreatedAt extends string = 'created_at', TUpdatedAt extends string = 'updated_at', AR = AddResult<TTable>> {
+export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInsertValues<TTable> = MySqlInsertValues<TTable>, UV extends MySqlUpdateValues<TTable> = MySqlUpdateValues<TTable>, AR = AddResult<TTable>> {
     private readonly current;
     private readonly getTimestamp;
-    private readonly timestampColumns;
     readonly t: TTable;
     /********************************************************************************************************************
      * constructor
      * ******************************************************************************************************************/
-    constructor(table: TTable, current: () => MySql2Database, getTimestamp: () => any, timestampColumns?: {
-        createdAt?: TCreatedAt;
-        updatedAt?: TUpdatedAt;
-    });
+    constructor(table: TTable, current: () => MySql2Database, getTimestamp: () => any);
     private readonly drizzle;
     /********************************************************************************************************************
      * (PROTECTED) getTx
@@ -94,6 +90,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
      * count
      * ******************************************************************************************************************/
     count(where?: BaseWhere<this>): Promise<number>;
+    private prepareValues;
     /********************************************************************************************************************
      * (PRIVATE) insertValues
      * ******************************************************************************************************************/
@@ -104,16 +101,6 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
     add(value: IV[]): Promise<AR[]>;
     add(value: IV): Promise<AR>;
     /********************************************************************************************************************
-     * addWithCreatedAt
-     * ******************************************************************************************************************/
-    addWithCreatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt>[]): Promise<AR[]>;
-    addWithCreatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt>): Promise<AR>;
-    /********************************************************************************************************************
-     * addWithCreatedUpdatedAt
-     * ******************************************************************************************************************/
-    addWithCreatedUpdatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt>[]): Promise<AR[]>;
-    addWithCreatedUpdatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt>): Promise<AR>;
-    /********************************************************************************************************************
      * edit
      * ******************************************************************************************************************/
     edit(set: UV, where: BaseWhere<this>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
@@ -121,18 +108,6 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
      * editByPrimaryKey
      * ******************************************************************************************************************/
     editByPrimaryKey(set: UV, key: PrimaryKeyInput<TTable>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
-    /********************************************************************************************************************
-     * editWithUpdatedAt
-     * ******************************************************************************************************************/
-    editWithUpdatedAt(set: Omit<UV, TUpdatedAt> & {
-        [P in TUpdatedAt]?: never;
-    }, where: BaseWhere<this>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
-    /********************************************************************************************************************
-     * editWithUpdatedAtByPrimaryKey
-     * ******************************************************************************************************************/
-    editWithUpdatedAtByPrimaryKey(set: Omit<UV, TUpdatedAt> & {
-        [P in TUpdatedAt]?: never;
-    }, key: PrimaryKeyInput<TTable>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
     /********************************************************************************************************************
      * remove
      * ******************************************************************************************************************/
@@ -257,8 +232,5 @@ type AutoIncrementKeys<TTable extends MySqlTable> = {
     } ? P : never;
 }[keyof TTable['_']['columns']];
 type HasAutoIncrement<TTable extends MySqlTable> = [AutoIncrementKeys<TTable>] extends [never] ? false : true;
-type TimestampInput<T, C extends string, U extends string> = Omit<T, C | U> & {
-    [P in C | U]?: never;
-};
 type AddResult<TTable extends MySqlTable> = HasAutoIncrement<TTable> extends true ? number : undefined;
 export {};

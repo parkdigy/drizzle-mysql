@@ -4,6 +4,7 @@ export default drizzleMySql;
 
 export * from './@types/index';
 export * from './columns';
+export { mysqlTable } from './mysqlTable';
 export * from './conditions';
 export * from './drizzleMySql';
 export * from './MySqlQuery';
@@ -26,7 +27,6 @@ export {
 } from 'drizzle-orm';
 
 export {
-  mysqlTable,
   mysqlTableCreator,
   mysqlSchema,
   mysqlDatabase,

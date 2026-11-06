@@ -16,6 +16,7 @@ import type {
   MySqlAliasTable,
 } from './columns';
 import { TableColumns } from './columns';
+import { getColumnPolicies } from './mysqlTable';
 import type {
   MySqlInsertValues,
   MySqlUpdateValues,
@@ -28,6 +29,7 @@ import type {
   MySqlConditions,
 } from './@types';
 import { createConditions } from './conditions';
+import type { MySqlInsertValue } from 'drizzle-orm/mysql-core/query-builders/insert';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 
 /********************************************************************************************************************
@@ -37,8 +39,6 @@ export class MySqlQuery<
   TTable extends MySqlTable,
   IV extends MySqlInsertValues<TTable> = MySqlInsertValues<TTable>,
   UV extends MySqlUpdateValues<TTable> = MySqlUpdateValues<TTable>,
-  TCreatedAt extends string = 'created_at',
-  TUpdatedAt extends string = 'updated_at',
   AR = AddResult<TTable>,
 > {
   // Table
@@ -50,8 +50,7 @@ export class MySqlQuery<
   constructor(
     table: TTable,
     private readonly current: () => MySql2Database,
-    private readonly getTimestamp: () => any,
-    private readonly timestampColumns: { createdAt?: TCreatedAt; updatedAt?: TUpdatedAt } = {}
+    private readonly getTimestamp: () => any
   ) {
     this.t = table;
   }
@@ -437,10 +436,36 @@ export class MySqlQuery<
     return cnt;
   }
 
+  private prepareValues(input: object, operation: 'insert' | 'update'): Record<string, unknown> {
+    const values = { ...input } as Record<string, unknown>;
+    const columns = getTableColumns(this.t);
+    const policies = getColumnPolicies(this.t);
+    let timestamp: unknown;
+    let generated = false;
+    for (const [key, column] of Object.entries(columns)) {
+      const policy = policies[key] ?? {};
+      const auto = 'autoIncrement' in column && column.autoIncrement === true;
+      const rule = operation === 'insert' ? policy.insert : policy.update;
+      const blocked = !!policy.timestamp || rule === 'blocked' || (auto && rule !== 'allowed' && rule !== 'required');
+      if (blocked && Object.hasOwn(values, key)) throw new Error(`${operation}: column "${key}" is blocked.`);
+      if (operation === 'update' && rule === 'required' && values[key] === undefined) {
+        throw new Error(`update: column "${key}" is required.`);
+      }
+      if (policy.timestamp && (operation === 'insert' || policy.timestamp === 'updated')) {
+        if (!generated) {
+          timestamp = this.getTimestamp();
+          generated = true;
+        }
+        values[key] = timestamp;
+      }
+    }
+    return values;
+  }
+
   /********************************************************************************************************************
    * (PRIVATE) insertValues
    * ******************************************************************************************************************/
-  private async insertValues(value: MySqlInsertValues<TTable> | MySqlInsertValues<TTable>[]): Promise<AR | AR[]> {
+  private async insertValues(value: MySqlInsertValue<TTable> | MySqlInsertValue<TTable>[]): Promise<AR | AR[]> {
     const tx = this.getTx();
 
     const autoIncrementColumn = getTableConfig(this.t).columns.find(
@@ -478,54 +503,9 @@ export class MySqlQuery<
   add(value: IV): Promise<AR>;
 
   add(value: IV | IV[]) {
-    return this.insertValues(value);
-  }
-
-  /********************************************************************************************************************
-   * addWithCreatedAt
-   * ******************************************************************************************************************/
-  addWithCreatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt>[]): Promise<AR[]>;
-
-  addWithCreatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt>): Promise<AR>;
-
-  addWithCreatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt> | TimestampInput<IV, TCreatedAt, TUpdatedAt>[]) {
-    const created_at = this.getTimestamp();
     const items = Array.isArray(value) ? value : [value];
-
-    const values = items.map(
-      (item) =>
-        ({
-          ...item,
-          [this.timestampColumns.createdAt ?? 'created_at']: created_at,
-        }) as unknown as MySqlInsertValues<TTable>
-    );
-
-    return this.insertValues(Array.isArray(value) ? values : values[0]);
-  }
-
-  /********************************************************************************************************************
-   * addWithCreatedUpdatedAt
-   * ******************************************************************************************************************/
-  addWithCreatedUpdatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt>[]): Promise<AR[]>;
-
-  addWithCreatedUpdatedAt(value: TimestampInput<IV, TCreatedAt, TUpdatedAt>): Promise<AR>;
-
-  addWithCreatedUpdatedAt(
-    value: TimestampInput<IV, TCreatedAt, TUpdatedAt> | TimestampInput<IV, TCreatedAt, TUpdatedAt>[]
-  ): Promise<AR | AR[]> {
-    const dateTime = this.getTimestamp();
-    const items = Array.isArray(value) ? value : [value];
-
-    const values = items.map(
-      (item) =>
-        ({
-          ...item,
-          [this.timestampColumns.createdAt ?? 'created_at']: dateTime,
-          [this.timestampColumns.updatedAt ?? 'updated_at']: dateTime,
-        }) as unknown as MySqlInsertValues<TTable>
-    );
-
-    return this.insertValues(Array.isArray(value) ? values : values[0]);
+    const values = items.map((item) => this.prepareValues(item, 'insert'));
+    return this.insertValues((Array.isArray(value) ? values : values[0]) as unknown as MySqlInsertValue<TTable>);
   }
 
   /********************************************************************************************************************
@@ -540,7 +520,10 @@ export class MySqlQuery<
 
     const tx = this.getTx();
 
-    return tx.update(this.t).set(set).where(condition);
+    return tx
+      .update(this.t)
+      .set(this.prepareValues(set, 'update') as MySqlUpdateSetSource<TTable>)
+      .where(condition);
   }
 
   /********************************************************************************************************************
@@ -548,36 +531,6 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   editByPrimaryKey(set: UV, key: PrimaryKeyInput<TTable>) {
     return this.edit(set, this.primaryKeyCondition(key, 'editByPrimaryKey'));
-  }
-
-  /********************************************************************************************************************
-   * editWithUpdatedAt
-   * ******************************************************************************************************************/
-  editWithUpdatedAt(set: Omit<UV, TUpdatedAt> & { [P in TUpdatedAt]?: never }, where: BaseWhere<this>) {
-    const condition = typeof where === 'function' ? where(this) : where;
-
-    if (!is(condition, SQL)) {
-      throw new Error('editWithUpdatedAt: a SQL where condition is required.');
-    }
-
-    const tx = this.getTx();
-
-    const values = {
-      ...set,
-      [this.timestampColumns.updatedAt ?? 'updated_at']: this.getTimestamp(),
-    } as MySqlUpdateSetSource<TTable>;
-
-    return tx.update(this.t).set(values).where(condition);
-  }
-
-  /********************************************************************************************************************
-   * editWithUpdatedAtByPrimaryKey
-   * ******************************************************************************************************************/
-  editWithUpdatedAtByPrimaryKey(
-    set: Omit<UV, TUpdatedAt> & { [P in TUpdatedAt]?: never },
-    key: PrimaryKeyInput<TTable>
-  ) {
-    return this.editWithUpdatedAt(set, this.primaryKeyCondition(key, 'editWithUpdatedAtByPrimaryKey'));
   }
 
   /********************************************************************************************************************
@@ -852,9 +805,5 @@ type AutoIncrementKeys<TTable extends MySqlTable> = {
 }[keyof TTable['_']['columns']];
 
 type HasAutoIncrement<TTable extends MySqlTable> = [AutoIncrementKeys<TTable>] extends [never] ? false : true;
-
-type TimestampInput<T, C extends string, U extends string> = Omit<T, C | U> & {
-  [P in C | U]?: never;
-};
 
 type AddResult<TTable extends MySqlTable> = HasAutoIncrement<TTable> extends true ? number : undefined;
