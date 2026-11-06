@@ -4,7 +4,7 @@ import type { TablePolicies } from '../mysqlTable';
 
 type Blocked<T extends MySqlTable> = {
   [K in keyof InsertValue<T>]: K extends keyof TablePolicies<T>
-    ? TablePolicies<T>[K] extends { timestamp: string } | { insert: 'blocked' }
+    ? TablePolicies<T>[K] extends { insert: 'blocked' }
       ? K
       : TablePolicies<T>[K] extends { insert: 'allowed' }
         ? never
@@ -20,7 +20,17 @@ type Blocked<T extends MySqlTable> = {
       : never;
 }[keyof InsertValue<T>];
 
+type TimestampKeys<T extends MySqlTable> = {
+  [K in keyof InsertValue<T>]-?: K extends keyof TablePolicies<T>
+    ? TablePolicies<T>[K] extends { timestamp: string }
+      ? K
+      : never
+    : never;
+}[keyof InsertValue<T>] &
+  keyof InsertValue<T>;
+
 export type MySqlInsertValues<T extends MySqlTable, B extends keyof InsertValue<T> = never> = Omit<
   InsertValue<T>,
-  B | Blocked<T>
-> & { [K in B | Blocked<T>]?: never };
+  B | Blocked<T> | TimestampKeys<T>
+> &
+  Partial<Pick<InsertValue<T>, Exclude<TimestampKeys<T>, B | Blocked<T>>>>;

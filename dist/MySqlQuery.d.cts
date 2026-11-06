@@ -3,19 +3,21 @@ import { MySqlTable, MySqlColumn, type MySqlAsyncSelectBase } from 'drizzle-orm/
 import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
 import type { MySqlColumnSelectionName, MySqlSelectedNamedColumnUnion, MySqlSelectedNamedColumns, MySqlSelectedTableColumns, MySqlAliasTable } from './columns.cjs';
-import type { MySqlInsertValues, MySqlUpdateValues, MySqlCompareValues, MySqlColumnName, MySqlArrayCompareValues, MySqlRangeCompareValues, MySqlPatternCompareValues, MySqlNullConditionInput, MySqlConditions } from './@types.cjs';
+import type { MySqlInsertValues, MySqlUpdateValues, MySqlCompareValues, MySqlColumnName, MySqlArrayCompareValues, MySqlRangeCompareValues, MySqlPatternCompareValues, MySqlNullConditionInput, MySqlConditions } from './@types/index.cjs';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 /********************************************************************************************************************
  * MySqlQuery
  * ******************************************************************************************************************/
 export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInsertValues<TTable> = MySqlInsertValues<TTable>, UV extends MySqlUpdateValues<TTable> = MySqlUpdateValues<TTable>, AR = AddResult<TTable>> {
     private readonly current;
-    private readonly getTimestamp;
+    private readonly getTimestamp?;
     readonly t: TTable;
     /********************************************************************************************************************
      * constructor
      * ******************************************************************************************************************/
-    constructor(table: TTable, current: () => MySql2Database, getTimestamp: () => any);
+    constructor(table: TTable, current: (() => MySql2Database) & {
+        getTimestamp?: () => unknown;
+    }, getTimestamp?: (() => unknown) | undefined);
     private readonly drizzle;
     /********************************************************************************************************************
      * (PROTECTED) getTx
@@ -92,9 +94,18 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
     count(where?: BaseWhere<this>): Promise<number>;
     private prepareValues;
     /********************************************************************************************************************
-     * (PRIVATE) insertValues
+     * (PRIVATE) executeInsert
      * ******************************************************************************************************************/
-    private insertValues;
+    private executeInsert;
+    /********************************************************************************************************************
+     * insertValues
+     * ******************************************************************************************************************/
+    insertValues(values: IV[]): IV[];
+    insertValues(values: IV): IV;
+    /********************************************************************************************************************
+     * updateValues
+     * ******************************************************************************************************************/
+    updateValues(values: UV): UV;
     /********************************************************************************************************************
      * add
      * ******************************************************************************************************************/

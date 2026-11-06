@@ -60,7 +60,7 @@ const getConfig = () => ({
               } else if (filePath.endsWith('.d.ts')) {
                 const declaration = fs.readFileSync(filePath, 'utf8')
                   .replace(/(from\s+['"]|import\(['"])(\.\.?\/[^'"]+)(['"])/g, (match, prefix, specifier, quote) =>
-                    `${prefix}${specifier.endsWith('.js') ? specifier : `${specifier}.js`}${quote}`
+                    `${prefix}${specifier.endsWith('/@types') ? `${specifier}/index.js` : specifier.endsWith('.js') ? specifier : `${specifier}.js`}${quote}`
                   )
                   .replace(/import\("\."\)/g, 'import("./index.js")')
                   .replace(/import\("\.\."\)/g, 'import("../index.js")');

@@ -38,13 +38,26 @@ const posts = mysqlTable('posts', {
 const db = drizzleMySql({
   url: process.env.DATABASE_URL!,
   schema: { users, posts },
+  getTimestamp: () => new Date().toISOString(),
 });
 const user = db.query(users);
 ```
 
-`drizzleMySql` 옵션은 `url`, `schema`, 선택 사항인 `timestamp`입니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
+`drizzleMySql` 옵션은 모두 필수인 `url`, `schema`, `getTimestamp`입니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. `new MySqlQuery(table, db.current, getTimestamp?)`의 세 번째 인자는 선택 사항이며, 생략하면 해당 `drizzleMySql`에 설정한 생성 함수를 사용합니다. 명시하면 그 쿼리 객체에서만 해당 함수를 우선 사용합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
 
 ### 데이터 추가·수정·삭제
+
+입력값을 변수로 준비할 때는 `insertValues` / `updateValues` 헬퍼를 사용하면 스키마 제네릭을 반복해서 지정하지 않아도 됩니다. 해당 쿼리의 입력 타입과 컬럼 정책으로 검사하며, 전달한 객체 또는 배열을 그대로 반환합니다. 헬퍼 자체는 DB 쿼리, 런타임 정책 검사, 기본 시각 생성을 실행하지 않습니다. 런타임 처리는 `add` / `edit`에서 수행합니다.
+
+```ts
+const insertValues = user.insertValues({ name: '홍길동' });
+const id = await user.add(insertValues);
+const updateValues = user.updateValues({ name: '김민수' });
+await user.editByPrimaryKey(updateValues, id);
+
+const rows = user.insertValues([{ name: '사용자1' }, { name: '사용자2' }]);
+await user.add(rows);
+```
 
 자동 증가 기본 키가 있는 테이블에서 `add`는 생성된 키를 반환합니다. 여러 행을 넣으면 키 배열을 반환합니다.
 
@@ -101,6 +114,8 @@ const projected = await user.find(
   user.eq({ id })
 );
 ```
+
+문자열 컬럼 선택의 별칭 키워드는 대소문자를 구분하지 않습니다. `name as displayName`, `name AS displayName`, `name As displayName`, `name aS displayName`을 모두 사용할 수 있으며, 결과 키의 대소문자는 지정한 별칭 그대로 유지됩니다. `select`, `find`, `columns`에서 동일하게 적용됩니다.
 
 테이블의 TypeScript 속성명과 SQL 컬럼명을 다르게 지정하면 기본 전체 조회 결과 키와 추론된 타입이 달라질 수 있습니다. 기본 컬럼 선택을 사용할 경우 스키마 속성명과 SQL 컬럼명을 같게 작성하는 것을 권장합니다. 이름이 다르면 필요한 컬럼을 명시적으로 선택하고 별칭을 지정하세요.
 
@@ -322,6 +337,8 @@ await db.trans(async () => {
 
 컬럼 정책은 이 패키지에서 가져온 `mysqlTable`에 선언합니다. 자동 증가 컬럼은 기본적으로 등록과 수정이 금지되며, 각각 `insertAllowed()`와 `updateAllowed()`로 허용할 수 있습니다. `primaryKey()`로 지정한 컬럼도 기본적으로 수정이 금지되며, `updateAllowed()`를 명시해야 수정할 수 있습니다. 다른 컬럼은 `insertBlocked()`와 `updateBlocked()`로 금지하거나 `updateRequired()`로 수정 시 필수로 지정합니다. 금지된 값을 전달하거나 필수 수정 값을 누락하면 런타임에도 오류가 발생합니다.
 
+금지 컬럼은 `MySqlInsertValues` / `MySqlUpdateValues`의 키에서 제외됩니다. 따라서 타입이 지정된 객체 리터럴에는 `undefined`로도 지정할 수 없습니다. TypeScript의 구조적 타입 검사로 인해 추가 속성이 있는 기존 변수를 전달하는 경우에는 컴파일을 통과할 수 있지만, 런타임에서는 금지 컬럼 키가 있으면 값이 `undefined`여도 오류가 발생합니다.
+
 ```ts
 import { drizzleMySql, mysqlTable, int, varchar, datetime } from '@pdg/drizzle-mysql';
 
@@ -332,13 +349,20 @@ const users = mysqlTable('users', {
   created_at: datetime({ mode: 'string' }).notNull().createdAt(),
   updated_at: datetime({ mode: 'string' }).notNull().updatedAt(),
 });
-const db = drizzleMySql({ url: process.env.DATABASE_URL!, schema: { users }, timestamp: () => new Date().toISOString() });
+const db = drizzleMySql({ url: process.env.DATABASE_URL!, schema: { users }, getTimestamp: () => new Date().toISOString() });
 const usersQuery = db.query(users);
 const id = await usersQuery.add({ name: '사용자' });
 await usersQuery.editByPrimaryKey({ name: '수정' }, id);
 ```
 
-`createdAt()`은 등록 시, `updatedAt()`은 등록과 수정 시 `timestamp` 생성 함수의 값을 자동으로 넣습니다. 지정된 시각 컬럼은 직접 입력할 수 없으며 생성 함수를 설정하지 않으면 해당 작업에서 오류가 발생합니다. 컬럼의 데이터 형식에 맞는 값을 반환해야 합니다. 정책은 `MySqlQuery`에만 적용되며 `db.current()`의 원본 Drizzle 쿼리에는 적용되지 않습니다. `mysqlTableCreator`, `mysqlSchema` 또는 Drizzle에서 직접 가져온 `mysqlTable`은 컬럼 정책을 수집하지 않으므로 정책이 필요한 테이블에는 이 패키지의 `mysqlTable`을 사용합니다.
+`createdAt()`과 `updatedAt()` 컬럼은 `add` 시 직접 값을 지정할 수 있습니다. 생략하거나 `undefined`를 전달한 컬럼만 `getTimestamp` 생성 함수의 기본값으로 채우며, 한 행에서 생성한 값은 누락된 시각 컬럼들이 공유합니다. `edit` 시에는 `createdAt()`의 직접 입력을 금지하고 기존 값을 유지합니다. `updatedAt()`은 직접 지정한 값을 사용하며, 생략하거나 `undefined`이면 기본 시각으로 갱신합니다. 명시적인 `updateBlocked()` 정책은 계속 적용되며, `updatedAt().updateRequired()`는 생략 시 기본 시각을 사용합니다. 직접 지정하는 값과 생성 함수의 반환값은 컬럼의 데이터 형식에 맞아야 합니다. `MySqlQuery`에 `db.current`가 아닌 연결 함수를 직접 전달하는 경우에는 기본 시각이 필요한 작업을 위해 세 번째 인자로 시각 생성 함수도 지정해야 하며, 생성 함수 없이 기본 시각이 필요한 작업을 실행하면 오류가 발생합니다. 정책은 `MySqlQuery`에만 적용되며 `db.current()`의 원본 Drizzle 쿼리에는 적용되지 않습니다. `mysqlTableCreator`, `mysqlSchema` 또는 Drizzle에서 직접 가져온 `mysqlTable`은 컬럼 정책을 수집하지 않으므로 정책이 필요한 테이블에는 이 패키지의 `mysqlTable`을 사용합니다.
+
+```ts
+await usersQuery.add({ name: '사용자', created_at: '2026-01-01 00:00:00' });
+// created_at은 지정한 값을 유지하고 updated_at은 getTimestamp의 값을 사용합니다.
+await usersQuery.editByPrimaryKey({ updated_at: '2026-01-02 00:00:00' }, id);
+// updated_at은 지정한 값을 사용합니다.
+```
 
 ### 집계·SQL 표현식
 

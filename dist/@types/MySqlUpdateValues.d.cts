@@ -4,7 +4,7 @@ import type { TablePolicies } from '../mysqlTable.cjs';
 type DefaultBlocked<T extends MySqlTable, K> = K extends keyof T['_']['columns'] ? T['_']['columns'][K]['_']['isPrimaryKey'] extends true ? K : T['_']['columns'][K]['_']['isAutoincrement'] extends true ? K : never : never;
 type Blocked<T extends MySqlTable> = {
     [K in keyof MySqlUpdateSetSource<T>]-?: K extends keyof TablePolicies<T> ? TablePolicies<T>[K] extends {
-        timestamp: string;
+        timestamp: 'created';
     } | {
         update: 'blocked';
     } ? K : TablePolicies<T>[K] extends {
@@ -16,11 +16,11 @@ type Blocked<T extends MySqlTable> = {
 type RequiredKeys<T extends MySqlTable> = {
     [K in keyof MySqlUpdateSetSource<T>]-?: K extends keyof TablePolicies<T> ? TablePolicies<T>[K] extends {
         update: 'required';
-    } ? K : never : never;
+    } ? TablePolicies<T>[K] extends {
+        timestamp: 'updated';
+    } ? never : K : never : never;
 }[keyof MySqlUpdateSetSource<T>] & keyof MySqlUpdateSetSource<T>;
 export type MySqlUpdateValues<T extends MySqlTable, B extends keyof MySqlUpdateSetSource<T> = never, R extends Exclude<keyof MySqlUpdateSetSource<T>, B | Blocked<T>> = never> = Omit<MySqlUpdateSetSource<T>, B | Blocked<T> | R | RequiredKeys<T>> & {
-    [K in B | Blocked<T>]?: never;
-} & {
     [K in Exclude<R | RequiredKeys<T>, B | Blocked<T>>]-?: Exclude<MySqlUpdateSetSource<T>[K], undefined>;
 };
 export {};

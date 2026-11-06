@@ -15,12 +15,11 @@ runIntegration('MySQL 통합 테스트', () => {
   const db = drizzleMySql({
     url: process.env.DATABASE_URL!,
     schema: { table },
-    timestamp: () => 'now',
+    getTimestamp: () => 'now',
   });
   const query = db.query(table);
   if (false) {
-    // @ts-expect-error 자동 생성 컬럼을 직접 설정할 수 없다.
-    query.add({ name: 'invalid', created_at: 'manual' });
+    query.add({ name: 'manual', created_at: 'manual' });
     // @ts-expect-error 존재하지 않는 컬럼이다.
     query.eq({ missing: 1 });
   }
@@ -57,6 +56,16 @@ runIntegration('MySQL 통합 테스트', () => {
     await query.editByPrimaryKey({ name: 'dated-2' }, id);
     expect((await query.findByPrimaryKey(id))?.updated_at).toBe('now');
   });
+  test('등록 시 직접 지정한 시각을 유지하고 누락된 시각은 자동 입력한다', async () => {
+    const id = await query.add({ name: 'manual-time', created_at: 'created', updated_at: 'updated' });
+    expect(await query.findByPrimaryKey(id)).toMatchObject({ created_at: 'created', updated_at: 'updated' });
+    await query.editByPrimaryKey({ name: 'manual-time-edited' }, id);
+    expect(await query.findByPrimaryKey(id)).toMatchObject({ created_at: 'created', updated_at: 'now' });
+    await query.editByPrimaryKey({ updated_at: 'manual-edit' }, id);
+    expect(await query.findByPrimaryKey(id)).toMatchObject({ created_at: 'created', updated_at: 'manual-edit' });
+    const partialId = await query.add({ name: 'partial-time', created_at: 'created' });
+    expect(await query.findByPrimaryKey(partialId)).toMatchObject({ created_at: 'created', updated_at: 'now' });
+  });
   test('중첩 트랜잭션 롤백과 원본 Drizzle 접근', async () => {
     await db.trans(async () => {
       await query.add({ name: 'outer' });
@@ -71,7 +80,7 @@ runIntegration('MySQL 통합 테스트', () => {
     expect(await query.count(query.eq({ name: 'outer' }))).toBe(1);
   });
   test('동시 트랜잭션과 서로 다른 연결의 문맥은 독립적이다', async () => {
-    const other = drizzleMySql({ url: process.env.DATABASE_URL!, schema: { table } });
+    const other = drizzleMySql({ url: process.env.DATABASE_URL!, schema: { table }, getTimestamp: () => 'now' });
     try {
       await expect(
         db.trans(async () => {

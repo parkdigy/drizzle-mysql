@@ -406,18 +406,27 @@ class MySqlQuery {
             const auto = 'autoIncrement' in column && column.autoIncrement === true;
             const rule = operation === 'insert' ? policy.insert : policy.update;
             const primary = column.primary;
-            const blocked = !!policy.timestamp ||
+            const blocked = (operation === 'update' && policy.timestamp === 'created') ||
                 rule === 'blocked' ||
                 (operation === 'update' && primary && rule !== 'allowed') ||
                 (auto && rule !== 'allowed' && rule !== 'required');
             if (blocked && Object.hasOwn(values, key))
                 throw new Error(`${operation}: column "${key}" is blocked.`);
-            if (operation === 'update' && !blocked && rule === 'required' && values[key] === undefined) {
+            if (operation === 'update' &&
+                !blocked &&
+                rule === 'required' &&
+                policy.timestamp !== 'updated' &&
+                values[key] === undefined) {
                 throw new Error(`update: column "${key}" is required.`);
             }
-            if (policy.timestamp && (operation === 'insert' || policy.timestamp === 'updated')) {
+            if (policy.timestamp &&
+                values[key] === undefined &&
+                (operation === 'insert' || policy.timestamp === 'updated')) {
                 if (!generated) {
-                    timestamp = this.getTimestamp();
+                    const getTimestamp = this.getTimestamp ?? this.current.getTimestamp;
+                    if (!getTimestamp)
+                        throw new Error('timestamp generator is not configured');
+                    timestamp = getTimestamp();
                     generated = true;
                 }
                 values[key] = timestamp;
@@ -426,9 +435,9 @@ class MySqlQuery {
         return values;
     }
     /********************************************************************************************************************
-     * (PRIVATE) insertValues
+     * (PRIVATE) executeInsert
      * ******************************************************************************************************************/
-    async insertValues(value) {
+    async executeInsert(value) {
         const tx = this.getTx();
         const autoIncrementColumn = getTableConfig(this.t).columns.find((column) => 'autoIncrement' in column && column.autoIncrement === true);
         const hasAutoIncrement = !!autoIncrementColumn;
@@ -455,10 +464,19 @@ class MySqlQuery {
             }
         }
     }
+    insertValues(values) {
+        return values;
+    }
+    /********************************************************************************************************************
+     * updateValues
+     * ******************************************************************************************************************/
+    updateValues(values) {
+        return values;
+    }
     add(value) {
         const items = Array.isArray(value) ? value : [value];
         const values = items.map((item) => this.prepareValues(item, 'insert'));
-        return this.insertValues((Array.isArray(value) ? values : values[0]));
+        return this.executeInsert((Array.isArray(value) ? values : values[0]));
     }
     /********************************************************************************************************************
      * edit
@@ -623,7 +641,7 @@ const normalizeFields = (fields) => {
     const pool = mysql.createPool({ uri: options.url });
     const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
     const context = new AsyncLocalStorage();
-    const current = () => context.getStore() ?? raw;
+    const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp: options.getTimestamp });
     const trans = (callback) => {
         const parent = context.getStore();
         const execute = (tx) => context.run(tx, callback);
@@ -676,11 +694,7 @@ const normalizeFields = (fields) => {
         sqlString: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith(String),
         sqlBoolean: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith((v) => v === true || v === 1),
         current,
-        query: (table) => new MySqlQuery(table, current, () => {
-            if (!options.timestamp)
-                throw new Error('timestamp generator is not configured');
-            return options.timestamp();
-        }),
+        query: (table) => new MySqlQuery(table, current),
         trans,
         paginate,
         close: () => pool.end(),

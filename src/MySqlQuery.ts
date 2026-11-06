@@ -27,7 +27,7 @@ import type {
   MySqlPatternCompareValues,
   MySqlNullConditionInput,
   MySqlConditions,
-} from './@types';
+} from './@types/index';
 import { createConditions } from './conditions';
 import type { MySqlInsertValue } from 'drizzle-orm/mysql-core/query-builders/insert';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
@@ -49,8 +49,8 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   constructor(
     table: TTable,
-    private readonly current: () => MySql2Database,
-    private readonly getTimestamp: () => any
+    private readonly current: (() => MySql2Database) & { getTimestamp?: () => unknown },
+    private readonly getTimestamp?: () => unknown
   ) {
     this.t = table;
   }
@@ -448,17 +448,29 @@ export class MySqlQuery<
       const rule = operation === 'insert' ? policy.insert : policy.update;
       const primary = column.primary;
       const blocked =
-        !!policy.timestamp ||
+        (operation === 'update' && policy.timestamp === 'created') ||
         rule === 'blocked' ||
         (operation === 'update' && primary && rule !== 'allowed') ||
         (auto && rule !== 'allowed' && rule !== 'required');
       if (blocked && Object.hasOwn(values, key)) throw new Error(`${operation}: column "${key}" is blocked.`);
-      if (operation === 'update' && !blocked && rule === 'required' && values[key] === undefined) {
+      if (
+        operation === 'update' &&
+        !blocked &&
+        rule === 'required' &&
+        policy.timestamp !== 'updated' &&
+        values[key] === undefined
+      ) {
         throw new Error(`update: column "${key}" is required.`);
       }
-      if (policy.timestamp && (operation === 'insert' || policy.timestamp === 'updated')) {
+      if (
+        policy.timestamp &&
+        values[key] === undefined &&
+        (operation === 'insert' || policy.timestamp === 'updated')
+      ) {
         if (!generated) {
-          timestamp = this.getTimestamp();
+          const getTimestamp = this.getTimestamp ?? this.current.getTimestamp;
+          if (!getTimestamp) throw new Error('timestamp generator is not configured');
+          timestamp = getTimestamp();
           generated = true;
         }
         values[key] = timestamp;
@@ -468,9 +480,9 @@ export class MySqlQuery<
   }
 
   /********************************************************************************************************************
-   * (PRIVATE) insertValues
+   * (PRIVATE) executeInsert
    * ******************************************************************************************************************/
-  private async insertValues(value: MySqlInsertValue<TTable> | MySqlInsertValue<TTable>[]): Promise<AR | AR[]> {
+  private async executeInsert(value: MySqlInsertValue<TTable> | MySqlInsertValue<TTable>[]): Promise<AR | AR[]> {
     const tx = this.getTx();
 
     const autoIncrementColumn = getTableConfig(this.t).columns.find(
@@ -501,6 +513,22 @@ export class MySqlQuery<
   }
 
   /********************************************************************************************************************
+   * insertValues
+   * ******************************************************************************************************************/
+  insertValues(values: IV[]): IV[];
+  insertValues(values: IV): IV;
+  insertValues(values: IV | IV[]): IV | IV[] {
+    return values;
+  }
+
+  /********************************************************************************************************************
+   * updateValues
+   * ******************************************************************************************************************/
+  updateValues(values: UV): UV {
+    return values;
+  }
+
+  /********************************************************************************************************************
    * add
    * ******************************************************************************************************************/
   add(value: IV[]): Promise<AR[]>;
@@ -510,7 +538,7 @@ export class MySqlQuery<
   add(value: IV | IV[]) {
     const items = Array.isArray(value) ? value : [value];
     const values = items.map((item) => this.prepareValues(item, 'insert'));
-    return this.insertValues((Array.isArray(value) ? values : values[0]) as unknown as MySqlInsertValue<TTable>);
+    return this.executeInsert((Array.isArray(value) ? values : values[0]) as unknown as MySqlInsertValue<TTable>);
   }
 
   /********************************************************************************************************************

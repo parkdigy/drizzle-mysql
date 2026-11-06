@@ -32,9 +32,9 @@
 
 ## API와 동작 경계
 
-- `drizzleMySql({ url, schema, timestamp? })`는 연결 풀과 편의 API를 만든다. `db.query(table)`은 해당 테이블용 `MySqlQuery` 인스턴스를 반환한다. `db.current()`는 비동기 실행 문맥의 트랜잭션 또는 기본 Drizzle 연결을 반환한다.
+- `drizzleMySql({ url, schema, getTimestamp })`는 연결 풀과 편의 API를 만들며 모든 옵션이 필수다. `db.query(table)`은 해당 테이블용 `MySqlQuery` 인스턴스를 반환한다. `new MySqlQuery(table, db.current, getTimestamp?)`에서 생성 함수를 생략하면 해당 연결의 `getTimestamp`를 사용하고, 명시하면 그 쿼리 객체에서 우선 사용한다. `db.current()`는 비동기 실행 문맥의 트랜잭션 또는 기본 Drizzle 연결을 반환한다.
 - `db.trans(callback)`은 현재 연결의 트랜잭션을 실행하고 중첩 호출은 savepoint를 사용한다. 콜백의 비동기 작업은 완료 전에 모두 기다려야 한다. 연결 종료에는 `db.close()`를 사용한다.
-- `MySqlQuery`는 조회 빌더와 `find`, 기본 키 조회, 존재 여부·개수, CRUD, 컬럼 정책에 따른 생성·수정 시각 자동 입력, 테이블별 조건 메서드를 제공한다. 일반 `edit` / `remove`에는 SQL 조건이 필요하다.
+- `MySqlQuery`는 조회 빌더와 `find`, 기본 키 조회, 존재 여부·개수, CRUD, 컬럼 정책에 따른 생성·수정 시각 자동 입력, 테이블별 조건 메서드를 제공한다. `createdAt()` / `updatedAt()` 컬럼은 `add`에서 직접 입력할 수 있고, 생략하거나 `undefined`이면 기본 시각을 채운다. `edit`에서는 생성 시각의 직접 입력을 금지하고 기존 값을 유지한다. 수정 시각은 직접 지정할 수 있으며, 생략하거나 `undefined`이면 기본 시각으로 갱신한다. 일반 `edit` / `remove`에는 SQL 조건이 필요하다.
 - `db`와 쿼리 객체의 조건 API는 비교, 배열·범위, 패턴, NULL, 그룹 조건을 제공한다. `query.and/or({ ... })`는 객체 그룹 결합이며 같은 객체 안에 and/or 그룹을 재귀 중첩하지 않는다. 함수 오버로드는 Drizzle SQL 조건에도 사용할 수 있다.
 - 조건 구현은 `ilike` / `notIlike`도 노출하지만 이들은 `ILIKE` SQL을 생성한다. MySQL은 `ILIKE` 문법을 지원하지 않으므로 MySQL 실행 쿼리에는 사용하지 않는다. `LIKE`의 대소문자 처리는 컬럼 collation에 따른다.
 - `db.paginate(builder, page, limit)`는 데이터와 페이지 정보를 반환하고 양의 정수 page/limit를 요구한다. 전달할 query builder는 해당 트랜잭션 문맥 안에서 생성해야 한다.
@@ -57,7 +57,7 @@ examples/ ─ 독립 npm 프로젝트
 ```
 
 - `package.json`의 `exports["."]`는 `import`에 `dist/index.esm.js` / `dist/index.d.ts`, `require`에 `dist/index.cjs` / `dist/index.d.cts`를 연결한다. `main`, `module`, `types`도 패키지 메타데이터에 별도로 선언되어 있다.
-- `rollup.config.js`는 `src/index.ts`에서 두 런타임 번들을 만들고 TypeScript 선언을 `dist/`에 출력한다. 생성 선언의 상대 경로에 `.js`를 넣고, CommonJS 선언 복사본의 내부 경로를 `.cjs`로 변환한다. 공개 진입점의 재수출과 실제 선언 경로를 점검한다.
+- `rollup.config.js`는 `src/index.ts`에서 두 런타임 번들을 만들고 TypeScript 선언을 `dist/`에 출력한다. 생성 선언의 상대 경로에 `.js`를 넣고, `@types` 디렉터리 참조는 `@types/index.js`로 정규화한다. CommonJS 선언 복사본의 내부 경로는 `.cjs`로 변환한다. 공개 진입점의 재수출과 실제 선언 경로를 점검한다.
 - peer dependency와 그 하위 경로를 Rollup 외부 의존성으로 둔다. 런타임에 필요한 `drizzle-orm`과 `mysql2`는 소비자 프로젝트가 설치해야 한다.
 - `package.json`의 `files`는 `dist`, `README.md`를 지정한다. `.npmignore`도 빌드·개발 파일을 제외하므로 배포 변경 시 `npm pack --dry-run`의 실제 파일 목록을 확인한다.
 - `dist/`는 생성물이며 Gitignore 설정과 무관하게 직접 수정하지 않는다. `npm run build`와 Rollup은 `dist/*`를 지우고 다시 생성할 수 있으므로, 기존 파일이나 작업 트리를 확인한 뒤 실행한다.

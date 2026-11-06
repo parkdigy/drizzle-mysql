@@ -1,7 +1,7 @@
 import * as native from 'drizzle-orm';
 import { MySqlTable } from 'drizzle-orm/mysql-core';
 import type { Column, SQL } from 'drizzle-orm';
-import type { MySqlColumnName, MySqlConditions, MySqlNullConditionInput } from './@types';
+import type { MySqlColumnName, MySqlConditions, MySqlNullConditionInput } from './@types/index';
 
 export function createConditions<TSchema extends Record<string, MySqlTable>>(schema: TSchema) {
   /********************************************************************************************************************

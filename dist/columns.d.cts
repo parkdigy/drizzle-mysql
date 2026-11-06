@@ -26,7 +26,8 @@ export type MySqlSelectedTableColumns<T extends MySqlTable> = {
 /********************************************************************************************************************
  * MySqlColumnSelectionName
  * ******************************************************************************************************************/
-export type MySqlColumnSelectionName<T extends MySqlTable> = (keyof T['_']['columns'] & string) | `${keyof T['_']['columns'] & string} as ${string}`;
+type AsKeyword = 'as' | 'AS' | 'As' | 'aS';
+export type MySqlColumnSelectionName<T extends MySqlTable> = (keyof T['_']['columns'] & string) | `${keyof T['_']['columns'] & string} ${AsKeyword} ${string}`;
 /********************************************************************************************************************
  * MySqlSelectedNamedColumn
  * ******************************************************************************************************************/
@@ -34,11 +35,11 @@ type MySqlColumnForName<T extends MySqlTable, N extends string> = Extract<T['_']
 /********************************************************************************************************************
  * MySqlSelectedNamedColumn
  * ******************************************************************************************************************/
-type MySqlSelectionKey<T extends MySqlTable, N extends string> = N extends `${string} as ${infer Alias}` ? Alias : string extends MySqlColumnForName<T, N>['_']['name'] ? N : MySqlColumnForName<T, N>['_']['name'];
+type MySqlSelectionKey<T extends MySqlTable, N extends string> = N extends `${string} ${AsKeyword} ${infer Alias}` ? Alias : string extends MySqlColumnForName<T, N>['_']['name'] ? N : MySqlColumnForName<T, N>['_']['name'];
 /********************************************************************************************************************
  * MySqlSelectedNamedColumn
  * ******************************************************************************************************************/
-type MySqlSelectionValue<T extends MySqlTable, N extends string> = N extends `${infer Name} as ${string}` ? SQL.Aliased<MySqlColumnForName<T, Name>['_']['data']> : MySqlColumnForName<T, N>;
+type MySqlSelectionValue<T extends MySqlTable, N extends string> = N extends `${infer Name} ${AsKeyword} ${string}` ? SQL.Aliased<MySqlColumnForName<T, Name>['_']['data']> : MySqlColumnForName<T, N>;
 /********************************************************************************************************************
  * MySqlSelectedNamedColumn
  * ******************************************************************************************************************/

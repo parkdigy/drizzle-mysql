@@ -12,13 +12,13 @@ import { MySqlQuery } from './MySqlQuery';
 export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(options: {
   url: string;
   schema: TSchema;
-  timestamp?: () => unknown;
+  getTimestamp: () => unknown;
 }) {
   const pool = mysql.createPool({ uri: options.url });
   const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
   type Transaction = Parameters<Parameters<typeof raw.transaction>[0]>[0];
   const context = new AsyncLocalStorage<Transaction>();
-  const current = () => context.getStore() ?? raw;
+  const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp: options.getTimestamp });
   const trans = <T>(callback: () => Promise<T>): Promise<T> => {
     const parent = context.getStore();
     const execute = (tx: Transaction) => context.run(tx, callback);
@@ -80,10 +80,7 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(options
       (is(value, SQL) ? value : sql`${value}`).mapWith((v) => v === true || v === 1),
     current,
     query: <TTable extends TSchema[keyof TSchema]>(table: TTable) =>
-      new MySqlQuery(table, current, () => {
-        if (!options.timestamp) throw new Error('timestamp generator is not configured');
-        return options.timestamp();
-      }),
+      new MySqlQuery(table, current),
     trans,
     paginate,
     close: () => pool.end(),

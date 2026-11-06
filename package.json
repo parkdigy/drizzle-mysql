@@ -2,7 +2,7 @@
   "name": "@pdg/drizzle-mysql",
   "title": "Drizzle for MySql",
   "description": "Drizzle for MySql",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.esm.js",

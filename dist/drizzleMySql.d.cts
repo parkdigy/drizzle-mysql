@@ -7,17 +7,19 @@ import { MySqlQuery } from './MySqlQuery.cjs';
 export declare function drizzleMySql<TSchema extends Record<string, MySqlTable>>(options: {
     url: string;
     schema: TSchema;
-    timestamp?: () => unknown;
+    getTimestamp: () => unknown;
 }): {
     columns: typeof TableColumns;
     sql: typeof sql;
     sqlNumber: (value: SQL | number) => SQL<number>;
     sqlString: (value: SQL | string) => SQL<string>;
     sqlBoolean: (value: SQL | boolean) => SQL<boolean>;
-    current: () => (import("drizzle-orm/mysql2").MySql2Database<native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>> & {
+    current: (() => (import("drizzle-orm/mysql2").MySql2Database<native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>> & {
         $client: mysql.Pool;
-    }) | import("drizzle-orm/mysql-core").MySqlAsyncTransaction<import("drizzle-orm/mysql2").MySql2QueryResultHKT, native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>>;
-    query: <TTable extends TSchema[keyof TSchema]>(table: TTable) => MySqlQuery<TTable, import("./@types.cjs").MySqlInsertValues<TTable>, import("./@types.cjs").MySqlUpdateValues<TTable>, ([{ [P in keyof TTable["_"]["columns"]]: TTable["_"]["columns"][P]["_"] extends {
+    }) | import("drizzle-orm/mysql-core").MySqlAsyncTransaction<import("drizzle-orm/mysql2").MySql2QueryResultHKT, native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>>) & {
+        getTimestamp: () => unknown;
+    };
+    query: <TTable extends TSchema[keyof TSchema]>(table: TTable) => MySqlQuery<TTable, import("./@types/index.cjs").MySqlInsertValues<TTable>, import("./@types/index.cjs").MySqlUpdateValues<TTable>, ([{ [P in keyof TTable["_"]["columns"]]: TTable["_"]["columns"][P]["_"] extends {
         isAutoincrement: true;
     } ? P : never; }[keyof TTable["_"]["columns"]]] extends [never] ? false : true) extends true ? number : undefined>;
     trans: <T>(callback: () => Promise<T>) => Promise<T>;
@@ -39,104 +41,104 @@ export declare function drizzleMySql<TSchema extends Record<string, MySqlTable>>
     }>;
     close: () => Promise<void>;
     eq: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
     } & {
         <TColumn extends native.Column>(left: TColumn, right: native.SQLWrapper<unknown> | TColumn["_"]["data"]): SQL;
         <T>(left: SQL.Aliased<T>, right: native.SQLWrapper<unknown> | T): SQL;
         <T extends native.SQLWrapper>(left: Exclude<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, right: unknown): SQL;
     };
     ne: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
     } & {
         <TColumn extends native.Column>(left: TColumn, right: native.SQLWrapper<unknown> | TColumn["_"]["data"]): SQL;
         <T>(left: SQL.Aliased<T>, right: native.SQLWrapper<unknown> | T): SQL;
         <T extends native.SQLWrapper>(left: Exclude<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, right: unknown): SQL;
     };
     gt: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
     } & {
         <TColumn extends native.Column>(left: TColumn, right: native.SQLWrapper<unknown> | TColumn["_"]["data"]): SQL;
         <T>(left: SQL.Aliased<T>, right: native.SQLWrapper<unknown> | T): SQL;
         <T extends native.SQLWrapper>(left: Exclude<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, right: unknown): SQL;
     };
     gte: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
     } & {
         <TColumn extends native.Column>(left: TColumn, right: native.SQLWrapper<unknown> | TColumn["_"]["data"]): SQL;
         <T>(left: SQL.Aliased<T>, right: native.SQLWrapper<unknown> | T): SQL;
         <T extends native.SQLWrapper>(left: Exclude<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, right: unknown): SQL;
     };
     lt: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
     } & {
         <TColumn extends native.Column>(left: TColumn, right: native.SQLWrapper<unknown> | TColumn["_"]["data"]): SQL;
         <T>(left: SQL.Aliased<T>, right: native.SQLWrapper<unknown> | T): SQL;
         <T extends native.SQLWrapper>(left: Exclude<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, right: unknown): SQL;
     };
     lte: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
     } & {
         <TColumn extends native.Column>(left: TColumn, right: native.SQLWrapper<unknown> | TColumn["_"]["data"]): SQL;
         <T>(left: SQL.Aliased<T>, right: native.SQLWrapper<unknown> | T): SQL;
         <T extends native.SQLWrapper>(left: Exclude<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, right: unknown): SQL;
     };
     inArray: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlArrayCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlArrayCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlArrayCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlArrayCompareValues<T> | undefined): SQL | undefined;
     } & typeof native.inArray;
     notInArray: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlArrayCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlArrayCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlArrayCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlArrayCompareValues<T> | undefined): SQL | undefined;
     } & typeof native.notInArray;
     between: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlRangeCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlRangeCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlRangeCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlRangeCompareValues<T> | undefined): SQL | undefined;
     } & typeof native.between;
     notBetween: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlRangeCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlRangeCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlRangeCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlRangeCompareValues<T> | undefined): SQL | undefined;
     } & typeof native.notBetween;
     like: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlPatternCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlPatternCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
     } & typeof native.like;
     notLike: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlPatternCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlPatternCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
     } & typeof native.notLike;
     ilike: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlPatternCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlPatternCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
     } & typeof native.ilike;
     notIlike: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types.cjs").MySqlPatternCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
-        <T extends MySqlTable>(table: T, values: import("./@types.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, values: import("./@types/index.cjs").MySqlPatternCompareValues<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>> | undefined): SQL | undefined;
+        <T extends MySqlTable>(table: T, values: import("./@types/index.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
     } & typeof native.notIlike;
     isNull: {
-        <T extends MySqlTable>(table: T, name: import("./@types.cjs").MySqlColumnName<T>): SQL;
-        <T extends MySqlTable>(table: T, names: import("./@types.cjs").MySqlNullConditionInput<T>): SQL | undefined;
-        <K extends keyof TSchema & string>(table: K, name: import("./@types.cjs").MySqlColumnName<TSchema[K]>): SQL;
-        <K extends keyof TSchema & string>(table: K, names: import("./@types.cjs").MySqlNullConditionInput<TSchema[K]>): SQL | undefined;
+        <T extends MySqlTable>(table: T, name: import("./@types/index.cjs").MySqlColumnName<T>): SQL;
+        <T extends MySqlTable>(table: T, names: import("./@types/index.cjs").MySqlNullConditionInput<T>): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, name: import("./@types/index.cjs").MySqlColumnName<TSchema[K]>): SQL;
+        <K extends keyof TSchema & string>(table: K, names: import("./@types/index.cjs").MySqlNullConditionInput<TSchema[K]>): SQL | undefined;
     } & typeof native.isNull;
     isNotNull: {
-        <T extends MySqlTable>(table: T, name: import("./@types.cjs").MySqlColumnName<T>): SQL;
-        <T extends MySqlTable>(table: T, names: import("./@types.cjs").MySqlNullConditionInput<T>): SQL | undefined;
-        <K extends keyof TSchema & string>(table: K, name: import("./@types.cjs").MySqlColumnName<TSchema[K]>): SQL;
-        <K extends keyof TSchema & string>(table: K, names: import("./@types.cjs").MySqlNullConditionInput<TSchema[K]>): SQL | undefined;
+        <T extends MySqlTable>(table: T, name: import("./@types/index.cjs").MySqlColumnName<T>): SQL;
+        <T extends MySqlTable>(table: T, names: import("./@types/index.cjs").MySqlNullConditionInput<T>): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, name: import("./@types/index.cjs").MySqlColumnName<TSchema[K]>): SQL;
+        <K extends keyof TSchema & string>(table: K, names: import("./@types/index.cjs").MySqlNullConditionInput<TSchema[K]>): SQL | undefined;
     } & typeof native.isNotNull;
     and: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, options: import("./@types.cjs").MySqlConditions<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>>): SQL | undefined;
-        <T extends MySqlTable>(table: T, options: import("./@types.cjs").MySqlConditions<T>): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, options: import("./@types/index.cjs").MySqlConditions<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>>): SQL | undefined;
+        <T extends MySqlTable>(table: T, options: import("./@types/index.cjs").MySqlConditions<T>): SQL | undefined;
     } & ((...conditions: (native.SQLWrapper | false | undefined)[]) => SQL | undefined);
     or: {
-        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, options: import("./@types.cjs").MySqlConditions<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>>): SQL | undefined;
-        <T extends MySqlTable>(table: T, options: import("./@types.cjs").MySqlConditions<T>): SQL | undefined;
+        <T extends (keyof TSchema & string) | MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>(table: T, options: import("./@types/index.cjs").MySqlConditions<T extends keyof TSchema & string ? TSchema[T] : Extract<T, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>>): SQL | undefined;
+        <T extends MySqlTable>(table: T, options: import("./@types/index.cjs").MySqlConditions<T>): SQL | undefined;
     } & ((...conditions: (native.SQLWrapper | false | undefined)[]) => SQL | undefined);
     asc: typeof native.asc;
     desc: typeof native.desc;

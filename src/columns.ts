@@ -36,8 +36,10 @@ export type MySqlSelectedTableColumns<T extends MySqlTable> = {
 /********************************************************************************************************************
  * MySqlColumnSelectionName
  * ******************************************************************************************************************/
+type AsKeyword = 'as' | 'AS' | 'As' | 'aS';
+
 export type MySqlColumnSelectionName<T extends MySqlTable> =
-  (keyof T['_']['columns'] & string) | `${keyof T['_']['columns'] & string} as ${string}`;
+  (keyof T['_']['columns'] & string) | `${keyof T['_']['columns'] & string} ${AsKeyword} ${string}`;
 
 /********************************************************************************************************************
  * MySqlSelectedNamedColumn
@@ -50,7 +52,7 @@ type MySqlColumnForName<T extends MySqlTable, N extends string> = Extract<
 /********************************************************************************************************************
  * MySqlSelectedNamedColumn
  * ******************************************************************************************************************/
-type MySqlSelectionKey<T extends MySqlTable, N extends string> = N extends `${string} as ${infer Alias}`
+type MySqlSelectionKey<T extends MySqlTable, N extends string> = N extends `${string} ${AsKeyword} ${infer Alias}`
   ? Alias
   : string extends MySqlColumnForName<T, N>['_']['name']
     ? N
@@ -59,7 +61,7 @@ type MySqlSelectionKey<T extends MySqlTable, N extends string> = N extends `${st
 /********************************************************************************************************************
  * MySqlSelectedNamedColumn
  * ******************************************************************************************************************/
-type MySqlSelectionValue<T extends MySqlTable, N extends string> = N extends `${infer Name} as ${string}`
+type MySqlSelectionValue<T extends MySqlTable, N extends string> = N extends `${infer Name} ${AsKeyword} ${string}`
   ? SQL.Aliased<MySqlColumnForName<T, Name>['_']['data']>
   : MySqlColumnForName<T, N>;
 
