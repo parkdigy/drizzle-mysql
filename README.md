@@ -47,15 +47,15 @@ const user = db.query(users);
 
 ### 데이터 추가·수정·삭제
 
-입력값을 변수로 준비할 때는 `insertValues` / `updateValues` 헬퍼를 사용하면 스키마 제네릭을 반복해서 지정하지 않아도 됩니다. 해당 쿼리의 입력 타입과 컬럼 정책으로 검사하며, 전달한 객체 또는 배열을 그대로 반환합니다. 헬퍼 자체는 DB 쿼리, 런타임 정책 검사, 기본 시각 생성을 실행하지 않습니다. 런타임 처리는 `add` / `edit`에서 수행합니다.
+입력값을 변수로 준비할 때는 `addValues` / `editValues` 헬퍼를 사용하면 스키마 제네릭을 반복해서 지정하지 않아도 됩니다. 해당 쿼리의 입력 타입과 컬럼 정책으로 검사하며, 전달한 객체 또는 배열을 그대로 반환합니다. 헬퍼 자체는 DB 쿼리, 런타임 정책 검사, 기본 시각 생성을 실행하지 않습니다. 런타임 처리는 `add` / `edit`에서 수행합니다.
 
 ```ts
-const insertValues = user.insertValues({ name: '홍길동' });
-const id = await user.add(insertValues);
-const updateValues = user.updateValues({ name: '김민수' });
-await user.editByPrimaryKey(updateValues, id);
+const addValues = user.addValues({ name: '홍길동' });
+const id = await user.add(addValues);
+const editValues = user.editValues({ name: '김민수' });
+await user.editByPrimaryKey(editValues, id);
 
-const rows = user.insertValues([{ name: '사용자1' }, { name: '사용자2' }]);
+const rows = user.addValues([{ name: '사용자1' }, { name: '사용자2' }]);
 await user.add(rows);
 ```
 
@@ -382,7 +382,7 @@ const indexedLogs = mysqlTable(
 
 컬럼 정책은 이 패키지에서 가져온 `mysqlTable`에 선언합니다. 자동 증가 컬럼은 기본적으로 등록과 수정이 금지되며, 각각 `insertAllowed()`와 `updateAllowed()`로 허용할 수 있습니다. `primaryKey()`로 지정한 컬럼도 기본적으로 수정이 금지되며, `updateAllowed()`를 명시해야 수정할 수 있습니다. 다른 컬럼은 `insertBlocked()`와 `updateBlocked()`로 금지하거나 `updateRequired()`로 수정 시 필수로 지정합니다. 금지된 값을 전달하거나 필수 수정 값을 누락하면 런타임에도 오류가 발생합니다.
 
-금지 컬럼은 `MySqlInsertValues` / `MySqlUpdateValues`의 키에서 제외됩니다. 따라서 타입이 지정된 객체 리터럴에는 `undefined`로도 지정할 수 없습니다. TypeScript의 구조적 타입 검사로 인해 추가 속성이 있는 기존 변수를 전달하는 경우에는 컴파일을 통과할 수 있지만, 런타임에서는 금지 컬럼 키가 있으면 값이 `undefined`여도 오류가 발생합니다.
+금지 컬럼은 `MySqlAddValues` / `MySqlEditValues`의 키에서 제외됩니다. 따라서 타입이 지정된 객체 리터럴에는 `undefined`로도 지정할 수 없습니다. TypeScript의 구조적 타입 검사로 인해 추가 속성이 있는 기존 변수를 전달하는 경우에는 컴파일을 통과할 수 있지만, 런타임에서는 금지 컬럼 키가 있으면 값이 `undefined`여도 오류가 발생합니다.
 
 ```ts
 import { drizzleMySql, mysqlTable, int, varchar, datetime } from '@pdg/drizzle-mysql';
@@ -434,7 +434,7 @@ const numericExpression = db.sqlNumber(db.sql`1`);
 | 바이너리 | `binary`, `varbinary`, `tinyblob`, `blob`, `mediumblob`, `longblob` |
 | 기타 컬럼 | `boolean`, `json`, `customType` |
 | 인덱스·제약조건 | `index`, `uniqueIndex`, `primaryKey`, `foreignKey`, `unique`, `check` |
-| 타입 (`import type`) | `InferColumnsDataTypes`, `MySqlConditions`, `MySqlInsertValues`, `MySqlUpdateValues`, `MySqlAliasTable`, `MySqlSelectedColumns`, `MySqlSelectedTableColumns`, `MySqlColumnSelectionName`, `MySqlSelectedNamedColumnUnion`, `MySqlSelectedNamedColumns`, `MySqlCompareValues`, `MySqlColumnName`, `MySqlArrayCompareValues`, `MySqlRangeCompareValues`, `MySqlPatternCompareValues`, `MySqlNullConditionInput` |
+| 타입 (`import type`) | `InferColumnsDataTypes`, `MySqlConditions`, `MySqlAddValues`, `MySqlEditValues`, `MySqlAliasTable`, `MySqlSelectedColumns`, `MySqlSelectedTableColumns`, `MySqlColumnSelectionName`, `MySqlSelectedNamedColumnUnion`, `MySqlSelectedNamedColumns`, `MySqlCompareValues`, `MySqlColumnName`, `MySqlArrayCompareValues`, `MySqlRangeCompareValues`, `MySqlPatternCompareValues`, `MySqlNullConditionInput` |
 
 `check`나 SQL 표현식 기반 기본값에 사용하는 `sql`은 `drizzle-orm`에서 가져옵니다. Drizzle의 `MySqlTable` 등 직접 필요한 타입도 `drizzle-orm/mysql-core`에서 가져올 수 있습니다.
 

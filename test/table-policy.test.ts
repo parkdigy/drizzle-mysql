@@ -122,7 +122,7 @@ test('스키마 키 기반 중간 클래스를 상속해도 테이블 정책을 
   }
   class LogsQuery extends Query<'logs'> {
     check() {
-      const values = this.updateValues({ name: 'x' });
+      const values = this.editValues({ name: 'x' });
       // @ts-expect-error 상속 클래스 내부의 this에서도 수정 금지를 유지한다.
       this.edit(values, sql`1 = 1`);
       // @ts-expect-error 상속 클래스 내부의 기본 키 수정도 차단한다.
@@ -135,7 +135,7 @@ test('스키마 키 기반 중간 클래스를 상속해도 테이블 정책을 
   }
   class UpdateBlockedQuery extends Query<'deleteOnly'> {
     check() {
-      const values = this.updateValues({ name: 'x' });
+      const values = this.editValues({ name: 'x' });
       // @ts-expect-error updateBlocked만 선언한 상속 클래스에서도 차단한다.
       this.editByPrimaryKey(values, 1);
       this.removeByPrimaryKey(1);
@@ -143,7 +143,7 @@ test('스키마 키 기반 중간 클래스를 상속해도 테이블 정책을 
   }
   class AllowedQuery extends Query<'unrestricted'> {
     check() {
-      this.editByPrimaryKey(this.updateValues({ name: 'x' }), 1);
+      this.editByPrimaryKey(this.editValues({ name: 'x' }), 1);
       this.removeByPrimaryKey(1);
     }
   }

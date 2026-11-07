@@ -29,7 +29,7 @@ type TimestampKeys<T extends MySqlTable> = {
 }[keyof InsertValue<T>] &
   keyof InsertValue<T>;
 
-export type MySqlInsertValues<T extends MySqlTable, B extends keyof InsertValue<T> = never> = Omit<
+export type MySqlAddValues<T extends MySqlTable, B extends keyof InsertValue<T> = never> = Omit<
   InsertValue<T>,
   B | Blocked<T> | TimestampKeys<T>
 > &

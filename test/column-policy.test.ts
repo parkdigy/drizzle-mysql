@@ -7,8 +7,8 @@ import {
   varchar,
   mysqlTable,
   MySqlQuery,
-  type MySqlInsertValues,
-  type MySqlUpdateValues,
+  type MySqlAddValues,
+  type MySqlEditValues,
 } from '../src';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 
@@ -23,38 +23,38 @@ const table = mysqlTable('policy_test', {
   updated: varchar({ length: 50 }).notNull().updatedAt(),
 });
 if (false) {
-  const validInsert: MySqlInsertValues<typeof table> = { name: 'x', allowed: 3 };
-  const validUpdate: MySqlUpdateValues<typeof table> = { required: 1, allowed: 2 };
+  const validInsert: MySqlAddValues<typeof table> = { name: 'x', allowed: 3 };
+  const validUpdate: MySqlEditValues<typeof table> = { required: 1, allowed: 2 };
   // @ts-expect-error 자동 증가 컬럼은 기본적으로 입력이 금지된다.
-  const badInsert: MySqlInsertValues<typeof table> = { name: 'x', id: 1 };
+  const badInsert: MySqlAddValues<typeof table> = { name: 'x', id: 1 };
   // @ts-expect-error 지정한 컬럼은 입력이 금지된다.
-  const badSecret: MySqlInsertValues<typeof table> = { name: 'x', secret: 'x' };
-  const validTime: MySqlInsertValues<typeof table> = { name: 'x', created: 'x', updated: 'y' };
+  const badSecret: MySqlAddValues<typeof table> = { name: 'x', secret: 'x' };
+  const validTime: MySqlAddValues<typeof table> = { name: 'x', created: 'x', updated: 'y' };
   // @ts-expect-error 시각 컬럼의 데이터 타입과 일치해야 한다.
-  const badTime: MySqlInsertValues<typeof table> = { name: 'x', created: 1 };
-  const validUpdateTime: MySqlUpdateValues<typeof table> = { required: 1, updated: 'x' };
+  const badTime: MySqlAddValues<typeof table> = { name: 'x', created: 1 };
+  const validUpdateTime: MySqlEditValues<typeof table> = { required: 1, updated: 'x' };
   // @ts-expect-error 생성 시각은 수정할 수 없다.
-  const badUpdateTime: MySqlUpdateValues<typeof table> = { required: 1, created: 'x' };
+  const badUpdateTime: MySqlEditValues<typeof table> = { required: 1, created: 'x' };
   // @ts-expect-error 수정 필수 컬럼이 누락되었다.
-  const badUpdate: MySqlUpdateValues<typeof table> = { name: 'x' };
+  const badUpdate: MySqlEditValues<typeof table> = { name: 'x' };
   // @ts-expect-error 수정 금지 컬럼이다.
-  const badLocked: MySqlUpdateValues<typeof table> = { required: 1, locked: 2 };
+  const badLocked: MySqlEditValues<typeof table> = { required: 1, locked: 2 };
   // @ts-expect-error 금지 컬럼은 undefined로도 지정할 수 없다.
-  const undefinedCreated: MySqlUpdateValues<typeof table> = { required: 1, created: undefined };
+  const undefinedCreated: MySqlEditValues<typeof table> = { required: 1, created: undefined };
   // @ts-expect-error 명시적인 수정 금지 컬럼도 타입에서 제외한다.
-  const undefinedLocked: MySqlUpdateValues<typeof table> = { required: 1, locked: undefined };
+  const undefinedLocked: MySqlEditValues<typeof table> = { required: 1, locked: undefined };
   // @ts-expect-error 등록 금지 컬럼은 undefined로도 지정할 수 없다.
-  const undefinedSecret: MySqlInsertValues<typeof table> = { name: 'x', secret: undefined };
+  const undefinedSecret: MySqlAddValues<typeof table> = { name: 'x', secret: undefined };
   // @ts-expect-error 자동 증가 컬럼도 타입에서 제외한다.
-  const undefinedId: MySqlInsertValues<typeof table> = { name: 'x', id: undefined };
+  const undefinedId: MySqlAddValues<typeof table> = { name: 'x', id: undefined };
   // @ts-expect-error 제네릭으로 지정한 금지 컬럼도 타입에서 제외한다.
-  const undefinedCustom: MySqlUpdateValues<typeof table, 'name'> = { required: 1, name: undefined };
+  const undefinedCustom: MySqlEditValues<typeof table, 'name'> = { required: 1, name: undefined };
   // @ts-expect-error 제네릭으로 지정한 등록 금지 컬럼도 타입에서 제외한다.
-  const undefinedCustomInsert: MySqlInsertValues<typeof table, 'name'> = { name: undefined };
+  const undefinedCustomInsert: MySqlAddValues<typeof table, 'name'> = { name: undefined };
   // @ts-expect-error 금지 컬럼은 keyof에도 포함되지 않는다.
-  const blockedUpdateKey: keyof MySqlUpdateValues<typeof table> = 'created';
+  const blockedUpdateKey: keyof MySqlEditValues<typeof table> = 'created';
   // @ts-expect-error 등록 금지 컬럼은 keyof에도 포함되지 않는다.
-  const blockedInsertKey: keyof MySqlInsertValues<typeof table> = 'secret';
+  const blockedInsertKey: keyof MySqlAddValues<typeof table> = 'secret';
   void [
     undefinedCreated, undefinedLocked, undefinedSecret, undefinedId, undefinedCustom, undefinedCustomInsert,
     blockedUpdateKey, blockedInsertKey,
@@ -125,44 +125,44 @@ test('입력값 헬퍼는 쿼리 타입으로 검사하고 입력값을 그대�
   const getTimestamp = jest.fn(() => 'now');
   class Query extends MySqlQuery<typeof table> {}
   const query = new Query(table, current, getTimestamp);
-  const input: MySqlInsertValues<typeof table> = { name: 'x' };
+  const input: MySqlAddValues<typeof table> = { name: 'x' };
   const rows = [input];
-  const changes: MySqlUpdateValues<typeof table> = { required: 1 };
-  expect(query.insertValues(input)).toBe(input);
-  expect(query.insertValues(rows)).toBe(rows);
-  expect(query.insertValues([])).toEqual([]);
-  expect(query.updateValues(changes)).toBe(changes);
+  const changes: MySqlEditValues<typeof table> = { required: 1 };
+  expect(query.addValues(input)).toBe(input);
+  expect(query.addValues(rows)).toBe(rows);
+  expect(query.addValues([])).toEqual([]);
+  expect(query.editValues(changes)).toBe(changes);
   expect(current).not.toHaveBeenCalled();
   expect(getTimestamp).not.toHaveBeenCalled();
-  const editable = query.updateValues({ required: 1 });
+  const editable = query.editValues({ required: 1 });
   editable.name = 'edited';
   if (false) {
     // @ts-expect-error 등록 필수 값은 누락할 수 없다.
-    query.insertValues({});
+    query.addValues({});
     // @ts-expect-error 등록 금지 컬럼은 undefined로도 지정할 수 없다.
-    query.insertValues({ name: 'x', secret: undefined });
+    query.addValues({ name: 'x', secret: undefined });
     // @ts-expect-error 배열 입력도 각 행의 컬럼 타입을 검사한다.
-    query.insertValues([{ name: 1 }]);
+    query.addValues([{ name: 1 }]);
     // @ts-expect-error 수정 필수 값을 누락할 수 없다.
-    query.updateValues({ name: 'x' });
+    query.editValues({ name: 'x' });
     // @ts-expect-error 생성 시각은 수정할 수 없다.
-    query.updateValues({ required: 1, created: undefined });
+    query.editValues({ required: 1, created: undefined });
     // @ts-expect-error 수정 금지 컬럼은 지정할 수 없다.
-    query.updateValues({ required: 1, locked: 2 });
+    query.editValues({ required: 1, locked: 2 });
     const custom = new MySqlQuery<
       typeof table,
-      MySqlInsertValues<typeof table, 'allowed'>,
-      MySqlUpdateValues<typeof table, 'name', 'allowed'>
+      MySqlAddValues<typeof table, 'allowed'>,
+      MySqlEditValues<typeof table, 'name', 'allowed'>
     >(table, current, getTimestamp);
     // @ts-expect-error 쿼리의 사용자 지정 등록 금지 타입도 유지한다.
-    custom.insertValues({ name: 'x', allowed: 1 });
+    custom.addValues({ name: 'x', allowed: 1 });
     // @ts-expect-error 쿼리의 사용자 지정 수정 필수 타입도 유지한다.
-    custom.updateValues({ required: 1 });
+    custom.editValues({ required: 1 });
     // @ts-expect-error 쿼리의 사용자 지정 수정 금지 타입도 유지한다.
-    custom.updateValues({ required: 1, allowed: 2, name: 'x' });
+    custom.editValues({ required: 1, allowed: 2, name: 'x' });
   }
-  await query.add(query.insertValues({ name: 'x' }));
-  await query.add(query.insertValues([{ name: 'x' }]));
+  await query.add(query.addValues({ name: 'x' }));
+  await query.add(query.addValues([{ name: 'x' }]));
   await query.editByPrimaryKey(editable, 7);
   expect(insert).toHaveBeenCalledTimes(2);
   expect(update).toHaveBeenCalledTimes(1);
@@ -215,16 +215,16 @@ test('시각 컬럼은 원래 입력 타입과 명시적인 등록 금지 정책
     blocked: datetime({ mode: 'string' }).createdAt().insertBlocked(),
   });
   if (false) {
-    const optional: MySqlInsertValues<typeof dates> = {};
-    const explicit: MySqlInsertValues<typeof dates> = { create_date: '2026-01-01 00:00:00' };
+    const optional: MySqlAddValues<typeof dates> = {};
+    const explicit: MySqlAddValues<typeof dates> = { create_date: '2026-01-01 00:00:00' };
     // @ts-expect-error string 모드 컬럼에는 Date를 지정할 수 없다.
-    const wrongType: MySqlInsertValues<typeof dates> = { create_date: new Date() };
+    const wrongType: MySqlAddValues<typeof dates> = { create_date: new Date() };
     // @ts-expect-error notNull 컬럼에는 null을 지정할 수 없다.
-    const wrongNull: MySqlInsertValues<typeof dates> = { create_date: null };
+    const wrongNull: MySqlAddValues<typeof dates> = { create_date: null };
     // @ts-expect-error 명시적 insertBlocked는 시각 컬럼에서도 적용한다.
-    const blocked: MySqlInsertValues<typeof dates> = { blocked: 'manual' };
+    const blocked: MySqlAddValues<typeof dates> = { blocked: 'manual' };
     // @ts-expect-error 제네릭으로 지정한 등록 금지 컬럼도 유지한다.
-    const customBlocked: MySqlInsertValues<typeof dates, 'create_date'> = { create_date: 'manual' };
+    const customBlocked: MySqlAddValues<typeof dates, 'create_date'> = { create_date: 'manual' };
     void [optional, explicit, wrongType, wrongNull, blocked, customBlocked];
   }
   const inserted: unknown[] = [];
@@ -258,14 +258,14 @@ test('수정 시 지정한 시각을 유지하고 누락된 시각만 기본값�
     blocked: datetime({ mode: 'string' }).updatedAt().updateBlocked(),
   });
   if (false) {
-    const optional: MySqlUpdateValues<typeof dates> = {};
-    const explicit: MySqlUpdateValues<typeof dates> = { updated: 'manual', nullable: null };
+    const optional: MySqlEditValues<typeof dates> = {};
+    const explicit: MySqlEditValues<typeof dates> = { updated: 'manual', nullable: null };
     // @ts-expect-error string 모드 컬럼에는 Date를 지정할 수 없다.
-    const wrongType: MySqlUpdateValues<typeof dates> = { updated: new Date() };
+    const wrongType: MySqlEditValues<typeof dates> = { updated: new Date() };
     // @ts-expect-error 명시적 updateBlocked는 유지한다.
-    const blocked: MySqlUpdateValues<typeof dates> = { blocked: 'manual' };
+    const blocked: MySqlEditValues<typeof dates> = { blocked: 'manual' };
     // @ts-expect-error 제네릭으로 지정한 수정 금지 컬럼은 유지한다.
-    const customBlocked: MySqlUpdateValues<typeof dates, 'updated'> = { updated: 'manual' };
+    const customBlocked: MySqlEditValues<typeof dates, 'updated'> = { updated: 'manual' };
     void [optional, explicit, wrongType, blocked, customBlocked];
   }
   const updated: unknown[] = [];
@@ -339,11 +339,11 @@ const primaryKeyTable = mysqlTable('primary_key_policy', {
 });
 
 if (false) {
-  const allowed: MySqlUpdateValues<typeof primaryKeyTable> = { allowedBefore: 'a', allowedAfter: 'b' };
+  const allowed: MySqlEditValues<typeof primaryKeyTable> = { allowedBefore: 'a', allowedAfter: 'b' };
   // @ts-expect-error 자동 증가가 아닌 기본 키도 수정이 금지된다.
-  const blocked: MySqlUpdateValues<typeof primaryKeyTable> = { id: 'a' };
+  const blocked: MySqlEditValues<typeof primaryKeyTable> = { id: 'a' };
   // @ts-expect-error updateRequired는 기본 키 수정 허용을 의미하지 않는다.
-  const requiredBlocked: MySqlUpdateValues<typeof primaryKeyTable> = { requiredKey: 'a' };
+  const requiredBlocked: MySqlEditValues<typeof primaryKeyTable> = { requiredKey: 'a' };
   void [allowed, blocked, requiredBlocked];
 }
 

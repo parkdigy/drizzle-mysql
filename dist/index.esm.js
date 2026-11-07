@@ -489,13 +489,13 @@ class MySqlQuery {
             }
         }
     }
-    insertValues(values) {
+    addValues(values) {
         return values;
     }
     /********************************************************************************************************************
-     * updateValues
+     * editValues
      * ******************************************************************************************************************/
-    updateValues(values) {
+    editValues(values) {
         return values;
     }
     add(value) {

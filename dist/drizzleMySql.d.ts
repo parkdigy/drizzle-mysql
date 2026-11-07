@@ -19,7 +19,7 @@ export declare function drizzleMySql<TSchema extends Record<string, MySqlTable>>
     }) | import("drizzle-orm/mysql-core").MySqlAsyncTransaction<import("drizzle-orm/mysql2").MySql2QueryResultHKT, native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>>) & {
         getTimestamp: () => unknown;
     };
-    query: <TTable extends TSchema[keyof TSchema]>(table: TTable) => MySqlQuery<TTable, import("./@types/index.js").MySqlInsertValues<TTable>, import("./@types/index.js").MySqlUpdateValues<TTable>, ([{ [P in keyof TTable["_"]["columns"]]: TTable["_"]["columns"][P]["_"] extends {
+    query: <TTable extends TSchema[keyof TSchema]>(table: TTable) => MySqlQuery<TTable, import("./@types/index.js").MySqlAddValues<TTable>, import("./@types/index.js").MySqlEditValues<TTable>, ([{ [P in keyof TTable["_"]["columns"]]: TTable["_"]["columns"][P]["_"] extends {
         isAutoincrement: true;
     } ? P : never; }[keyof TTable["_"]["columns"]]] extends [never] ? false : true) extends true ? number : undefined>;
     trans: <T>(callback: () => Promise<T>) => Promise<T>;

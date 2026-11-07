@@ -1,6 +1,6 @@
 import type { MySqlTable } from 'drizzle-orm/mysql-core/table';
 import type { MySqlInsertValue as InsertValue } from 'drizzle-orm/mysql-core/query-builders/insert';
-import type { TablePolicies } from '../mysqlTable.js';
+import type { TablePolicies } from '../mysqlTable.cjs';
 type Blocked<T extends MySqlTable> = {
     [K in keyof InsertValue<T>]: K extends keyof TablePolicies<T> ? TablePolicies<T>[K] extends {
         insert: 'blocked';
@@ -13,5 +13,5 @@ type TimestampKeys<T extends MySqlTable> = {
         timestamp: string;
     } ? K : never : never;
 }[keyof InsertValue<T>] & keyof InsertValue<T>;
-export type MySqlInsertValues<T extends MySqlTable, B extends keyof InsertValue<T> = never> = Omit<InsertValue<T>, B | Blocked<T> | TimestampKeys<T>> & Partial<Pick<InsertValue<T>, Exclude<TimestampKeys<T>, B | Blocked<T>>>>;
+export type MySqlAddValues<T extends MySqlTable, B extends keyof InsertValue<T> = never> = Omit<InsertValue<T>, B | Blocked<T> | TimestampKeys<T>> & Partial<Pick<InsertValue<T>, Exclude<TimestampKeys<T>, B | Blocked<T>>>>;
 export {};

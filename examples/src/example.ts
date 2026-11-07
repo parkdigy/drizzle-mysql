@@ -10,8 +10,8 @@ const adminUser = mysqlTable('admin_user', {
   is_lock: boolean().default(false).notNull().insertBlocked(),
   login_fail_count: int().default(0).notNull().insertBlocked(),
   remember_token: varchar({ length: 100 }).insertBlocked(),
-  create_date: datetime({ mode: 'string' }).notNull().createdAt(),
-  update_date: datetime({ mode: 'string' }).notNull().updatedAt(),
+  create_date: datetime().notNull().createdAt(),
+  update_date: datetime().notNull().updatedAt(),
 });
 
 const schema = { adminUser };
@@ -90,15 +90,15 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     });
   }
 
-  async addInsertValuesTest() {
-    const insertValues = this.insertValues({
+  async addValuesTest() {
+    const addValues = this.addValues({
       name: 'name',
       email: 'email',
       password: 'password',
       tel: 'tel',
     });
 
-    await this.add(insertValues);
+    await this.add(addValues);
   }
 
   async editTest() {
@@ -109,8 +109,8 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     await this.editByPrimaryKey({ is_lock: true }, 1);
   }
 
-  async editUpdateValuesTest() {
-    const editValues = this.updateValues({
+  async editValuesTest() {
+    const editValues = this.editValues({
       is_lock: true,
     });
     await this.editByPrimaryKey(editValues, 1);

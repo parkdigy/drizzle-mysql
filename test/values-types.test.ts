@@ -5,7 +5,7 @@ const fileName = path.resolve('test/values-types.fixture.ts');
 const source = `
 import { int, mysqlTable, varchar } from 'drizzle-orm/mysql-core';
 import { sql } from 'drizzle-orm';
-import type { MySqlInsertValues, MySqlUpdateValues } from '../src';
+import type { MySqlAddValues, MySqlEditValues } from '../src';
 
 const adminGroup = mysqlTable('admin_group', {
   id: int('id').autoincrement().primaryKey(),
@@ -16,42 +16,42 @@ const adminGroup = mysqlTable('admin_group', {
 type AdminGroup = typeof adminGroup;
 
 // @ts-expect-error Empty strings are incomplete column names.
-type InsertCompletion = MySqlInsertValues<AdminGroup, '' /* insert */>;
+type InsertCompletion = MySqlAddValues<AdminGroup, '' /* insert */>;
 // @ts-expect-error Empty strings are incomplete column names.
-type UpdateCompletion = MySqlUpdateValues<AdminGroup, '' /* update */>;
+type UpdateCompletion = MySqlEditValues<AdminGroup, '' /* update */>;
 // @ts-expect-error Empty strings are incomplete column names.
-type InsertUnionCompletion = MySqlInsertValues<AdminGroup, 'id' | '' /* insert union */>;
+type InsertUnionCompletion = MySqlAddValues<AdminGroup, 'id' | '' /* insert union */>;
 // @ts-expect-error Empty strings are incomplete column names.
-type UpdateUnionCompletion = MySqlUpdateValues<AdminGroup, 'id' | '' /* update union */>;
+type UpdateUnionCompletion = MySqlEditValues<AdminGroup, 'id' | '' /* update union */>;
 // @ts-expect-error Empty strings are incomplete column names.
-type RequiredCompletion = MySqlUpdateValues<AdminGroup, 'id', '' /* required */>;
+type RequiredCompletion = MySqlEditValues<AdminGroup, 'id', '' /* required */>;
 
-const insert: MySqlInsertValues<AdminGroup> = { name: 'Admins' };
-const blockedInsert: MySqlInsertValues<AdminGroup, 'id'> = { name: 'Admins' };
-const update: MySqlUpdateValues<AdminGroup> = {};
-const requiredUpdate: MySqlUpdateValues<AdminGroup, 'id', 'name'> = { name: 'Admins' };
-const expressions: MySqlUpdateValues<AdminGroup, 'id', 'name'> = { name: sql\`'Admins'\` };
-const nullUpdate: MySqlUpdateValues<AdminGroup, 'id', 'description'> = { description: null };
+const insert: MySqlAddValues<AdminGroup> = { name: 'Admins' };
+const blockedInsert: MySqlAddValues<AdminGroup, 'id'> = { name: 'Admins' };
+const update: MySqlEditValues<AdminGroup> = {};
+const requiredUpdate: MySqlEditValues<AdminGroup, 'id', 'name'> = { name: 'Admins' };
+const expressions: MySqlEditValues<AdminGroup, 'id', 'name'> = { name: sql\`'Admins'\` };
+const nullUpdate: MySqlEditValues<AdminGroup, 'id', 'description'> = { description: null };
 // @ts-expect-error Required insert columns remain required.
-const missingInsert: MySqlInsertValues<AdminGroup> = {};
+const missingInsert: MySqlAddValues<AdminGroup> = {};
 // @ts-expect-error Blocked columns cannot be inserted.
-const invalidInsert: MySqlInsertValues<AdminGroup, 'id'> = { id: 1, name: 'Admins' };
+const invalidInsert: MySqlAddValues<AdminGroup, 'id'> = { id: 1, name: 'Admins' };
 // @ts-expect-error Blocked columns cannot be updated.
-const invalidUpdate: MySqlUpdateValues<AdminGroup, 'id'> = { id: 1 };
+const invalidUpdate: MySqlEditValues<AdminGroup, 'id'> = { id: 1 };
 // @ts-expect-error Required update columns cannot be omitted.
-const missingUpdate: MySqlUpdateValues<AdminGroup, 'id', 'name'> = {};
+const missingUpdate: MySqlEditValues<AdminGroup, 'id', 'name'> = {};
 // @ts-expect-error Required update columns cannot be undefined.
-const undefinedUpdate: MySqlUpdateValues<AdminGroup, 'id', 'name'> = { name: undefined };
+const undefinedUpdate: MySqlEditValues<AdminGroup, 'id', 'name'> = { name: undefined };
 // @ts-expect-error Unknown columns cannot be blocked.
-type UnknownInsert = MySqlInsertValues<AdminGroup, 'unknown'>;
+type UnknownInsert = MySqlAddValues<AdminGroup, 'unknown'>;
 // @ts-expect-error Unknown columns cannot be blocked.
-type UnknownUpdate = MySqlUpdateValues<AdminGroup, 'unknown'>;
+type UnknownUpdate = MySqlEditValues<AdminGroup, 'unknown'>;
 // @ts-expect-error Generated columns are not writable.
-type GeneratedInsert = MySqlInsertValues<AdminGroup, 'generated'>;
+type GeneratedInsert = MySqlAddValues<AdminGroup, 'generated'>;
 // @ts-expect-error Generated columns are not writable.
-type GeneratedUpdate = MySqlUpdateValues<AdminGroup, 'generated'>;
+type GeneratedUpdate = MySqlEditValues<AdminGroup, 'generated'>;
 // @ts-expect-error Blocked columns cannot also be required.
-type BlockedRequired = MySqlUpdateValues<AdminGroup, 'id', 'id'>;
+type BlockedRequired = MySqlEditValues<AdminGroup, 'id', 'id'>;
 `;
 
 const options: ts.CompilerOptions = {

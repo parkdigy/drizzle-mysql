@@ -1,4 +1,15 @@
-import { SQL, isTable, is, sql, count, eq, getTableColumns, and as drizzleAnd, max as drizzleMax, min as drizzleMin } from 'drizzle-orm';
+import {
+  SQL,
+  isTable,
+  is,
+  sql,
+  count,
+  eq,
+  getTableColumns,
+  and as drizzleAnd,
+  max as drizzleMax,
+  min as drizzleMin,
+} from 'drizzle-orm';
 import {
   MySqlTable,
   MySqlColumn,
@@ -18,8 +29,8 @@ import type {
 import { TableColumns } from './columns';
 import { getColumnPolicies, getTablePolicy, type TableMutationPolicy } from './mysqlTable';
 import type {
-  MySqlInsertValues,
-  MySqlUpdateValues,
+  MySqlAddValues,
+  MySqlEditValues,
   MySqlCompareValues,
   MySqlColumnName,
   MySqlArrayCompareValues,
@@ -27,7 +38,7 @@ import type {
   MySqlPatternCompareValues,
   MySqlNullConditionInput,
   MySqlConditions,
-} from './@types/index';
+} from './@types';
 import { createConditions } from './conditions';
 import type { MySqlInsertValue } from 'drizzle-orm/mysql-core/query-builders/insert';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
@@ -37,8 +48,8 @@ import type { MySql2Database } from 'drizzle-orm/mysql2';
  * ******************************************************************************************************************/
 export class MySqlQuery<
   TTable extends MySqlTable,
-  IV extends MySqlInsertValues<TTable> = MySqlInsertValues<TTable>,
-  UV extends MySqlUpdateValues<TTable> = MySqlUpdateValues<TTable>,
+  AV extends MySqlAddValues<TTable> = MySqlAddValues<TTable>,
+  EV extends MySqlEditValues<TTable> = MySqlEditValues<TTable>,
   AR = AddResult<TTable>,
 > {
   // Table
@@ -80,13 +91,19 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * min / max
    * ******************************************************************************************************************/
-  min<N extends keyof TTable['_']['columns'] & string>(name: N): ReturnType<typeof drizzleMin<TTable['_']['columns'][N]>>;
+  min<N extends keyof TTable['_']['columns'] & string>(
+    name: N
+  ): ReturnType<typeof drizzleMin<TTable['_']['columns'][N]>>;
+
   min<C extends MySqlColumn>(column: C): ReturnType<typeof drizzleMin<C>>;
   min(columnOrName: string | MySqlColumn): SQL<unknown> {
     return drizzleMin(this.resolveAggregateColumn(columnOrName));
   }
 
-  max<N extends keyof TTable['_']['columns'] & string>(name: N): ReturnType<typeof drizzleMax<TTable['_']['columns'][N]>>;
+  max<N extends keyof TTable['_']['columns'] & string>(
+    name: N
+  ): ReturnType<typeof drizzleMax<TTable['_']['columns'][N]>>;
+
   max<C extends MySqlColumn>(column: C): ReturnType<typeof drizzleMax<C>>;
   max(columnOrName: string | MySqlColumn): SQL<unknown> {
     return drizzleMax(this.resolveAggregateColumn(columnOrName));
@@ -545,29 +562,29 @@ export class MySqlQuery<
   }
 
   /********************************************************************************************************************
-   * insertValues
+   * addValues
    * ******************************************************************************************************************/
-  insertValues(values: IV[]): IV[];
-  insertValues(values: IV): IV;
-  insertValues(values: IV | IV[]): IV | IV[] {
+  addValues(values: AV[]): AV[];
+  addValues(values: AV): AV;
+  addValues(values: AV | AV[]): AV | AV[] {
     return values;
   }
 
   /********************************************************************************************************************
-   * updateValues
+   * editValues
    * ******************************************************************************************************************/
-  updateValues(values: UV): UV {
+  editValues(values: EV): EV {
     return values;
   }
 
   /********************************************************************************************************************
    * add
    * ******************************************************************************************************************/
-  add(value: IV[]): Promise<AR[]>;
+  add(value: AV[]): Promise<AR[]>;
 
-  add(value: IV): Promise<AR>;
+  add(value: AV): Promise<AR>;
 
-  add(value: IV | IV[]) {
+  add(value: AV | AV[]) {
     const items = Array.isArray(value) ? value : [value];
     const values = items.map((item) => this.prepareValues(item, 'insert'));
     return this.executeInsert((Array.isArray(value) ? values : values[0]) as unknown as MySqlInsertValue<TTable>);
@@ -578,7 +595,7 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   edit(
     this: this & (TableMutationPolicy<TTable> extends { updateBlocked: true } ? never : unknown),
-    set: UV,
+    set: EV,
     where: BaseWhere<this>
   ) {
     this.assertMutationAllowed('update', 'edit');
@@ -601,7 +618,7 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   editByPrimaryKey(
     this: this & (TableMutationPolicy<TTable> extends { updateBlocked: true } ? never : unknown),
-    set: UV,
+    set: EV,
     key: PrimaryKeyInput<TTable>
   ) {
     this.assertMutationAllowed('update', 'editByPrimaryKey');
@@ -818,10 +835,7 @@ type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL |
 
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;
 type StringColumnSelection<TTable extends MySqlTable> = Record<string, keyof TTable['_']['columns'] & string>;
-type StringColumnSelectionFields<
-  TTable extends MySqlTable,
-  TSelection extends StringColumnSelection<TTable>,
-> = {
+type StringColumnSelectionFields<TTable extends MySqlTable, TSelection extends StringColumnSelection<TTable>> = {
   [K in keyof TSelection]: TTable['_']['columns'][TSelection[K]] extends MySqlColumn<infer TConfig>
     ? SQL.Aliased<TConfig['data']>
     : never;

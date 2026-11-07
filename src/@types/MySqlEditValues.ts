@@ -36,7 +36,7 @@ type RequiredKeys<T extends MySqlTable> = {
 }[keyof MySqlUpdateSetSource<T>] &
   keyof MySqlUpdateSetSource<T>;
 
-export type MySqlUpdateValues<
+export type MySqlEditValues<
   T extends MySqlTable,
   B extends keyof MySqlUpdateSetSource<T> = never,
   R extends Exclude<keyof MySqlUpdateSetSource<T>, B | Blocked<T>> = never,

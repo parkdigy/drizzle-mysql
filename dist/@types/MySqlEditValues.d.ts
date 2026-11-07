@@ -20,7 +20,7 @@ type RequiredKeys<T extends MySqlTable> = {
         timestamp: 'updated';
     } ? never : K : never : never;
 }[keyof MySqlUpdateSetSource<T>] & keyof MySqlUpdateSetSource<T>;
-export type MySqlUpdateValues<T extends MySqlTable, B extends keyof MySqlUpdateSetSource<T> = never, R extends Exclude<keyof MySqlUpdateSetSource<T>, B | Blocked<T>> = never> = Omit<MySqlUpdateSetSource<T>, B | Blocked<T> | R | RequiredKeys<T>> & {
+export type MySqlEditValues<T extends MySqlTable, B extends keyof MySqlUpdateSetSource<T> = never, R extends Exclude<keyof MySqlUpdateSetSource<T>, B | Blocked<T>> = never> = Omit<MySqlUpdateSetSource<T>, B | Blocked<T> | R | RequiredKeys<T>> & {
     [K in Exclude<R | RequiredKeys<T>, B | Blocked<T>>]-?: Exclude<MySqlUpdateSetSource<T>[K], undefined>;
 };
 export {};

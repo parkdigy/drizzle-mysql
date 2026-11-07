@@ -4,12 +4,12 @@ import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
 import type { MySqlColumnSelectionName, MySqlSelectedNamedColumnUnion, MySqlSelectedNamedColumns, MySqlSelectedTableColumns, MySqlAliasTable } from './columns.cjs';
 import { type TableMutationPolicy } from './mysqlTable.cjs';
-import type { MySqlInsertValues, MySqlUpdateValues, MySqlCompareValues, MySqlColumnName, MySqlArrayCompareValues, MySqlRangeCompareValues, MySqlPatternCompareValues, MySqlNullConditionInput, MySqlConditions } from './@types/index.cjs';
+import type { MySqlAddValues, MySqlEditValues, MySqlCompareValues, MySqlColumnName, MySqlArrayCompareValues, MySqlRangeCompareValues, MySqlPatternCompareValues, MySqlNullConditionInput, MySqlConditions } from './@types/index.cjs';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 /********************************************************************************************************************
  * MySqlQuery
  * ******************************************************************************************************************/
-export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInsertValues<TTable> = MySqlInsertValues<TTable>, UV extends MySqlUpdateValues<TTable> = MySqlUpdateValues<TTable>, AR = AddResult<TTable>> {
+export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddValues<TTable> = MySqlAddValues<TTable>, EV extends MySqlEditValues<TTable> = MySqlEditValues<TTable>, AR = AddResult<TTable>> {
     private readonly current;
     private readonly getTimestamp?;
     readonly t: TTable;
@@ -110,31 +110,31 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
      * ******************************************************************************************************************/
     private executeInsert;
     /********************************************************************************************************************
-     * insertValues
+     * addValues
      * ******************************************************************************************************************/
-    insertValues(values: IV[]): IV[];
-    insertValues(values: IV): IV;
+    addValues(values: AV[]): AV[];
+    addValues(values: AV): AV;
     /********************************************************************************************************************
-     * updateValues
+     * editValues
      * ******************************************************************************************************************/
-    updateValues(values: UV): UV;
+    editValues(values: EV): EV;
     /********************************************************************************************************************
      * add
      * ******************************************************************************************************************/
-    add(value: IV[]): Promise<AR[]>;
-    add(value: IV): Promise<AR>;
+    add(value: AV[]): Promise<AR[]>;
+    add(value: AV): Promise<AR>;
     /********************************************************************************************************************
      * edit
      * ******************************************************************************************************************/
     edit(this: this & (TableMutationPolicy<TTable> extends {
         updateBlocked: true;
-    } ? never : unknown), set: UV, where: BaseWhere<this>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
+    } ? never : unknown), set: EV, where: BaseWhere<this>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
     /********************************************************************************************************************
      * editByPrimaryKey
      * ******************************************************************************************************************/
     editByPrimaryKey(this: this & (TableMutationPolicy<TTable> extends {
         updateBlocked: true;
-    } ? never : unknown), set: UV, key: PrimaryKeyInput<TTable>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
+    } ? never : unknown), set: EV, key: PrimaryKeyInput<TTable>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
     /********************************************************************************************************************
      * remove
      * ******************************************************************************************************************/
