@@ -38,9 +38,14 @@ test('find와 findByPrimaryKey에서 문자열 매핑 객체와 결과 타입을
     const found = q.find({ id_2: 'id' });
     const foundWithCondition = q.find({ id_2: 'id' }, q.eq({ displayName: 'Ada' }));
     const foundByPrimaryKey = q.findByPrimaryKey({ id_2: 'id' }, 1);
+    const aggregates = q.find({ min_id: q.min('id'), max_id: q.max('id') });
+    const aggregatesWithCondition = q.find(
+      { min_id: q.min('id'), max_id: q.max('id') },
+      q.eq({ displayName: 'Ada' })
+    );
     type FoundRow = NonNullable<Awaited<typeof found>>;
     const row: FoundRow = { id_2: 1 };
-    void [foundWithCondition, foundByPrimaryKey, row];
+    void [foundWithCondition, foundByPrimaryKey, aggregates, aggregatesWithCondition, row];
   }
 });
 

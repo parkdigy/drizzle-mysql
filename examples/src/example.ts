@@ -36,6 +36,7 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
   async selectTest() {
     await this.select(['id', 'name', 'email']);
     await this.select({ id_2: 'id', name_2: 'name', email_2: 'email' });
+    await this.select({ min_id: this.min('id'), max_id: this.max('id') });
   }
 
   async selectColumnsTest() {
@@ -55,8 +56,10 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     await this.find(['id', 'name', 'email'], this.eq({ name: 'name' }));
     await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' });
     await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, this.eq({ name: 'name' }));
+    await this.find({ min_id: this.min('id'), max_id: this.max('id') });
     await this.findByPrimaryKey(['id', 'name', 'email'], 1);
     await this.findByPrimaryKey({ id_2: 'id' }, 1);
+    await this.findByPrimaryKey({ min_id: this.min('id'), max_id: this.max('id') }, 1);
   }
 
   async conditionTest() {

@@ -213,7 +213,7 @@ export class MySqlQuery<
 
   async find<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields: Fields<FieldsQuery<TTable>, TSelection>,
-    where: BaseWhere<this>
+    where?: BaseWhere<this>
   ): Promise<FindResult<TTable, TSelection>>;
 
   async find<TAlias extends string>(
