@@ -1,4 +1,4 @@
-import { SQL, isTable, is, sql, count, eq, getTableColumns, and as drizzleAnd } from 'drizzle-orm';
+import { SQL, isTable, is, sql, count, eq, getTableColumns, and as drizzleAnd, max as drizzleMax, min as drizzleMin } from 'drizzle-orm';
 import {
   MySqlTable,
   MySqlColumn,
@@ -75,6 +75,28 @@ export class MySqlQuery<
   columns(...names: string[]): unknown {
     const table: MySqlTable = this.t;
     return TableColumns(table, ...(names as MySqlColumnSelectionName<MySqlTable>[]));
+  }
+
+  /********************************************************************************************************************
+   * min / max
+   * ******************************************************************************************************************/
+  min<N extends keyof TTable['_']['columns'] & string>(name: N): ReturnType<typeof drizzleMin<TTable['_']['columns'][N]>>;
+  min<C extends MySqlColumn>(column: C): ReturnType<typeof drizzleMin<C>>;
+  min(columnOrName: string | MySqlColumn): SQL<unknown> {
+    return drizzleMin(this.resolveAggregateColumn(columnOrName));
+  }
+
+  max<N extends keyof TTable['_']['columns'] & string>(name: N): ReturnType<typeof drizzleMax<TTable['_']['columns'][N]>>;
+  max<C extends MySqlColumn>(column: C): ReturnType<typeof drizzleMax<C>>;
+  max(columnOrName: string | MySqlColumn): SQL<unknown> {
+    return drizzleMax(this.resolveAggregateColumn(columnOrName));
+  }
+
+  private resolveAggregateColumn(columnOrName: string | MySqlColumn): MySqlColumn {
+    if (typeof columnOrName !== 'string') return columnOrName;
+    const column = getTableColumns(this.t)[columnOrName];
+    if (!column) throw new Error(`aggregate: unknown column "${columnOrName}".`);
+    return column;
   }
 
   private resolveFields(fields: unknown, table: MySqlTable = this.t): FieldSet | undefined {
@@ -788,6 +810,8 @@ type FieldsQuery<TTable extends MySqlTable> = {
   columns<N extends MySqlColumnSelectionName<TTable>>(
     ...names: N[] & MySqlColumnSelectionName<TTable>[]
   ): MySqlSelectedNamedColumnUnion<TTable, N>;
+  min: MySqlQuery<TTable>['min'];
+  max: MySqlQuery<TTable>['max'];
 };
 type Fields<TQuery, TSelection> = TSelection | ((query: TQuery) => TSelection);
 type NamedFields<TTable extends MySqlTable, T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]> = {

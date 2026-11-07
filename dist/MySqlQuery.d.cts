@@ -1,4 +1,4 @@
-import { SQL } from 'drizzle-orm';
+import { SQL, max as drizzleMax, min as drizzleMin } from 'drizzle-orm';
 import { MySqlTable, MySqlColumn, type MySqlAsyncSelectBase } from 'drizzle-orm/mysql-core';
 import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
@@ -29,6 +29,14 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
      * ******************************************************************************************************************/
     columns(): MySqlSelectedTableColumns<TTable>;
     columns<N extends MySqlColumnSelectionName<TTable>>(...names: N[] & MySqlColumnSelectionName<TTable>[]): MySqlSelectedNamedColumnUnion<TTable, N>;
+    /********************************************************************************************************************
+     * min / max
+     * ******************************************************************************************************************/
+    min<N extends keyof TTable['_']['columns'] & string>(name: N): ReturnType<typeof drizzleMin<TTable['_']['columns'][N]>>;
+    min<C extends MySqlColumn>(column: C): ReturnType<typeof drizzleMin<C>>;
+    max<N extends keyof TTable['_']['columns'] & string>(name: N): ReturnType<typeof drizzleMax<TTable['_']['columns'][N]>>;
+    max<C extends MySqlColumn>(column: C): ReturnType<typeof drizzleMax<C>>;
+    private resolveAggregateColumn;
     private resolveFields;
     /********************************************************************************************************************
      * select
@@ -225,6 +233,8 @@ type FieldsQuery<TTable extends MySqlTable> = {
     readonly t: TTable;
     columns(): MySqlSelectedTableColumns<TTable>;
     columns<N extends MySqlColumnSelectionName<TTable>>(...names: N[] & MySqlColumnSelectionName<TTable>[]): MySqlSelectedNamedColumnUnion<TTable, N>;
+    min: MySqlQuery<TTable>['min'];
+    max: MySqlQuery<TTable>['max'];
 };
 type Fields<TQuery, TSelection> = TSelection | ((query: TQuery) => TSelection);
 type NamedFields<TTable extends MySqlTable, T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]> = {

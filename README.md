@@ -103,6 +103,13 @@ const count = await user.count(user.isNotNull('email'));
 const exists = await user.exists(user.eq({ email: 'hong@example.com' }));
 ```
 
+`min`과 `max`는 컬럼 객체 또는 스키마 속성명으로 집계 필드를 만듭니다. `select`와 `find`의 선택 객체에서 사용할 수 있습니다.
+
+```ts
+const maxIdRows = await user.select({ max_id: user.max(user.t.id) });
+const found = await user.find({ min_id: user.min('id') }, user.eq({ id }));
+```
+
 컬럼 선택에는 컬럼명 배열, Drizzle 선택 객체, 또는 `columns()`를 사용하는 콜백을 사용할 수 있습니다. `columns()`는 전체 컬럼 또는 지정한 컬럼만 가져오며, `as`로 결과 키를 지정할 수 있습니다.
 
 ```ts

@@ -261,6 +261,20 @@ class MySqlQuery {
         const table = this.t;
         return TableColumns(table, ...names);
     }
+    min(columnOrName) {
+        return native.min(this.resolveAggregateColumn(columnOrName));
+    }
+    max(columnOrName) {
+        return native.max(this.resolveAggregateColumn(columnOrName));
+    }
+    resolveAggregateColumn(columnOrName) {
+        if (typeof columnOrName !== 'string')
+            return columnOrName;
+        const column = native.getTableColumns(this.t)[columnOrName];
+        if (!column)
+            throw new Error(`aggregate: unknown column "${columnOrName}".`);
+        return column;
+    }
     resolveFields(fields, table = this.t) {
         if (Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === 'string')) {
             return TableColumns(table, ...fields);

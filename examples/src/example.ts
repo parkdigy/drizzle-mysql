@@ -38,7 +38,7 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
   }
 
   async selectColumnsTest() {
-    await this.select(this.columns('id', 'name', 'email'));
+    await this.select([this.columns('id', 'name', 'email'), { min_id: this.min('id'), max_id: this.max('id') }]);
   }
 
   async aliasSelectTest() {
