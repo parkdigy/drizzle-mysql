@@ -85,6 +85,9 @@ await user.remove(user.eq({ id }));
 const found = await user.findByPrimaryKey(id);
 const exists = await user.existsByPrimaryKey(id);
 const missing = await user.notExistsByPrimaryKey(id);
+
+const foundWithAlias = await user.find({ id_2: 'id' }, user.eq({ id }));
+const foundByPrimaryKeyWithAlias = await user.findByPrimaryKey({ id_2: 'id' }, id);
 ```
 
 ### 조회와 컬럼 선택
@@ -108,6 +111,12 @@ const exists = await user.exists(user.eq({ email: 'hong@example.com' }));
 ```ts
 const maxIdRows = await user.select({ max_id: user.max(user.t.id) });
 const found = await user.find({ min_id: user.min('id') }, user.eq({ id }));
+```
+
+문자열 컬럼 매핑 객체로 결과 별칭을 지정할 수도 있습니다. 객체 키가 결과 키가 되고 값에는 스키마 속성명을 지정합니다.
+
+```ts
+const rows = await user.select({ id_2: 'id', name_2: 'name', email_2: 'email' });
 ```
 
 컬럼 선택에는 컬럼명 배열, Drizzle 선택 객체, 또는 `columns()`를 사용하는 콜백을 사용할 수 있습니다. `columns()`는 전체 컬럼 또는 지정한 컬럼만 가져오며, `as`로 결과 키를 지정할 수 있습니다.

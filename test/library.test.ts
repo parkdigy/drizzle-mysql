@@ -23,6 +23,27 @@ test('스키마에 맞는 컬럼, 별칭, 조건과 CRUD 쿼리를 생성한다'
   expect(() => q.edit({ displayName: 'x' }, undefined)).toThrow('where condition');
 });
 
+test('select 문자열 매핑 객체의 키를 결과 별칭으로 사용한다', () => {
+  const selected = db.query(user).select({ id_2: 'id', display_name_2: 'displayName' });
+  type Row = Awaited<typeof selected>[number];
+  const row: Row = { id_2: 1, display_name_2: 'Ada' };
+  expect(selected.toSQL().sql).toBe('select `id` as `id_2`, `display_name` as `display_name_2` from `users`');
+  expect(row).toEqual({ id_2: 1, display_name_2: 'Ada' });
+  expect(() => db.query(user).select({ missing: 'missing' } as never)).toThrow('select: unknown column "missing".');
+});
+
+test('find와 findByPrimaryKey에서 문자열 매핑 객체와 결과 타입을 지원한다', () => {
+  const q = db.query(user);
+  if (false) {
+    const found = q.find({ id_2: 'id' });
+    const foundWithCondition = q.find({ id_2: 'id' }, q.eq({ displayName: 'Ada' }));
+    const foundByPrimaryKey = q.findByPrimaryKey({ id_2: 'id' }, 1);
+    type FoundRow = NonNullable<Awaited<typeof found>>;
+    const row: FoundRow = { id_2: 1 };
+    void [foundWithCondition, foundByPrimaryKey, row];
+  }
+});
+
 test('잘못된 페이지 번호를 거부한다', async () => {
   await expect(db.paginate(db.query(user).select(), 0, 10)).rejects.toThrow(RangeError);
 });

@@ -280,12 +280,12 @@ class MySqlQuery {
             return TableColumns(table, ...fields);
         }
         if (typeof fields !== 'function')
-            return normalizeFields(fields);
+            return normalizeFields(fields, table);
         const query = {
             t: table,
             columns: (...names) => TableColumns(table, ...names),
         };
-        return normalizeFields(fields(query));
+        return normalizeFields(fields(query), table);
     }
     select(fieldsOrAlias, fields) {
         const tx = this.getTx();
@@ -653,7 +653,7 @@ class MySqlQuery {
         return this.drizzle.or(this.t, options);
     }
 }
-const normalizeFields = (fields) => {
+const normalizeFields = (fields, table) => {
     if (fields === undefined)
         return undefined;
     const groups = Array.isArray(fields) ? fields : [fields];
@@ -667,6 +667,13 @@ const normalizeFields = (fields) => {
         Object.assign(result, group);
     }
     for (const [name, field] of Object.entries(result)) {
+        if (typeof field === 'string') {
+            const column = table && getTableColumns(table)[field];
+            if (!column)
+                throw new Error(`select: unknown column "${field}".`);
+            result[name] = sql `${column}`.mapWith(column).as(name);
+            continue;
+        }
         if (is(field, MySqlColumn) && field.name !== name) {
             result[name] = sql `${field}`.mapWith(field).as(name);
         }

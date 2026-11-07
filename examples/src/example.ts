@@ -35,6 +35,7 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
 
   async selectTest() {
     await this.select(['id', 'name', 'email']);
+    await this.select({ id_2: 'id', name_2: 'name', email_2: 'email' });
   }
 
   async selectColumnsTest() {
@@ -47,6 +48,15 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     await this.select(au, { id: au.id, name: au.name });
     await this.select(au, ['id', 'name']);
     await this.select(au, ['id', 'name as as_name', 'email AS as_email', 'tel As as_tel']);
+  }
+
+  async findTest() {
+    await this.find(['id', 'name', 'email']);
+    await this.find(['id', 'name', 'email'], this.eq({ name: 'name' }));
+    await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' });
+    await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, this.eq({ name: 'name' }));
+    await this.findByPrimaryKey(['id', 'name', 'email'], 1);
+    await this.findByPrimaryKey({ id_2: 'id' }, 1);
   }
 
   async conditionTest() {

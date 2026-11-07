@@ -103,12 +103,12 @@ export class MySqlQuery<
     if (Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === 'string')) {
       return TableColumns(table, ...(fields as MySqlColumnSelectionName<MySqlTable>[]));
     }
-    if (typeof fields !== 'function') return normalizeFields(fields);
+    if (typeof fields !== 'function') return normalizeFields(fields, table);
     const query = {
       t: table,
       columns: (...names: MySqlColumnSelectionName<MySqlTable>[]) => TableColumns(table, ...names),
     };
-    return normalizeFields(fields(query));
+    return normalizeFields(fields(query), table);
   }
 
   /********************************************************************************************************************
@@ -130,6 +130,10 @@ export class MySqlQuery<
   select<const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<TTable>[]>(
     fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]
   ): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
+
+  select<const TSelection extends StringColumnSelection<TTable>>(
+    fields: TSelection
+  ): SelectFrom<TTable, StringColumnSelectionFields<TTable, TSelection>>;
 
   select<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields?: Fields<FieldsQuery<TTable>, TSelection>
@@ -201,6 +205,11 @@ export class MySqlQuery<
     fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[],
     where: BaseWhere<this>
   ): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
+
+  async find<const TSelection extends StringColumnSelection<TTable>>(
+    fields: TSelection,
+    where?: BaseWhere<this>
+  ): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
 
   async find<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields: Fields<FieldsQuery<TTable>, TSelection>,
@@ -323,6 +332,11 @@ export class MySqlQuery<
     fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[],
     key: PrimaryKeyInput<TTable>
   ): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
+
+  findByPrimaryKey<const TSelection extends StringColumnSelection<TTable>>(
+    fields: TSelection,
+    key: PrimaryKeyInput<TTable>
+  ): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
 
   findByPrimaryKey<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields: Fields<FieldsQuery<TTable>, TSelection>,
@@ -803,6 +817,15 @@ type WhereQuery<TQuery> = Pick<
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;
+type StringColumnSelection<TTable extends MySqlTable> = Record<string, keyof TTable['_']['columns'] & string>;
+type StringColumnSelectionFields<
+  TTable extends MySqlTable,
+  TSelection extends StringColumnSelection<TTable>,
+> = {
+  [K in keyof TSelection]: TTable['_']['columns'][TSelection[K]] extends MySqlColumn<infer TConfig>
+    ? SQL.Aliased<TConfig['data']>
+    : never;
+};
 type FieldInput = FieldSet | false | undefined;
 type FieldsQuery<TTable extends MySqlTable> = {
   readonly t: TTable;
@@ -835,7 +858,7 @@ type MergeFields<T extends readonly FieldInput[], Result = {}> = T extends reado
       ? { [P in keyof Result]: Result[P] }
       : never;
 
-const normalizeFields = (fields: unknown): FieldSet | undefined => {
+const normalizeFields = (fields: unknown, table?: MySqlTable): FieldSet | undefined => {
   if (fields === undefined) return undefined;
   const groups = Array.isArray(fields) ? fields : [fields];
   const result: FieldSet = {};
@@ -847,6 +870,12 @@ const normalizeFields = (fields: unknown): FieldSet | undefined => {
     Object.assign(result, group);
   }
   for (const [name, field] of Object.entries(result)) {
+    if (typeof field === 'string') {
+      const column = table && getTableColumns(table)[field];
+      if (!column) throw new Error(`select: unknown column "${field}".`);
+      result[name] = sql`${column}`.mapWith(column).as(name);
+      continue;
+    }
     if (is(field, MySqlColumn) && field.name !== name) {
       result[name] = sql`${field}`.mapWith(field).as(name);
     }

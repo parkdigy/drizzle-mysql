@@ -46,6 +46,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
     select<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[] & readonly MySqlColumnSelectionName<TTable>[]): SelectFrom<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>;
     select<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T): SelectFrom<TTable, MergeFields<T>>;
     select<const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<TTable>[]>(fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
+    select<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection): SelectFrom<TTable, StringColumnSelectionFields<TTable, TSelection>>;
     select<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields?: Fields<FieldsQuery<TTable>, TSelection>): SelectFrom<TTable, TSelection>;
     select<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>): SelectFrom<MySqlAliasTable<TTable, TAlias>, undefined>;
     select<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly []): SelectFrom<MySqlAliasTable<TTable, TAlias>, {}>;
@@ -61,6 +62,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
     find<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[] & readonly MySqlColumnSelectionName<TTable>[], where?: BaseWhere<this>): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
     find<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T, where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<T>>>;
     find<const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<TTable>[]>(fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[], where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
+    find<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, where?: BaseWhere<this>): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
     find<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, where: BaseWhere<this>): Promise<FindResult<TTable, TSelection>>;
     find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, undefined>>;
     find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly [], where?: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, {}>>;
@@ -76,6 +78,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, IV extends MySqlInser
     findByPrimaryKey(fields: readonly [], key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, {}>>;
     findByPrimaryKey<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T, key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, MergeFields<T>>>;
     findByPrimaryKey<const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<TTable>[]>(fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[], key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
+    findByPrimaryKey<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
     findByPrimaryKey<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, TSelection>>;
     /********************************************************************************************************************
      * primaryKeyCondition
@@ -228,6 +231,10 @@ type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefin
 type WhereQuery<TQuery> = Pick<TQuery, Extract<keyof TQuery, 't' | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull' | 'and' | 'or'>>;
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;
+type StringColumnSelection<TTable extends MySqlTable> = Record<string, keyof TTable['_']['columns'] & string>;
+type StringColumnSelectionFields<TTable extends MySqlTable, TSelection extends StringColumnSelection<TTable>> = {
+    [K in keyof TSelection]: TTable['_']['columns'][TSelection[K]] extends MySqlColumn<infer TConfig> ? SQL.Aliased<TConfig['data']> : never;
+};
 type FieldInput = FieldSet | false | undefined;
 type FieldsQuery<TTable extends MySqlTable> = {
     readonly t: TTable;
