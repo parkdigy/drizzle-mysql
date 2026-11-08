@@ -43,6 +43,18 @@ const db = drizzleMySql({
 const user = db.query(users);
 ```
 
+스키마 타입은 `schema`에 전달한 객체에서 추론됩니다. 테이블명과 컬럼명의 자동완성을 유지하려면 스키마를 넓은 `Record<string, MySqlTable>` 타입으로 지정하지 않고 구체적인 타입을 유지하세요.
+
+반환 타입 `DrizzleMySql<typeof schema>`와 `MySqlAliases`, `MySqlSchemaConditions`를 공개합니다. 연결 타입과 테이블별 보조 함수 타입을 분리하며, `query(table)`은 전달받은 테이블만으로 타입을 추론합니다. 등록된 테이블 외에도 별칭 테이블이나 직접 가져온 테이블을 전달할 수 있습니다.
+
+```ts
+const u = db.a.users('u');
+const fields = db.columns(u, 'id', 'name as displayName');
+const query = db.query(u);
+```
+
+200개 테이블에 대한 자동완성 후보를 TypeScript Language Service 테스트로 검증합니다. IDE 자체의 자동완성 동작은 사용하는 TypeScript 엔진과 설정에 따라서도 달라질 수 있습니다.
+
 `drizzleMySql` 옵션은 모두 필수인 `url`, `schema`, `getTimestamp`입니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. `new MySqlQuery(table, db.current, getTimestamp?)`의 세 번째 인자는 선택 사항이며, 생략하면 해당 `drizzleMySql`에 설정한 생성 함수를 사용합니다. 명시하면 그 쿼리 객체에서만 해당 함수를 우선 사용합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
 
 ### 데이터 추가·수정·삭제

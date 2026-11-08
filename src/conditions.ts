@@ -10,7 +10,6 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
   type ValueOperators = Exclude<keyof MySqlConditions<MySqlTable>, 'isNull' | 'isNotNull'>;
   type SchemaKey = keyof TSchema & string;
   type TableInput = MySqlTable | SchemaKey;
-  type InputTable<T extends TableInput> = T extends SchemaKey ? (typeof schema)[T] : Extract<T, MySqlTable>;
 
   const resolveTable = (table: TableInput): MySqlTable => {
     if (typeof table !== 'string') return table;
@@ -82,9 +81,8 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
   };
 
   type ObjectOperator<TOperator extends keyof MySqlConditions<MySqlTable>> = {
-    <T extends TableInput>(table: T, values: MySqlConditions<InputTable<T>>[TOperator]): SQL | undefined;
-    // Keep a direct table overload for callers using generic table types.
     <T extends MySqlTable>(table: T, values: MySqlConditions<T>[TOperator]): SQL | undefined;
+    <K extends SchemaKey>(table: K, values: MySqlConditions<TSchema[K]>[TOperator]): SQL | undefined;
   };
 
   // Put table/object overloads first so native SQLWrapper signatures do not swallow object-key completions.
@@ -141,8 +139,8 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     }) as NullOperator;
 
   type GroupOperator = {
-    <T extends TableInput>(table: T, options: MySqlConditions<InputTable<T>>): SQL | undefined;
     <T extends MySqlTable>(table: T, options: MySqlConditions<T>): SQL | undefined;
+    <K extends SchemaKey>(table: K, options: MySqlConditions<TSchema[K]>): SQL | undefined;
   };
 
   const groupOperator =
@@ -196,3 +194,7 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
 
   return conditions;
 }
+
+export type MySqlSchemaConditions<TSchema extends Record<string, MySqlTable>> = ReturnType<
+  typeof createConditions<TSchema>
+>;

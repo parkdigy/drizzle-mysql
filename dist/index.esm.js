@@ -679,7 +679,7 @@ const normalizeFields = (fields, table) => {
         }
     }
     return result;
-};function drizzleMySql(options) {
+};function createConnection(options) {
     const pool = mysql.createPool({ uri: options.url });
     const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
     const context = new AsyncLocalStorage();
@@ -711,6 +711,15 @@ const normalizeFields = (fields, table) => {
         };
     };
     return {
+        current,
+        trans,
+        paginate,
+        close: () => pool.end(),
+    };
+}
+function drizzleMySql(options) {
+    const connection = createConnection(options);
+    return {
         asc: native.asc,
         desc: native.desc,
         count: native.count,
@@ -735,10 +744,7 @@ const normalizeFields = (fields, table) => {
         sqlNumber: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith(Number),
         sqlString: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith(String),
         sqlBoolean: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith((v) => v === true || v === 1),
-        current,
-        query: (table) => new MySqlQuery(table, current),
-        trans,
-        paginate,
-        close: () => pool.end(),
+        ...connection,
+        query: (table) => new MySqlQuery(table, connection.current),
     };
 }export{MySqlQuery,TableColumns,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable};

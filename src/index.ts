@@ -8,6 +8,7 @@ export { mysqlTable, type TablePolicy } from './mysqlTable';
 export * from './conditions';
 export * from './drizzleMySql';
 export * from './MySqlQuery';
+export type { MySqlAliases } from './alias';
 
 export {
   asc,

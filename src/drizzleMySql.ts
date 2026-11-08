@@ -4,16 +4,44 @@ import { count, defineRelations, is, SQL, sql, type Subquery } from 'drizzle-orm
 import type { MySqlTable } from 'drizzle-orm/mysql-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as native from 'drizzle-orm';
-import { createAlias } from './alias';
-import { createConditions } from './conditions';
+import { createAlias, type MySqlAliases } from './alias';
+import { createConditions, type MySqlSchemaConditions } from './conditions';
 import { TableColumns } from './columns';
 import { MySqlQuery } from './MySqlQuery';
 
-export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(options: {
+export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> {
   url: string;
   schema: TSchema;
   getTimestamp: () => unknown;
-}) {
+}
+
+type MySqlConnection<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConnection<TSchema>>;
+
+interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> extends MySqlNativeHelpers {
+  s: TSchema;
+  a: MySqlAliases<TSchema>;
+  columns: typeof TableColumns;
+  sql: typeof sql;
+  sqlNumber(value: SQL | number): SQL<number>;
+  sqlString(value: SQL | string): SQL<string>;
+  sqlBoolean(value: SQL | boolean): SQL<boolean>;
+  current: MySqlConnection<TSchema>['current'];
+  trans: MySqlConnection<TSchema>['trans'];
+  paginate: MySqlConnection<TSchema>['paginate'];
+  close: MySqlConnection<TSchema>['close'];
+  query<TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable>;
+}
+
+type MySqlNativeHelpers = Pick<
+  typeof native,
+  | 'asc' | 'desc' | 'count' | 'countDistinct' | 'avg' | 'avgDistinct' | 'sum' | 'sumDistinct'
+  | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'
+>;
+
+export type DrizzleMySql<TSchema extends Record<string, MySqlTable>> = MySqlDatabaseHelpers<TSchema> &
+  MySqlSchemaConditions<TSchema>;
+
+function createConnection<TSchema extends Record<string, MySqlTable>>(options: DrizzleMySqlOptions<TSchema>) {
   const pool = mysql.createPool({ uri: options.url });
   const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
   type Transaction = Parameters<Parameters<typeof raw.transaction>[0]>[0];
@@ -53,6 +81,18 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(options
     };
   };
   return {
+    current,
+    trans,
+    paginate,
+    close: () => pool.end(),
+  };
+}
+
+export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
+  options: DrizzleMySqlOptions<TSchema>
+): DrizzleMySql<TSchema> {
+  const connection = createConnection(options);
+  return {
     asc: native.asc,
     desc: native.desc,
     count: native.count,
@@ -78,11 +118,7 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(options
     sqlString: (value: SQL | string) => (is(value, SQL) ? value : sql`${value}`).mapWith(String),
     sqlBoolean: (value: SQL | boolean) =>
       (is(value, SQL) ? value : sql`${value}`).mapWith((v) => v === true || v === 1),
-    current,
-    query: <TTable extends TSchema[keyof TSchema]>(table: TTable) =>
-      new MySqlQuery(table, current),
-    trans,
-    paginate,
-    close: () => pool.end(),
+    ...connection,
+    query: <TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable> => new MySqlQuery(table, connection.current),
   };
 }
