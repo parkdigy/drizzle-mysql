@@ -28,7 +28,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
      * columns
      * ******************************************************************************************************************/
     columns(): MySqlSelectedTableColumns<TTable>;
-    columns<N extends MySqlColumnSelectionName<TTable>>(...names: N[] & MySqlColumnSelectionName<TTable>[]): MySqlSelectedNamedColumnUnion<TTable, N>;
+    columns<N extends MySqlColumnSelectionName<TTable>>(...names: N[]): MySqlSelectedNamedColumnUnion<TTable, N>;
     /********************************************************************************************************************
      * min / max
      * ******************************************************************************************************************/
@@ -43,41 +43,41 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
      * ******************************************************************************************************************/
     select(): SelectFrom<TTable, undefined>;
     select(fields: readonly []): SelectFrom<TTable, {}>;
-    select<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[] & readonly MySqlColumnSelectionName<TTable>[]): SelectFrom<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>;
+    select<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[]): SelectFrom<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>;
     select<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T): SelectFrom<TTable, MergeFields<T>>;
-    select<const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<TTable>[]>(fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
+    select<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(fields: T): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
     select<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection): SelectFrom<TTable, StringColumnSelectionFields<TTable, TSelection>>;
     select<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields?: Fields<FieldsQuery<TTable>, TSelection>): SelectFrom<TTable, TSelection>;
     select<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>): SelectFrom<MySqlAliasTable<TTable, TAlias>, undefined>;
     select<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly []): SelectFrom<MySqlAliasTable<TTable, TAlias>, {}>;
-    select<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly N[] & readonly MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>[]): SelectFrom<MySqlAliasTable<TTable, TAlias>, MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>>;
+    select<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly N[]): SelectFrom<MySqlAliasTable<TTable, TAlias>, MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>>;
     select<TAlias extends string, const T extends readonly FieldInput[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>;
-    select<TAlias extends string, const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T & readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[]): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
+    select<TAlias extends string, const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
     select<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>): SelectFrom<MySqlAliasTable<TTable, TAlias>, TSelection>;
     /********************************************************************************************************************
      * find
      * ******************************************************************************************************************/
     find(where: BaseWhere<this>): Promise<FindResult<TTable, undefined>>;
     find(fields: readonly [], where?: BaseWhere<this>): Promise<FindResult<TTable, {}>>;
-    find<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[] & readonly MySqlColumnSelectionName<TTable>[], where?: BaseWhere<this>): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
+    find<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[], where?: BaseWhere<this>): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
     find<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T, where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<T>>>;
-    find<const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<TTable>[]>(fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[], where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
+    find<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(fields: T, where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
     find<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, where?: BaseWhere<this>): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
     find<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, where?: BaseWhere<this>): Promise<FindResult<TTable, TSelection>>;
     find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, undefined>>;
     find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly [], where?: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, {}>>;
-    find<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly N[] & readonly MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>[], where?: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>>>;
+    find<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly N[], where?: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>>>;
     find<TAlias extends string, const T extends readonly FieldInput[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>>;
-    find<TAlias extends string, const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T & readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[], where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>>;
+    find<TAlias extends string, const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>>;
     find<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, TSelection>>;
     /********************************************************************************************************************
      * findByPrimaryKey
      * ******************************************************************************************************************/
-    findByPrimaryKey<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[] & readonly MySqlColumnSelectionName<TTable>[], key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
+    findByPrimaryKey<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[], key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
     findByPrimaryKey(key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, undefined>>;
     findByPrimaryKey(fields: readonly [], key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, {}>>;
     findByPrimaryKey<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T, key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, MergeFields<T>>>;
-    findByPrimaryKey<const T extends readonly FieldInput[] | readonly MySqlColumnSelectionName<TTable>[]>(fields: T & readonly (FieldInput | MySqlColumnSelectionName<TTable>)[], key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
+    findByPrimaryKey<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(fields: T, key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
     findByPrimaryKey<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
     findByPrimaryKey<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, key: PrimaryKeyInput<TTable>): Promise<FindResult<TTable, TSelection>>;
     /********************************************************************************************************************
@@ -239,7 +239,7 @@ type FieldInput = FieldSet | false | undefined;
 type FieldsQuery<TTable extends MySqlTable> = {
     readonly t: TTable;
     columns(): MySqlSelectedTableColumns<TTable>;
-    columns<N extends MySqlColumnSelectionName<TTable>>(...names: N[] & MySqlColumnSelectionName<TTable>[]): MySqlSelectedNamedColumnUnion<TTable, N>;
+    columns<N extends MySqlColumnSelectionName<TTable>>(...names: N[]): MySqlSelectedNamedColumnUnion<TTable, N>;
     min: MySqlQuery<TTable>['min'];
     max: MySqlQuery<TTable>['max'];
 };

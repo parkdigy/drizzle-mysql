@@ -80,7 +80,7 @@ type MySqlMergedGroupColumns<G extends readonly MySqlColumnGroup[], Result = {}>
  * ******************************************************************************************************************/
 export declare function TableColumns<A extends MySqlTable, const AN extends readonly MySqlColumnSelectionName<A>[], B extends MySqlTable, const BN extends readonly MySqlColumnSelectionName<B>[]>(a: readonly [A, ...AN], b: readonly [B, ...BN]): MySqlMergedGroupColumns<readonly [readonly [A, ...AN], readonly [B, ...BN]]>;
 export declare function TableColumns<T extends MySqlTable>(table: T): MySqlSelectedTableColumns<T>;
-export declare function TableColumns<T extends MySqlTable, N extends MySqlColumnSelectionName<T>>(table: T, ...names: N[] & MySqlColumnSelectionName<T>[]): MySqlSelectedNamedColumnUnion<T, N>;
+export declare function TableColumns<T extends MySqlTable, N extends MySqlColumnSelectionName<T>>(table: T, ...names: N[]): MySqlSelectedNamedColumnUnion<T, N>;
 export declare function TableColumns<T extends MySqlTable, N extends string>(table: T, ...names: N[] & MySqlColumnSelectionName<T>[]): Record<string, MySqlColumn | SQL.Aliased>;
 export declare function TableColumns<const T extends readonly MySqlColumn[]>(columns: T): MySqlSelectedColumns<T>;
 export declare function TableColumns<const T extends readonly [MySqlColumn, ...MySqlColumn[]]>(...columns: T): MySqlSelectedColumns<T>;

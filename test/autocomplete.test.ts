@@ -3,9 +3,11 @@ import path from 'node:path';
 
 test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타입을 유지한다', () => {
   const file = path.resolve('test/__autocomplete_fixture.ts');
+  const wideColumns = Array.from({ length: 200 }, (_, i) => `extra${i}: int('extra${i}')`).join(',');
   const tables = Array.from(
     { length: 200 },
-    (_, i) => `const table${i} = mysqlTable('table${i}', { id: int('id').notNull(), name: varchar('name', {length: 100}) });`
+    (_, i) =>
+      `const table${i} = mysqlTable('table${i}', { id: int('id').notNull().primaryKey(), name: varchar('name', {length: 100}), ${i === 199 ? wideColumns : ''} });`
   ).join('\n');
   const marked = `
     import { drizzleMySql, mysqlTable, int, varchar } from '../src/index';
@@ -22,6 +24,19 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     db.query(a).columns('/*query*/');
     db.eq(a, { /*condition*/ });
     db.eq('table199', { /*namedCondition*/ });
+    const query = db.query(table199);
+    const selected = query.select({ renamed: 'id' });
+    const merged = query.select([query.columns('id'), { label: table199.name }]);
+    const aliased = query.select(a, ['id', 'name as displayName']);
+    const found = query.find({ renamed: 'id' });
+    const foundByKey = query.findByPrimaryKey({ renamed: 'id' }, 1);
+    type Row = Awaited<typeof selected>[number];
+    const row: Row = { renamed: 1 };
+    // @ts-expect-error 선택 결과는 숫자 타입을 유지한다
+    const invalidRow: Row = { renamed: 'wrong' };
+    // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
+    query.select(['missing']);
+    void [merged, aliased, found, foundByKey, row, invalidRow];
     const fields = db.columns(a, 'id', 'name as displayName');
     db.current().select(fields).from(a).then((rows: {id: number; displayName: string | null}[]) => {
       const row: {id: number; displayName: string | null} = rows[0];
