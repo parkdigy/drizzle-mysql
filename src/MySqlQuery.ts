@@ -4,9 +4,11 @@ import {
   is,
   sql,
   count,
+  Subquery,
   eq,
   getTableColumns,
   and as drizzleAnd,
+  or as drizzleOr,
   asc as drizzleAsc,
   desc as drizzleDesc,
   max as drizzleMax,
@@ -19,7 +21,9 @@ import {
   getTableConfig,
   type MySqlAsyncSelectBase,
   type MySqlUpdateSetSource,
+  type MySqlJoin,
 } from 'drizzle-orm/mysql-core';
+import type { MySqlViewBase } from 'drizzle-orm/mysql-core/view-base';
 import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
 import type {
@@ -251,7 +255,129 @@ export class MySqlQuery<
     const isAlias = isTable(fieldsOrAlias);
     const table: MySqlTable = isAlias ? (fieldsOrAlias as MySqlTable) : this.t;
     const selectedFields = this.resolveFields(isAlias ? fields : fieldsOrAlias, table);
-    return tx.select(selectedFields ?? TableColumns(table)).from(table);
+    const enhancedQueries = new WeakSet<object>();
+    const enhance = (input: unknown): unknown => {
+      if (typeof input !== 'object' || input === null || enhancedQueries.has(input)) return input;
+      const query = input as Record<string, unknown>;
+      enhancedQueries.add(query);
+      const builder = query as unknown as { where: (condition: unknown) => unknown };
+      const originalWhere = builder.where.bind(query);
+      const orderBy = query.orderBy;
+      const originalOrderBy = typeof orderBy === 'function' ? orderBy.bind(query) : undefined;
+    const bindCondition: (
+      operator: string,
+      conditionTable?: MySqlTable | Subquery
+    ) => (input: unknown) => SQL | undefined = (operator, conditionTable = table) => (input) => {
+      const conditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[operator];
+      if (isTable(conditionTable)) {
+        return Reflect.apply(conditionOperator, undefined, [conditionTable, input]) as SQL | undefined;
+      }
+
+      const columns = conditionTable as unknown as Record<string, unknown>;
+      if (operator === 'and' || operator === 'or') {
+        if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+          throw new Error(`${operator}: expected a condition object.`);
+        }
+        const conditions: (SQL | undefined)[] = Object.entries(input).map(([nestedOperator, values]) =>
+          bindCondition(nestedOperator, conditionTable)(values) as SQL | undefined
+        );
+        return operator === 'and' ? drizzleAnd(...conditions) : drizzleOr(...conditions);
+      }
+
+      if (operator === 'isNull' || operator === 'isNotNull') {
+        const names = typeof input === 'string' ? [input] : Array.isArray(input) ? input : [];
+        if (names.length === 0 && input !== undefined) throw new Error(`${operator}: expected column names.`);
+        return drizzleAnd(
+          ...names.map((name) => {
+            if (typeof name !== 'string' || columns[name] === undefined) {
+              throw new Error(`Condition: unknown column "${String(name)}".`);
+            }
+            return Reflect.apply(conditionOperator, undefined, [columns[name]]) as SQL;
+          })
+        );
+      }
+
+      if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+        throw new Error(`${operator}: expected a column/value object.`);
+      }
+      return drizzleAnd(
+        ...Object.entries(input).map(([name, value]) => {
+          const column = columns[name];
+          if (column === undefined) throw new Error(`Condition: unknown column "${name}".`);
+          if (operator === 'between' || operator === 'notBetween') {
+            if (!Array.isArray(value) || value.length !== 2) throw new Error(`${operator}: expected two bounds.`);
+            return Reflect.apply(conditionOperator, undefined, [column, value[0], value[1]]) as SQL;
+          }
+          return Reflect.apply(conditionOperator, undefined, [column, value]) as SQL;
+        })
+      );
+    };
+      const conditionQuery = (conditionTable: MySqlTable | Subquery, contextTable: MySqlTable) =>
+        ({
+        t: contextTable,
+        eq: bindCondition('eq', conditionTable),
+        ne: bindCondition('ne', conditionTable),
+        gt: bindCondition('gt', conditionTable),
+        gte: bindCondition('gte', conditionTable),
+        lt: bindCondition('lt', conditionTable),
+        lte: bindCondition('lte', conditionTable),
+        inArray: bindCondition('inArray', conditionTable),
+        notInArray: bindCondition('notInArray', conditionTable),
+        between: bindCondition('between', conditionTable),
+        notBetween: bindCondition('notBetween', conditionTable),
+        like: bindCondition('like', conditionTable),
+        notLike: bindCondition('notLike', conditionTable),
+        ilike: bindCondition('ilike', conditionTable),
+        notIlike: bindCondition('notIlike', conditionTable),
+        isNull: bindCondition('isNull', conditionTable),
+        isNotNull: bindCondition('isNotNull', conditionTable),
+        and: bindCondition('and', conditionTable),
+        or: bindCondition('or', conditionTable),
+        }) as unknown as SelectConditionQuery<MySqlTable>;
+      const whereQuery = conditionQuery(table, table);
+      const orderByQuery: SelectOrderByQuery<MySqlTable> = {
+        t: table,
+        asc: (name) => drizzleAsc(this.resolveOrderColumn(name, table)),
+        desc: (name) => drizzleDesc(this.resolveOrderColumn(name, table)),
+      };
+      const enhancements: Record<string, unknown> = {
+        where: (condition: unknown) =>
+          enhance(
+            originalWhere(
+              typeof condition === 'function'
+                ? () => (condition as (query: SelectConditionQuery<MySqlTable>) => unknown)(whereQuery)
+                : condition
+            )
+          ),
+      };
+      if (originalOrderBy) {
+        enhancements.orderBy = (...args: unknown[]) =>
+          enhance(
+            typeof args[0] === 'function'
+              ? originalOrderBy(() => (args[0] as (query: SelectOrderByQuery<MySqlTable>) => unknown)(orderByQuery))
+              : originalOrderBy(...args)
+          );
+      }
+      for (const joinMethod of ['innerJoin', 'leftJoin', 'rightJoin']) {
+        const join = query[joinMethod];
+        if (typeof join !== 'function') continue;
+        enhancements[joinMethod] = (joinedTable: unknown, on: unknown, ...rest: unknown[]) => {
+          if (typeof on !== 'function' || (!isTable(joinedTable) && !is(joinedTable, Subquery))) {
+            return enhance(Reflect.apply(join, query, [joinedTable, on, ...rest]));
+          }
+          const joinQuery = conditionQuery(joinedTable as MySqlTable | Subquery, table) as JoinConditionQuery<
+            MySqlTable,
+            Joinable
+          >;
+          return enhance(
+            Reflect.apply(join, query, [joinedTable, () => (on as (query: unknown) => unknown)(joinQuery), ...rest])
+          );
+        };
+      }
+      return Object.assign(query, enhancements);
+    };
+
+    return enhance(tx.select(selectedFields ?? TableColumns(table)).from(table));
   }
 
   /********************************************************************************************************************
@@ -871,11 +997,71 @@ export class MySqlQuery<
  * types
  * ******************************************************************************************************************/
 
-type SelectFrom<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<
+type SelectQueryBase<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<
   GetSelectTableName<TTable>,
   TSelection extends undefined ? MySqlSelectedTableColumns<TTable> : TSelection,
   'partial'
 >;
+
+type TableWhere<TTable extends MySqlTable> = SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
+
+type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
+type SelectOrderByQuery<TTable extends MySqlTable> = {
+  readonly t: TTable;
+  asc(name: MySqlColumnName<TTable>): SQL;
+  desc(name: MySqlColumnName<TTable>): SQL;
+};
+type OrderByCallback<TTable extends MySqlTable> = (query: SelectOrderByQuery<TTable>) => OrderByValue | OrderByValue[];
+
+type Joinable = MySqlTable | Subquery | MySqlViewBase | SQL;
+type JoinConditionValues<TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable
+  ? MySqlCompareValues<TJoinedTable>
+  : TJoinedTable extends Subquery<string, infer TFields>
+    ? { [K in keyof TFields]?: unknown }
+    : never;
+type JoinConditionQuery<TTable extends MySqlTable, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable
+  ? Omit<SelectConditionQuery<TJoinedTable>, 't'> & { readonly t: TTable }
+  : { readonly t: TTable; eq(values: JoinConditionValues<TJoinedTable>): SQL | undefined };
+type JoinCondition<TTable extends MySqlTable, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable> =
+  TJoinedTable extends MySqlTable | Subquery
+    ? SQL | undefined | ((query: JoinConditionQuery<TTable, TJoinedTable>) => SQL | undefined)
+    : SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
+type JoinedSelect<
+  TTable extends MySqlTable,
+  TSelection extends FieldSet | undefined,
+  TJoinedTable extends Joinable,
+  TKind extends 'inner' | 'left' | 'right',
+> = Omit<
+  MySqlJoin<SelectQueryBase<TTable, TSelection>, false, TKind, TJoinedTable>,
+  'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>
+> & SelectJoinMethods<TTable, TSelection> & {
+  where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'where'>;
+  orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+  orderBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+};
+type SelectJoinMethods<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = {
+  innerJoin<TJoinedTable extends Joinable>(
+    table: TJoinedTable,
+    on: JoinCondition<TTable, TSelection, TJoinedTable>
+  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'inner'>;
+  leftJoin<TJoinedTable extends Joinable>(
+    table: TJoinedTable,
+    on: JoinCondition<TTable, TSelection, TJoinedTable>
+  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'left'>;
+  rightJoin<TJoinedTable extends Joinable>(
+    table: TJoinedTable,
+    on: JoinCondition<TTable, TSelection, TJoinedTable>
+  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'right'>;
+};
+
+type SelectFrom<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = Omit<
+  SelectQueryBase<TTable, TSelection>,
+  'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>
+> & SelectJoinMethods<TTable, TSelection> & {
+  where(condition: TableWhere<TTable>): Omit<SelectFrom<TTable, TSelection>, 'where'>;
+  orderBy(builder: OrderByCallback<TTable>): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+  orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+};
 
 type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefined> =
   Awaited<SelectFrom<TTable, TSelection>>[number] | undefined;
@@ -905,6 +1091,27 @@ type WhereQuery<TQuery> = Pick<
     | 'or'
   >
 >;
+type SelectConditionQuery<TTable extends MySqlTable> = {
+  readonly t: TTable;
+  eq(values: MySqlCompareValues<TTable>): SQL | undefined;
+  ne(values: MySqlCompareValues<TTable>): SQL | undefined;
+  gt(values: MySqlCompareValues<TTable>): SQL | undefined;
+  gte(values: MySqlCompareValues<TTable>): SQL | undefined;
+  lt(values: MySqlCompareValues<TTable>): SQL | undefined;
+  lte(values: MySqlCompareValues<TTable>): SQL | undefined;
+  inArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined;
+  notInArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined;
+  between(values: MySqlRangeCompareValues<TTable>): SQL | undefined;
+  notBetween(values: MySqlRangeCompareValues<TTable>): SQL | undefined;
+  like(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+  notLike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+  ilike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+  notIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+  isNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
+  isNotNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
+  and(options: MySqlConditions<TTable>): SQL | undefined;
+  or(options: MySqlConditions<TTable>): SQL | undefined;
+};
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;

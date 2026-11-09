@@ -1,5 +1,6 @@
-import { SQL, max as drizzleMax, min as drizzleMin, type SQLWrapper } from 'drizzle-orm';
-import { MySqlTable, MySqlColumn, type MySqlAsyncSelectBase } from 'drizzle-orm/mysql-core';
+import { SQL, Subquery, max as drizzleMax, min as drizzleMin, type SQLWrapper } from 'drizzle-orm';
+import { MySqlTable, MySqlColumn, type MySqlAsyncSelectBase, type MySqlJoin } from 'drizzle-orm/mysql-core';
+import type { MySqlViewBase } from 'drizzle-orm/mysql-core/view-base';
 import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
 import type { MySqlColumnSelectionName, MySqlSelectedNamedColumnUnion, MySqlSelectedNamedColumns, MySqlSelectedTableColumns, MySqlAliasTable } from './columns.js';
@@ -239,9 +240,64 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
 /********************************************************************************************************************
  * types
  * ******************************************************************************************************************/
-type SelectFrom<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<GetSelectTableName<TTable>, TSelection extends undefined ? MySqlSelectedTableColumns<TTable> : TSelection, 'partial'>;
+type SelectQueryBase<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<GetSelectTableName<TTable>, TSelection extends undefined ? MySqlSelectedTableColumns<TTable> : TSelection, 'partial'>;
+type TableWhere<TTable extends MySqlTable> = SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
+type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
+type SelectOrderByQuery<TTable extends MySqlTable> = {
+    readonly t: TTable;
+    asc(name: MySqlColumnName<TTable>): SQL;
+    desc(name: MySqlColumnName<TTable>): SQL;
+};
+type OrderByCallback<TTable extends MySqlTable> = (query: SelectOrderByQuery<TTable>) => OrderByValue | OrderByValue[];
+type Joinable = MySqlTable | Subquery | MySqlViewBase | SQL;
+type JoinConditionValues<TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable ? MySqlCompareValues<TJoinedTable> : TJoinedTable extends Subquery<string, infer TFields> ? {
+    [K in keyof TFields]?: unknown;
+} : never;
+type JoinConditionQuery<TTable extends MySqlTable, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable ? Omit<SelectConditionQuery<TJoinedTable>, 't'> & {
+    readonly t: TTable;
+} : {
+    readonly t: TTable;
+    eq(values: JoinConditionValues<TJoinedTable>): SQL | undefined;
+};
+type JoinCondition<TTable extends MySqlTable, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable | Subquery ? SQL | undefined | ((query: JoinConditionQuery<TTable, TJoinedTable>) => SQL | undefined) : SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
+type JoinedSelect<TTable extends MySqlTable, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable, TKind extends 'inner' | 'left' | 'right'> = Omit<MySqlJoin<SelectQueryBase<TTable, TSelection>, false, TKind, TJoinedTable>, 'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>> & SelectJoinMethods<TTable, TSelection> & {
+    where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'where'>;
+    orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+    orderBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+};
+type SelectJoinMethods<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = {
+    innerJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'inner'>;
+    leftJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'left'>;
+    rightJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'right'>;
+};
+type SelectFrom<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = Omit<SelectQueryBase<TTable, TSelection>, 'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>> & SelectJoinMethods<TTable, TSelection> & {
+    where(condition: TableWhere<TTable>): Omit<SelectFrom<TTable, TSelection>, 'where'>;
+    orderBy(builder: OrderByCallback<TTable>): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+    orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+};
 type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = Awaited<SelectFrom<TTable, TSelection>>[number] | undefined;
 type WhereQuery<TQuery> = Pick<TQuery, Extract<keyof TQuery, 't' | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull' | 'and' | 'or'>>;
+type SelectConditionQuery<TTable extends MySqlTable> = {
+    readonly t: TTable;
+    eq(values: MySqlCompareValues<TTable>): SQL | undefined;
+    ne(values: MySqlCompareValues<TTable>): SQL | undefined;
+    gt(values: MySqlCompareValues<TTable>): SQL | undefined;
+    gte(values: MySqlCompareValues<TTable>): SQL | undefined;
+    lt(values: MySqlCompareValues<TTable>): SQL | undefined;
+    lte(values: MySqlCompareValues<TTable>): SQL | undefined;
+    inArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined;
+    notInArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined;
+    between(values: MySqlRangeCompareValues<TTable>): SQL | undefined;
+    notBetween(values: MySqlRangeCompareValues<TTable>): SQL | undefined;
+    like(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+    notLike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+    ilike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+    notIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+    isNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
+    isNotNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
+    and(options: MySqlConditions<TTable>): SQL | undefined;
+    or(options: MySqlConditions<TTable>): SQL | undefined;
+};
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;
 type MixedSelection<TTable extends MySqlTable> = Record<string, FieldSet[string] | MySqlColumnName<TTable> | SQLWrapper>;

@@ -107,6 +107,7 @@ const foundByPrimaryKeyWithAlias = await user.findByPrimaryKey({ id_2: 'id' }, i
 `select`는 Drizzle 조회 빌더를 반환하므로 `where`, `orderBy`, `limit` 등 Drizzle의 빌더 메서드를 이어서 사용할 수 있습니다. `find`는 한 행을 조회하며, 결과가 없으면 `undefined`를 반환합니다.
 
 `MySqlQuery`의 `asc`와 `desc`는 스키마 속성명으로 정렬 표현식을 만듭니다. 별칭 테이블을 사용할 때는 별칭 테이블과 속성명을 함께 전달할 수 있습니다.
+`orderBy` 콜백에서는 현재 테이블에 연결된 `q.asc`, `q.desc`, `q.t`를 사용할 수 있으며, 선택 필드가 일부 컬럼으로 제한되어도 전체 테이블과 별칭 컬럼을 참조합니다.
 
 ```ts
 const rows = await user
@@ -116,12 +117,23 @@ const rows = await user
   .limit(20);
 
 const newest = user.select().orderBy(user.desc('created_at'));
+const newestSelected = user.select(['id']).orderBy((q) => q.desc('created_at'));
 const u = db.a.users('u');
 const byAlias = user.select(u).orderBy(user.asc(u, 'name'));
+const byAliasCallback = user.select(u, ['id']).orderBy((q) => q.asc('name'));
 
 const found = await user.find(['id', 'name'], user.eq({ id }));
 const count = await user.count(user.isNotNull('email'));
 const exists = await user.exists(user.eq({ email: 'hong@example.com' }));
+```
+
+`innerJoin`, `leftJoin`, `rightJoin`의 콜백에는 조인 테이블 기준 조건 헬퍼와 현재 테이블을 나타내는 `q.t`가 제공됩니다. `db.alias(table, name)`으로 테이블 별칭을 만들 수 있으며, 서브쿼리도 조인할 수 있습니다. `db.columns(subquery, ...names)`로 조인된 서브쿼리의 선택 컬럼을 가져올 수 있습니다.
+
+```ts
+const joined = user.select().innerJoin(db.alias(users, 'u'), (q) => q.eq({ id: q.t.id }));
+const recentUsers = user.select(['id']).limit(1).as('recent');
+const recent = user.select().innerJoin(recentUsers, (q) => q.eq({ id: q.t.id }));
+const recentId = user.select(db.columns(recentUsers, 'id')).innerJoin(recentUsers, db.eq(recentUsers.id, users.id));
 ```
 
 `min`과 `max`는 컬럼 객체 또는 스키마 속성명으로 집계 필드를 만듭니다. `select`와 `find`의 선택 객체에서 사용할 수 있습니다.

@@ -1,4 +1,4 @@
-import { type SQL } from 'drizzle-orm';
+import { Subquery, type SQL } from 'drizzle-orm';
 import type { MySqlColumn, MySqlTable, MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
 import type { BuildAliasTable } from 'drizzle-orm/mysql-core/query-builders/select.types';
 /********************************************************************************************************************
@@ -62,6 +62,7 @@ export type MySqlSelectedNamedColumns<T extends MySqlTable, N extends readonly s
  * MySqlColumnGroup
  * ******************************************************************************************************************/
 type MySqlColumnGroup = readonly [MySqlTable, ...string[]];
+type MySqlSubqueryFields<T extends Subquery> = T['_']['selectedFields'];
 /********************************************************************************************************************
  * MySqlGroupColumns
  * ******************************************************************************************************************/
@@ -87,4 +88,6 @@ export declare function TableColumns<const T extends readonly [MySqlColumn, ...M
 export declare function TableColumns<const G extends readonly [MySqlColumnGroup, ...MySqlColumnGroup[]]>(...groups: G & {
     [I in keyof G]: readonly [G[I][0], ...MySqlColumnSelectionName<G[I][0]>[]];
 }): MySqlMergedGroupColumns<G>;
+export declare function TableColumns<T extends Subquery>(subquery: T): MySqlSubqueryFields<T>;
+export declare function TableColumns<T extends Subquery, N extends keyof MySqlSubqueryFields<T> & string>(subquery: T, ...names: N[]): Pick<MySqlSubqueryFields<T>, N>;
 export {};

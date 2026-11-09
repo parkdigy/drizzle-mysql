@@ -1,4 +1,4 @@
-import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,getTableColumns,sql,min,max,asc,desc,is,SQL,eq,and,count,defineRelations}from'drizzle-orm';export{asc,avg,avgDistinct,count,countDistinct,desc,exists,max,min,not,notExists,sum,sumDistinct}from'drizzle-orm';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlTable,mysqlTable as mysqlTable$1,getTableConfig,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createAlias(schema) {
+import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,is,Subquery,sql,getTableColumns,min,max,asc,desc,SQL,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,avg,avgDistinct,count,countDistinct,desc,exists,max,min,not,notExists,sum,sumDistinct}from'drizzle-orm';import {MySqlTable,mysqlTable as mysqlTable$1,getTableConfig,MySqlColumn,alias as alias$1}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
      * ******************************************************************************************************************/
@@ -164,6 +164,27 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
         }
         return result;
     }
+    if (is(first, Subquery)) {
+        const subqueryFields = first._.selectedFields;
+        if (rest.length === 0)
+            return subqueryFields;
+        const selected = {};
+        for (const selection of rest) {
+            if (typeof selection !== 'string')
+                throw new Error('columns: expected a column name.');
+            const match = /^(.+?)\s+as\s+(.+)$/i.exec(selection.trim());
+            const name = (match?.[1] ?? selection).trim();
+            const alias = match?.[2]?.trim();
+            if (!Object.hasOwn(subqueryFields, name))
+                throw new Error(`columns: unknown column "${name}".`);
+            const field = subqueryFields[name];
+            if (alias)
+                selected[alias] = sql `${field}`.as(alias);
+            else
+                selected[name] = field;
+        }
+        return selected;
+    }
     if (isTable(first)) {
         const tableColumns = getTableColumns(first);
         if (rest.length === 0)
@@ -316,7 +337,107 @@ class MySqlQuery {
         const isAlias = isTable(fieldsOrAlias);
         const table = isAlias ? fieldsOrAlias : this.t;
         const selectedFields = this.resolveFields(isAlias ? fields : fieldsOrAlias, table);
-        return tx.select(selectedFields ?? TableColumns(table)).from(table);
+        const enhancedQueries = new WeakSet();
+        const enhance = (input) => {
+            if (typeof input !== 'object' || input === null || enhancedQueries.has(input))
+                return input;
+            const query = input;
+            enhancedQueries.add(query);
+            const builder = query;
+            const originalWhere = builder.where.bind(query);
+            const orderBy = query.orderBy;
+            const originalOrderBy = typeof orderBy === 'function' ? orderBy.bind(query) : undefined;
+            const bindCondition = (operator, conditionTable = table) => (input) => {
+                const conditionOperator = this.drizzle[operator];
+                if (isTable(conditionTable)) {
+                    return Reflect.apply(conditionOperator, undefined, [conditionTable, input]);
+                }
+                const columns = conditionTable;
+                if (operator === 'and' || operator === 'or') {
+                    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+                        throw new Error(`${operator}: expected a condition object.`);
+                    }
+                    const conditions = Object.entries(input).map(([nestedOperator, values]) => bindCondition(nestedOperator, conditionTable)(values));
+                    return operator === 'and' ? and(...conditions) : or(...conditions);
+                }
+                if (operator === 'isNull' || operator === 'isNotNull') {
+                    const names = typeof input === 'string' ? [input] : Array.isArray(input) ? input : [];
+                    if (names.length === 0 && input !== undefined)
+                        throw new Error(`${operator}: expected column names.`);
+                    return and(...names.map((name) => {
+                        if (typeof name !== 'string' || columns[name] === undefined) {
+                            throw new Error(`Condition: unknown column "${String(name)}".`);
+                        }
+                        return Reflect.apply(conditionOperator, undefined, [columns[name]]);
+                    }));
+                }
+                if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+                    throw new Error(`${operator}: expected a column/value object.`);
+                }
+                return and(...Object.entries(input).map(([name, value]) => {
+                    const column = columns[name];
+                    if (column === undefined)
+                        throw new Error(`Condition: unknown column "${name}".`);
+                    if (operator === 'between' || operator === 'notBetween') {
+                        if (!Array.isArray(value) || value.length !== 2)
+                            throw new Error(`${operator}: expected two bounds.`);
+                        return Reflect.apply(conditionOperator, undefined, [column, value[0], value[1]]);
+                    }
+                    return Reflect.apply(conditionOperator, undefined, [column, value]);
+                }));
+            };
+            const conditionQuery = (conditionTable, contextTable) => ({
+                t: contextTable,
+                eq: bindCondition('eq', conditionTable),
+                ne: bindCondition('ne', conditionTable),
+                gt: bindCondition('gt', conditionTable),
+                gte: bindCondition('gte', conditionTable),
+                lt: bindCondition('lt', conditionTable),
+                lte: bindCondition('lte', conditionTable),
+                inArray: bindCondition('inArray', conditionTable),
+                notInArray: bindCondition('notInArray', conditionTable),
+                between: bindCondition('between', conditionTable),
+                notBetween: bindCondition('notBetween', conditionTable),
+                like: bindCondition('like', conditionTable),
+                notLike: bindCondition('notLike', conditionTable),
+                ilike: bindCondition('ilike', conditionTable),
+                notIlike: bindCondition('notIlike', conditionTable),
+                isNull: bindCondition('isNull', conditionTable),
+                isNotNull: bindCondition('isNotNull', conditionTable),
+                and: bindCondition('and', conditionTable),
+                or: bindCondition('or', conditionTable),
+            });
+            const whereQuery = conditionQuery(table, table);
+            const orderByQuery = {
+                t: table,
+                asc: (name) => asc(this.resolveOrderColumn(name, table)),
+                desc: (name) => desc(this.resolveOrderColumn(name, table)),
+            };
+            const enhancements = {
+                where: (condition) => enhance(originalWhere(typeof condition === 'function'
+                    ? () => condition(whereQuery)
+                    : condition)),
+            };
+            if (originalOrderBy) {
+                enhancements.orderBy = (...args) => enhance(typeof args[0] === 'function'
+                    ? originalOrderBy(() => args[0](orderByQuery))
+                    : originalOrderBy(...args));
+            }
+            for (const joinMethod of ['innerJoin', 'leftJoin', 'rightJoin']) {
+                const join = query[joinMethod];
+                if (typeof join !== 'function')
+                    continue;
+                enhancements[joinMethod] = (joinedTable, on, ...rest) => {
+                    if (typeof on !== 'function' || (!isTable(joinedTable) && !is(joinedTable, Subquery))) {
+                        return enhance(Reflect.apply(join, query, [joinedTable, on, ...rest]));
+                    }
+                    const joinQuery = conditionQuery(joinedTable, table);
+                    return enhance(Reflect.apply(join, query, [joinedTable, () => on(joinQuery), ...rest]));
+                };
+            }
+            return Object.assign(query, enhancements);
+        };
+        return enhance(tx.select(selectedFields ?? TableColumns(table)).from(table));
     }
     async find(aliasOrFieldsOrWhere, fieldsOrWhere, where) {
         const hasAlias = isTable(aliasOrFieldsOrWhere);
@@ -777,6 +898,7 @@ function drizzleMySql(options) {
         a: createAlias(options.schema),
         ...createConditions(options.schema),
         columns: TableColumns,
+        alias: alias$1,
         sql,
         sqlNumber: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith(Number),
         sqlString: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith(String),

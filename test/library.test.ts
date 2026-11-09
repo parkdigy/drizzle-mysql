@@ -1,7 +1,8 @@
 import { int, mysqlTable, varchar } from 'drizzle-orm/mysql-core';
-import { sql, type SQL } from 'drizzle-orm';
+import { asc as drizzleAsc, sql, type SQL } from 'drizzle-orm';
 import { drizzleMySql } from '../src';
 import * as api from '../src';
+import { TableColumns } from '../src/columns';
 
 const user = mysqlTable('users', {
   id: int('id').autoincrement().primaryKey(),
@@ -32,18 +33,110 @@ test('select 문자열 매핑 객체의 키를 결과 별칭으로 사용한다'
   expect(() => db.query(user).select({ missing: 'missing' } as never)).toThrow('select: unknown column "missing".');
 });
 
+test('where 콜백은 조건 헬퍼와 테이블 객체를 제공한다', () => {
+  const query = db.query(user);
+  const alias = db.a.user('u');
+  const tableColumn = query.select(['id']).where((q) => db.eq(q.t.displayName, 'Ada')).toSQL();
+  const aliasTableColumn = query.select(alias, ['id']).where((q) => db.eq(q.t.displayName, 'Ada')).toSQL();
+  const queryCondition = query.select(['id']).where((q) => q.eq({ displayName: 'Ada' })).toSQL();
+  const groupedCondition = query
+    .select(['id'])
+    .where((q) => q.and({ eq: { displayName: 'Ada' }, gt: { id: 1 } }))
+    .toSQL();
+  const aliasCondition = query.select(alias, ['id']).where((q) => q.eq({ displayName: 'Ada' })).toSQL();
+
+  expect(tableColumn.sql).toMatch(/where `users`\.`display_name` = \?/i);
+  expect(tableColumn.params).toEqual(['Ada']);
+  expect(aliasTableColumn.sql).toMatch(/where `u`\.`display_name` = \?/i);
+  expect(aliasTableColumn.params).toEqual(['Ada']);
+  expect(queryCondition.sql).toMatch(/where `users`\.`display_name` = \?/i);
+  expect(queryCondition.params).toEqual(['Ada']);
+  expect(groupedCondition.sql).toMatch(/where \(\(`users`\.`display_name` = \?\) and \(`users`\.`id` > \?\)\)/i);
+  expect(groupedCondition.params).toEqual(['Ada', 1]);
+  expect(aliasCondition.sql).toMatch(/where `u`\.`display_name` = \?/i);
+  expect(aliasCondition.params).toEqual(['Ada']);
+});
+
+test('join 콜백은 조인 컬럼 조건 헬퍼와 기준 테이블을 제공한다', () => {
+  const query = db.query(user);
+  const baseAlias = db.alias(user, 'base');
+  const joinAlias = db.alias(user, 'joined');
+  const joined = query.select().innerJoin(joinAlias, (q) => q.eq({ id: q.t.id })).toSQL();
+  const aliasJoined = query.select(baseAlias).innerJoin(joinAlias, (q) => q.eq({ id: q.t.id })).toSQL();
+
+  expect(joined.sql).toMatch(/inner join `users` `joined` on `joined`\.`id` = `users`\.`id`/i);
+  expect(aliasJoined.sql).toMatch(/inner join `users` `joined` on `joined`\.`id` = `base`\.`id`/i);
+});
+
+test('조인 뒤에도 where와 orderBy 콜백 헬퍼를 유지한다', () => {
+  const query = db.query(user);
+  const joinedTable = db.alias(user, 'joined');
+  const secondJoinedTable = db.alias(user, 'second_joined');
+  const beforeJoin = query.select().where((q) => q.eq({ id: 1 })).toSQL();
+  const afterJoin = query
+    .select()
+    .innerJoin(joinedTable, db.eq(joinedTable.id, user.id))
+    .where((q) => q.eq({ id: 1 }))
+    .toSQL();
+  const afterTwoJoins = query
+    .select()
+    .innerJoin(joinedTable, db.eq(joinedTable.id, user.id))
+    .innerJoin(secondJoinedTable, db.eq(secondJoinedTable.id, user.id))
+    .where((q) => q.eq({ id: 1 }))
+    .orderBy((q) => q.desc('displayName'))
+    .toSQL();
+
+  expect(beforeJoin.sql).toMatch(/where `users`\.`id` = \?/i);
+  expect(afterJoin.sql).toMatch(/inner join `users` `joined` on `joined`\.`id` = `users`\.`id` where `users`\.`id` = \?/i);
+  expect(afterJoin.params).toEqual([1]);
+  expect(afterTwoJoins.sql).toMatch(/inner join `users` `joined`.*inner join `users` `second_joined`.*where `users`\.`id` = \? order by `users`\.`display_name` desc/i);
+  expect(afterTwoJoins.params).toEqual([1]);
+});
+
+test('select 서브쿼리를 콜백 조건으로 조인한다', () => {
+  const query = db.query(user);
+  const builder = query.select(['id']).limit(1).orderBy(query.desc('id'));
+  const subquery = builder.as('latest');
+  const joined = query.select().innerJoin(subquery, (q) => q.eq({ id: q.t.id })).toSQL();
+
+  expect(joined.sql).toMatch(/inner join \(select `id` from `users` order by `users`\.`id` desc limit \?\) `latest` on `latest`\.`id` = `users`\.`id`/i);
+  expect(joined.params).toEqual([1]);
+});
+
+test('서브쿼리 별칭의 컬럼을 columns 선택자로 고른다', () => {
+  const query = db.query(user);
+  const builder = query.select(['id']).limit(1).orderBy(query.desc('id'));
+  const subquery = builder.as('latest');
+  const selected = query
+    .select(TableColumns(subquery, 'id'))
+    .innerJoin(subquery, db.eq(subquery.id, user.id))
+    .toSQL();
+
+  expect(selected.sql).toMatch(/select `latest`\.`id` as `id` from `users` inner join \(select `id` from `users` order by `users`\.`id` desc limit \?\) `latest` on `latest`\.`id` = `users`\.`id`/i);
+  expect(selected.params).toEqual([1]);
+  expect(() => TableColumns(subquery, 'missing' as never)).toThrow('columns: unknown column "missing".');
+});
+
 test('컬럼명과 별칭 테이블로 오름차순과 내림차순을 지정한다', () => {
   const query = db.query(user);
   const alias = db.a.user('u');
   const descending = query.select().orderBy(query.desc('id')).toSQL();
   const ascending = query.select().orderBy(query.asc('id')).toSQL();
+  const callbackDescending = query.select(['id']).orderBy((q) => q.desc('id')).toSQL();
+  const callbackAscending = query.select(['id']).orderBy((q) => q.asc('id')).toSQL();
+  const callbackColumn = query.select(['id']).orderBy((q) => drizzleAsc(q.t.id)).toSQL();
   const aliasDescending = query.select(alias).orderBy(query.desc(alias, 'id')).toSQL();
   const aliasAscending = query.select(alias).orderBy(query.asc(alias, 'id')).toSQL();
+  const aliasCallback = query.select(alias, ['id']).orderBy((q) => q.desc('id')).toSQL();
 
   expect(descending.sql).toMatch(/order by `users`\.`id` desc/i);
   expect(ascending.sql).toMatch(/order by `users`\.`id` asc/i);
+  expect(callbackDescending.sql).toMatch(/order by `users`\.`id` desc/i);
+  expect(callbackAscending.sql).toMatch(/order by `users`\.`id` asc/i);
+  expect(callbackColumn.sql).toMatch(/order by `users`\.`id` asc/i);
   expect(aliasDescending.sql).toMatch(/order by `u`\.`id` desc/i);
   expect(aliasAscending.sql).toMatch(/order by `u`\.`id` asc/i);
+  expect(aliasCallback.sql).toMatch(/order by `u`\.`id` desc/i);
   expect(() => query.desc('missing' as never)).toThrow('orderBy: unknown column "missing".');
 });
 

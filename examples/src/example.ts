@@ -34,9 +34,21 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
   }
 
   async selectTest() {
-    await this.select(['id', 'name', 'email']);
-    await this.select({ id_2: 'id', name_2: 'name', email_2: 'email' });
-    await this.select({ min_id: this.min('id'), max_id: this.max('id') });
+    console.log(await this.select(['id', 'name', 'email']));
+
+    console.log(await this.select({ id_2: 'id', name_2: 'name', email_2: 'email' }));
+
+    console.log(await this.select({ min_id: this.min('id'), max_id: this.max('id') }));
+
+    console.log(await this.select().orderBy(this.desc('id')));
+
+    console.log(await this.select().orderBy(this.asc('id')));
+
+    console.log(await this.select(['id']).orderBy((q) => q.desc('id')));
+
+    console.log(await this.select(['id']).orderBy((q) => q.asc('id')));
+
+    console.log(await this.select(['id']).orderBy((q) => mysql.asc(q.t.id)));
   }
 
   async selectColumnsTest() {
@@ -45,10 +57,14 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
 
   async aliasSelectTest() {
     const au = mysql.a.adminUser('au');
-    await this.select(au);
-    await this.select(au, { id: au.id, name: au.name });
-    await this.select(au, ['id', 'name']);
-    await this.select(au, ['id', 'name as as_name', 'email AS as_email', 'tel As as_tel']);
+
+    console.log(await this.select(au));
+
+    console.log(await this.select(au, { id: au.id, name: au.name }));
+
+    console.log(await this.select(au, ['id', 'name']));
+
+    console.log(await this.select(au, ['id', 'name as as_name', 'email AS as_email', 'tel As as_tel']));
   }
 
   async subQueryTest() {
@@ -59,17 +75,46 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     console.log(await this.select({ id: 'id', sub_query_value: builder }).where(this.eq('id', 2)));
 
     console.log(await this.select().where(this.eq('id', builder)));
+
+    const j = builder.as('j');
+    console.log(
+      await this.select([this.columns('name'), mysql.columns(j, 'id')]).innerJoin(j, mysql.eq(j.id, this.t.id))
+    );
+    console.log(await this.select().innerJoin(j, (q) => q.eq({ id: q.t.id })));
+
+    const ud = mysql.a.adminUser('ud');
+    const ud2 = mysql.a.adminUser('ud2');
+    console.log(await this.select().where((q) => q.eq({ id: 1 })));
+    console.log(
+      await this.select([
+        this.columns('id', 'name'),
+        mysql.columns(ud, 'id as ud_id'),
+        mysql.columns(ud2, 'id as ud2_id'),
+      ])
+        .innerJoin(ud, mysql.eq(ud.id, this.t.id))
+        .innerJoin(ud2, mysql.eq(ud2.id, this.t.id))
+        .where((q) => q.eq({ id: 1 }))
+        .orderBy((q) => q.desc('name'))
+    );
+    console.log(await this.select().innerJoin(ud, (q) => q.eq({ id: q.t.id })));
   }
 
   async findTest() {
-    await this.find(['id', 'name', 'email']);
-    await this.find(['id', 'name', 'email'], this.eq({ name: 'name' }));
-    await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' });
-    await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, this.eq({ name: 'name' }));
-    await this.find({ min_id: this.min('id'), max_id: this.max('id') });
-    await this.findByPrimaryKey(['id', 'name', 'email'], 1);
-    await this.findByPrimaryKey({ id_2: 'id' }, 1);
-    await this.findByPrimaryKey({ min_id: this.min('id'), max_id: this.max('id') }, 1);
+    console.log(await this.find(['id', 'name', 'email']));
+
+    console.log(await this.find(['id', 'name', 'email'], this.eq({ name: 'name' })));
+
+    console.log(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }));
+
+    console.log(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, this.eq({ name: 'name' })));
+
+    console.log(await this.find({ min_id: this.min('id'), max_id: this.max('id') }));
+
+    console.log(await this.findByPrimaryKey(['id', 'name', 'email'], 1));
+
+    console.log(await this.findByPrimaryKey({ id_2: 'id' }, 1));
+
+    console.log(await this.findByPrimaryKey({ min_id: this.min('id'), max_id: this.max('id') }, 1));
   }
 
   async conditionTest() {
@@ -89,11 +134,39 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
         like: { name: '%name%' },
       })
     );
+
+    console.log(await this.select(['id']).where((q) => q.eq({ name: 'name' })));
+    console.log(await this.select(['id']).where((q) => mysql.eq(q.t.name, 'name')));
+
+    const au = mysql.a.adminUser('au');
+    console.log(await this.select(au, ['id']).where((q) => q.eq({ name: 'name' })));
+    console.log(await this.select(au, ['id']).where((q) => mysql.eq(q.t.name, 'name')));
   }
 
   async orderByTest() {
     await this.select().orderBy(this.desc('id'));
     await this.select().orderBy(this.asc('id'));
+    await this.select(['id']).orderBy((q) => q.desc('id'));
+    await this.select(['id']).orderBy((q) => q.asc('id'));
+    await this.select(['id']).orderBy((q) => mysql.desc(q.t.id));
+
+    const au = mysql.a.adminUser('au');
+    await this.select(au, ['id']).orderBy((q) => q.desc('id'));
+    await this.select(au, ['id']).orderBy((q) => mysql.asc(q.t.id));
+  }
+
+  async joinTest() {
+    const au = mysql.alias(this.t, 'au');
+    const au2 = mysql.alias(this.t, 'au2');
+    await this.select().innerJoin(au, (q) => q.eq({ id: q.t.id }));
+    await this.select()
+      .innerJoin(au, mysql.eq(au.id, this.t.id))
+      .innerJoin(au2, mysql.eq(au2.id, this.t.id))
+      .where((q) => q.eq({ id: 1 }))
+      .orderBy((q) => q.desc('name'));
+
+    const recent = this.select(['id']).limit(1).orderBy(this.desc('id')).as('recent');
+    await this.select().innerJoin(recent, (q) => q.eq({ id: q.t.id }));
   }
 
   async addTest() {

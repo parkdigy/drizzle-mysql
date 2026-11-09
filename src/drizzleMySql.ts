@@ -1,7 +1,7 @@
 import mysql from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
 import { count, defineRelations, is, SQL, sql, type Subquery } from 'drizzle-orm';
-import type { MySqlTable } from 'drizzle-orm/mysql-core';
+import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as native from 'drizzle-orm';
 import { createAlias, type MySqlAliases } from './alias';
@@ -21,6 +21,7 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
   s: TSchema;
   a: MySqlAliases<TSchema>;
   columns: typeof TableColumns;
+  alias: typeof alias;
   sql: typeof sql;
   sqlNumber(value: SQL | number): SQL<number>;
   sqlString(value: SQL | string): SQL<string>;
@@ -113,6 +114,7 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
     a: createAlias(options.schema),
     ...createConditions(options.schema),
     columns: TableColumns,
+    alias,
     sql,
     sqlNumber: (value: SQL | number) => (is(value, SQL) ? value : sql`${value}`).mapWith(Number),
     sqlString: (value: SQL | string) => (is(value, SQL) ? value : sql`${value}`).mapWith(String),

@@ -1,4 +1,4 @@
-import { getTableColumns, isTable, sql, type SQL } from 'drizzle-orm';
+import { getTableColumns, is, isTable, sql, Subquery, type SQL } from 'drizzle-orm';
 import type { MySqlColumn, MySqlTable, MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
 import type { BuildAliasTable } from 'drizzle-orm/mysql-core/query-builders/select.types';
 
@@ -96,6 +96,7 @@ export type MySqlSelectedNamedColumns<
  * MySqlColumnGroup
  * ******************************************************************************************************************/
 type MySqlColumnGroup = readonly [MySqlTable, ...string[]];
+type MySqlSubqueryFields<T extends Subquery> = T['_']['selectedFields'];
 
 /********************************************************************************************************************
  * MySqlGroupColumns
@@ -146,8 +147,13 @@ export function TableColumns<const G extends readonly [MySqlColumnGroup, ...MySq
     [I in keyof G]: readonly [G[I][0], ...MySqlColumnSelectionName<G[I][0]>[]];
   }
 ): MySqlMergedGroupColumns<G>;
+export function TableColumns<T extends Subquery>(subquery: T): MySqlSubqueryFields<T>;
+export function TableColumns<T extends Subquery, N extends keyof MySqlSubqueryFields<T> & string>(
+  subquery: T,
+  ...names: N[]
+): Pick<MySqlSubqueryFields<T>, N>;
 export function TableColumns(
-  first: MySqlTable | MySqlColumn | readonly MySqlColumn[] | MySqlColumnGroup,
+  first: MySqlTable | Subquery | MySqlColumn | readonly MySqlColumn[] | MySqlColumnGroup,
   ...rest: (MySqlColumn | string | MySqlColumnGroup)[]
 ): Record<string, MySqlColumn | SQL.Aliased> {
   if (Array.isArray(first) && isTable(first[0])) {
@@ -162,6 +168,22 @@ export function TableColumns(
       );
     }
     return result;
+  }
+  if (is(first, Subquery)) {
+    const subqueryFields = first._.selectedFields;
+    if (rest.length === 0) return subqueryFields as Record<string, MySqlColumn | SQL.Aliased>;
+    const selected: Record<string, MySqlColumn | SQL.Aliased> = {};
+    for (const selection of rest) {
+      if (typeof selection !== 'string') throw new Error('columns: expected a column name.');
+      const match = /^(.+?)\s+as\s+(.+)$/i.exec(selection.trim());
+      const name = (match?.[1] ?? selection).trim();
+      const alias = match?.[2]?.trim();
+      if (!Object.hasOwn(subqueryFields, name)) throw new Error(`columns: unknown column "${name}".`);
+      const field = subqueryFields[name] as MySqlColumn | SQL.Aliased;
+      if (alias) selected[alias] = sql`${field}`.as(alias);
+      else selected[name] = field;
+    }
+    return selected;
   }
   if (isTable(first)) {
     const tableColumns = getTableColumns(first);

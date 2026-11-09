@@ -1,6 +1,6 @@
 import mysql from 'mysql2/promise';
 import { SQL, sql, type Subquery } from 'drizzle-orm';
-import type { MySqlTable } from 'drizzle-orm/mysql-core';
+import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import * as native from 'drizzle-orm';
 import { type MySqlAliases } from './alias.cjs';
 import { type MySqlSchemaConditions } from './conditions.cjs';
@@ -16,6 +16,7 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
     s: TSchema;
     a: MySqlAliases<TSchema>;
     columns: typeof TableColumns;
+    alias: typeof alias;
     sql: typeof sql;
     sqlNumber(value: SQL | number): SQL<number>;
     sqlString(value: SQL | string): SQL<string>;
