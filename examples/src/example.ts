@@ -70,33 +70,41 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
   async subQueryTest() {
     console.log('::::: TestData::subQueryTest() :::::');
 
-    const builder = this.select(['id']).orderBy(this.desc('id')).limit(1);
+    {
+      const builder = this.select(['id']).orderBy(this.desc('id')).limit(1);
 
-    console.log(await this.select({ id: 'id', sub_query_value: builder }).where(this.eq('id', 2)));
+      console.log(await this.select({ id: 'id', sub_query_value: builder }).where(this.eq('id', 2)));
 
-    console.log(await this.select().where(this.eq('id', builder)));
+      console.log(await this.select().where(this.eq('id', builder)));
 
-    const j = builder.as('j');
-    console.log(
-      await this.select([this.columns('name'), mysql.columns(j, 'id')]).innerJoin(j, mysql.eq(j.id, this.t.id))
-    );
-    console.log(await this.select().innerJoin(j, (q) => q.eq({ id: q.t.id })));
+      const j = builder.as('j');
+      console.log(
+        await this.select([this.columns('name'), mysql.columns(j, 'id')]).innerJoin(j, mysql.eq(j.id, this.t.id))
+      );
+      console.log(await this.select().innerJoin(j, (q) => q.eq({ id: q.t.id })));
 
-    const ud = mysql.a.adminUser('ud');
-    const ud2 = mysql.a.adminUser('ud2');
-    console.log(await this.select().where((q) => q.eq({ id: 1 })));
-    console.log(
-      await this.select([
-        this.columns('id', 'name'),
-        mysql.columns(ud, 'id as ud_id'),
-        mysql.columns(ud2, 'id as ud2_id'),
-      ])
-        .innerJoin(ud, mysql.eq(ud.id, this.t.id))
-        .innerJoin(ud2, mysql.eq(ud2.id, this.t.id))
-        .where((q) => q.eq({ id: 1 }))
-        .orderBy((q) => q.desc('name'))
-    );
-    console.log(await this.select().innerJoin(ud, (q) => q.eq({ id: q.t.id })));
+      const ud = mysql.a.adminUser('ud');
+      const ud2 = mysql.a.adminUser('ud2');
+      console.log(await this.select().where((q) => q.eq({ id: 1 })));
+      console.log(
+        await this.select([
+          this.columns('id', 'name'),
+          mysql.columns(ud, 'id as ud_id'),
+          mysql.columns(ud2, 'id as ud2_id'),
+        ])
+          .innerJoin(ud, mysql.eq(ud.id, this.t.id))
+          .innerJoin(ud2, mysql.eq(ud2.id, this.t.id))
+          .where((q) => q.eq({ id: 1 }))
+          .orderBy((q) => q.desc('name'))
+      );
+      console.log(await this.select().innerJoin(ud, (q) => q.eq({ id: q.t.id })));
+    }
+
+    {
+      const builder = this.select(['id', 'name']).orderBy(this.desc('id')).limit(1);
+      const j = builder.as('j');
+      mysql.columns(j, 'id', 'name');
+    }
   }
 
   async findTest() {

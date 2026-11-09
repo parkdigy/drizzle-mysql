@@ -150,7 +150,8 @@ export function TableColumns<const G extends readonly [MySqlColumnGroup, ...MySq
 export function TableColumns<T extends Subquery>(subquery: T): MySqlSubqueryFields<T>;
 export function TableColumns<T extends Subquery, N extends keyof MySqlSubqueryFields<T> & string>(
   subquery: T,
-  ...names: N[]
+  // 앞선 선택 이름으로 자동완성 후보를 좁히지 않고 반환 타입에는 입력 이름만 반영한다.
+  ...names: (N | NoInfer<keyof MySqlSubqueryFields<T> & string>)[]
 ): Pick<MySqlSubqueryFields<T>, N>;
 export function TableColumns(
   first: MySqlTable | Subquery | MySqlColumn | readonly MySqlColumn[] | MySqlColumnGroup,

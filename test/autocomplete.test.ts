@@ -25,6 +25,21 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     db.eq(a, { /*condition*/ });
     db.eq('table199', { /*namedCondition*/ });
     const query = db.query(table199);
+    const j = query.select(['id', 'name']).limit(1).orderBy(query.desc('id')).as('j');
+    // @ts-expect-error 서브쿼리 첫 컬럼의 자동완성용 미완성 컬럼명
+    db.columns(j, '/*subqueryFirst*/');
+    // @ts-expect-error 서브쿼리 다음 컬럼의 자동완성용 미완성 컬럼명
+    db.columns(j, 'id', '/*subqueryNext*/');
+    // @ts-expect-error 서브쿼리 추가 컬럼의 자동완성용 미완성 컬럼명
+    db.columns(j, 'id', 'name', '/*subqueryThird*/');
+    const subqueryFields = db.columns(j, 'id');
+    const subqueryBoth = db.columns(j, 'id', 'name');
+    const subqueryId: typeof j.id = subqueryFields.id;
+    const subqueryName: typeof j.name = subqueryBoth.name;
+    // @ts-expect-error 선택하지 않은 서브쿼리 컬럼은 반환되지 않는다
+    subqueryFields.name;
+    // @ts-expect-error 선택되지 않은 서브쿼리 컬럼은 허용하지 않는다
+    db.columns(j, 'extra0');
     const selected = query.select({ renamed: 'id' });
     const merged = query.select([query.columns('id'), { label: table199.name }]);
     const aliased = query.select(a, ['id', 'name as displayName']);
@@ -36,7 +51,7 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     const invalidRow: Row = { renamed: 'wrong' };
     // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
     query.select(['missing']);
-    void [merged, aliased, found, foundByKey, row, invalidRow];
+    void [merged, aliased, found, foundByKey, row, invalidRow, subqueryId, subqueryName];
     const fields = db.columns(a, 'id', 'name as displayName');
     db.current().select(fields).from(a).then((rows: {id: number; displayName: string | null}[]) => {
       const row: {id: number; displayName: string | null} = rows[0];
@@ -80,6 +95,9 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
       members: ['columns', 'query', 'current', 'eq'],
       aliases: ['table0', 'table199'],
       columns: ['id', 'name'],
+      subqueryFirst: ['id', 'name'],
+      subqueryNext: ['id', 'name'],
+      subqueryThird: ['id', 'name'],
       query: ['id', 'name'],
       condition: ['id', 'name'],
       namedCondition: ['id', 'name'],

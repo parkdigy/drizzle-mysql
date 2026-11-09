@@ -89,5 +89,5 @@ export declare function TableColumns<const G extends readonly [MySqlColumnGroup,
     [I in keyof G]: readonly [G[I][0], ...MySqlColumnSelectionName<G[I][0]>[]];
 }): MySqlMergedGroupColumns<G>;
 export declare function TableColumns<T extends Subquery>(subquery: T): MySqlSubqueryFields<T>;
-export declare function TableColumns<T extends Subquery, N extends keyof MySqlSubqueryFields<T> & string>(subquery: T, ...names: N[]): Pick<MySqlSubqueryFields<T>, N>;
+export declare function TableColumns<T extends Subquery, N extends keyof MySqlSubqueryFields<T> & string>(subquery: T, ...names: (N | NoInfer<keyof MySqlSubqueryFields<T> & string>)[]): Pick<MySqlSubqueryFields<T>, N>;
 export {};
