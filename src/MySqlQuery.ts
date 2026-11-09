@@ -11,6 +11,7 @@ import {
   desc as drizzleDesc,
   max as drizzleMax,
   min as drizzleMin,
+  type SQLWrapper,
 } from 'drizzle-orm';
 import {
   MySqlTable,
@@ -123,6 +124,12 @@ export class MySqlQuery<
     return columns[name];
   }
 
+  private resolveConditionColumn(name: string, table: MySqlTable): MySqlColumn {
+    const columns = getTableColumns(table);
+    if (!Object.hasOwn(columns, name)) throw new Error(`Condition: unknown column "${name}".`);
+    return columns[name];
+  }
+
   /********************************************************************************************************************
    * asc / desc
    * ******************************************************************************************************************/
@@ -187,6 +194,10 @@ export class MySqlQuery<
     fields: TSelection
   ): SelectFrom<TTable, StringColumnSelectionFields<TTable, TSelection>>;
 
+  select<const TSelection extends MixedSelection<TTable>>(
+    fields: TSelection
+  ): SelectFrom<TTable, ResolveMixedSelection<TTable, TSelection>>;
+
   select<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields?: Fields<FieldsQuery<TTable>, TSelection>
   ): SelectFrom<TTable, TSelection>;
@@ -220,6 +231,14 @@ export class MySqlQuery<
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: T
   ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
+
+  select<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(
+    alias: MySqlAliasTable<TTable, TAlias>,
+    fields: TSelection
+  ): SelectFrom<
+    MySqlAliasTable<TTable, TAlias>,
+    ResolveMixedSelection<MySqlAliasTable<TTable, TAlias>, TSelection>
+  >;
 
   select<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
@@ -700,8 +719,28 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * eq
    * ******************************************************************************************************************/
-  eq(values: MySqlCompareValues<TTable>): SQL | undefined {
-    return this.drizzle.eq(this.t, values);
+  eq<N extends MySqlColumnName<TTable>>(name: N, value: Required<MySqlCompareValues<TTable>>[N]): SQL;
+
+  eq<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(
+    table: MySqlAliasTable<TTable, TAlias>,
+    name: N,
+    value: Required<MySqlCompareValues<MySqlAliasTable<TTable, TAlias>>>[N]
+  ): SQL;
+
+  eq(values: MySqlCompareValues<TTable>): SQL | undefined;
+
+  eq(
+    tableOrValues: MySqlTable | string | MySqlCompareValues<TTable>,
+    nameOrValue?: unknown,
+    value?: unknown
+  ): SQL | undefined {
+    if (typeof tableOrValues === 'string') {
+      return eq(this.resolveConditionColumn(tableOrValues, this.t), nameOrValue as SQLWrapper);
+    }
+    if (isTable(tableOrValues)) {
+      return eq(this.resolveConditionColumn(nameOrValue as string, tableOrValues), value as SQLWrapper);
+    }
+    return this.drizzle.eq(this.t, tableOrValues);
   }
 
   /********************************************************************************************************************
@@ -869,6 +908,17 @@ type WhereQuery<TQuery> = Pick<
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;
+type MixedSelection<TTable extends MySqlTable> = Record<
+  string,
+  FieldSet[string] | MySqlColumnName<TTable> | SQLWrapper
+>;
+type ResolveMixedSelection<TTable extends MySqlTable, TSelection> = {
+  [K in keyof TSelection]: TSelection[K] extends MySqlColumnName<TTable>
+    ? TTable['_']['columns'][TSelection[K]]
+    : TSelection[K] extends SQLWrapper<infer TData>
+      ? SQL.Aliased<TData>
+      : Extract<TSelection[K], FieldSet[string]>;
+};
 type StringColumnSelection<TTable extends MySqlTable> = Record<string, keyof TTable['_']['columns'] & string>;
 type StringColumnSelectionFields<TTable extends MySqlTable, TSelection extends StringColumnSelection<TTable>> = {
   [K in keyof TSelection]: TTable['_']['columns'][TSelection[K]] extends MySqlColumn<infer TConfig>
@@ -923,8 +973,17 @@ const normalizeFields = (fields: unknown, table?: MySqlTable): FieldSet | undefi
       result[name] = sql`${column}`.mapWith(column).as(name);
       continue;
     }
+    if (is(field, SQL)) {
+      result[name] = field.as(name);
+      continue;
+    }
+    if (is(field, SQL.Aliased)) continue;
     if (is(field, MySqlColumn) && field.name !== name) {
       result[name] = sql`${field}`.mapWith(field).as(name);
+      continue;
+    }
+    if (typeof field === 'object' && field !== null && 'getSQL' in field && typeof field.getSQL === 'function') {
+      result[name] = sql`${field}`.as(name);
     }
   }
   return result;

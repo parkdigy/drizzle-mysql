@@ -1,4 +1,4 @@
-import { SQL, max as drizzleMax, min as drizzleMin } from 'drizzle-orm';
+import { SQL, max as drizzleMax, min as drizzleMin, type SQLWrapper } from 'drizzle-orm';
 import { MySqlTable, MySqlColumn, type MySqlAsyncSelectBase } from 'drizzle-orm/mysql-core';
 import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
@@ -38,6 +38,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     max<C extends MySqlColumn>(column: C): ReturnType<typeof drizzleMax<C>>;
     private resolveAggregateColumn;
     private resolveOrderColumn;
+    private resolveConditionColumn;
     /********************************************************************************************************************
      * asc / desc
      * ******************************************************************************************************************/
@@ -55,12 +56,14 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     select<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T): SelectFrom<TTable, MergeFields<T>>;
     select<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(fields: T): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
     select<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection): SelectFrom<TTable, StringColumnSelectionFields<TTable, TSelection>>;
+    select<const TSelection extends MixedSelection<TTable>>(fields: TSelection): SelectFrom<TTable, ResolveMixedSelection<TTable, TSelection>>;
     select<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields?: Fields<FieldsQuery<TTable>, TSelection>): SelectFrom<TTable, TSelection>;
     select<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>): SelectFrom<MySqlAliasTable<TTable, TAlias>, undefined>;
     select<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly []): SelectFrom<MySqlAliasTable<TTable, TAlias>, {}>;
     select<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly N[]): SelectFrom<MySqlAliasTable<TTable, TAlias>, MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>>;
     select<TAlias extends string, const T extends readonly FieldInput[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>;
     select<TAlias extends string, const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
+    select<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: TSelection): SelectFrom<MySqlAliasTable<TTable, TAlias>, ResolveMixedSelection<MySqlAliasTable<TTable, TAlias>, TSelection>>;
     select<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>): SelectFrom<MySqlAliasTable<TTable, TAlias>, TSelection>;
     /********************************************************************************************************************
      * find
@@ -159,6 +162,8 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     /********************************************************************************************************************
      * eq
      * ******************************************************************************************************************/
+    eq<N extends MySqlColumnName<TTable>>(name: N, value: Required<MySqlCompareValues<TTable>>[N]): SQL;
+    eq<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(table: MySqlAliasTable<TTable, TAlias>, name: N, value: Required<MySqlCompareValues<MySqlAliasTable<TTable, TAlias>>>[N]): SQL;
     eq(values: MySqlCompareValues<TTable>): SQL | undefined;
     /********************************************************************************************************************
      * ne
@@ -239,6 +244,10 @@ type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefin
 type WhereQuery<TQuery> = Pick<TQuery, Extract<keyof TQuery, 't' | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull' | 'and' | 'or'>>;
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;
+type MixedSelection<TTable extends MySqlTable> = Record<string, FieldSet[string] | MySqlColumnName<TTable> | SQLWrapper>;
+type ResolveMixedSelection<TTable extends MySqlTable, TSelection> = {
+    [K in keyof TSelection]: TSelection[K] extends MySqlColumnName<TTable> ? TTable['_']['columns'][TSelection[K]] : TSelection[K] extends SQLWrapper<infer TData> ? SQL.Aliased<TData> : Extract<TSelection[K], FieldSet[string]>;
+};
 type StringColumnSelection<TTable extends MySqlTable> = Record<string, keyof TTable['_']['columns'] & string>;
 type StringColumnSelectionFields<TTable extends MySqlTable, TSelection extends StringColumnSelection<TTable>> = {
     [K in keyof TSelection]: TTable['_']['columns'][TSelection[K]] extends MySqlColumn<infer TConfig> ? SQL.Aliased<TConfig['data']> : never;

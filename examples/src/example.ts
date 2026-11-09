@@ -51,6 +51,16 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     await this.select(au, ['id', 'name as as_name', 'email AS as_email', 'tel As as_tel']);
   }
 
+  async subQueryTest() {
+    console.log('::::: TestData::subQueryTest() :::::');
+
+    const builder = this.select(['id']).orderBy(this.desc('id')).limit(1);
+
+    console.log(await this.select({ id: 'id', sub_query_value: builder }).where(this.eq('id', 2)));
+
+    console.log(await this.select().where(this.eq('id', builder)));
+  }
+
   async findTest() {
     await this.find(['id', 'name', 'email']);
     await this.find(['id', 'name', 'email'], this.eq({ name: 'name' }));

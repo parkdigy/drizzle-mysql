@@ -283,6 +283,12 @@ class MySqlQuery {
             throw new Error(`orderBy: unknown column "${name}".`);
         return columns[name];
     }
+    resolveConditionColumn(name, table) {
+        const columns = getTableColumns(table);
+        if (!Object.hasOwn(columns, name))
+            throw new Error(`Condition: unknown column "${name}".`);
+        return columns[name];
+    }
     asc(tableOrName, name) {
         const table = typeof tableOrName === 'string' ? this.t : tableOrName;
         const columnName = typeof tableOrName === 'string' ? tableOrName : name;
@@ -568,11 +574,14 @@ class MySqlQuery {
             throw new Error(`${method}: ${operation} is blocked for table "${getTableConfig(this.t).name}".`);
         }
     }
-    /********************************************************************************************************************
-     * eq
-     * ******************************************************************************************************************/
-    eq(values) {
-        return this.drizzle.eq(this.t, values);
+    eq(tableOrValues, nameOrValue, value) {
+        if (typeof tableOrValues === 'string') {
+            return eq(this.resolveConditionColumn(tableOrValues, this.t), nameOrValue);
+        }
+        if (isTable(tableOrValues)) {
+            return eq(this.resolveConditionColumn(nameOrValue, tableOrValues), value);
+        }
+        return this.drizzle.eq(this.t, tableOrValues);
     }
     /********************************************************************************************************************
      * ne
@@ -692,8 +701,18 @@ const normalizeFields = (fields, table) => {
             result[name] = sql `${column}`.mapWith(column).as(name);
             continue;
         }
+        if (is(field, SQL)) {
+            result[name] = field.as(name);
+            continue;
+        }
+        if (is(field, SQL.Aliased))
+            continue;
         if (is(field, MySqlColumn) && field.name !== name) {
             result[name] = sql `${field}`.mapWith(field).as(name);
+            continue;
+        }
+        if (typeof field === 'object' && field !== null && 'getSQL' in field && typeof field.getSQL === 'function') {
+            result[name] = sql `${field}`.as(name);
         }
     }
     return result;

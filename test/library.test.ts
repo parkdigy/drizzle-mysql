@@ -59,6 +59,34 @@ test('select 빌더를 조건과 선택 필드의 서브쿼리로 사용한다',
   expect(selected.params).toEqual([2]);
 });
 
+test('eq에서 컬럼명 또는 별칭 컬럼과 서브쿼리 빌더를 비교한다', () => {
+  const query = db.query(user);
+  const builder = query.select(['id']).limit(1).orderBy(query.desc('id'));
+  const alias = db.a.user('u');
+  const condition = db.current().select().from(user).where(query.eq('id', builder)).toSQL();
+  const aliasCondition = db.current().select().from(alias).where(query.eq(alias, 'id', builder)).toSQL();
+
+  expect(condition.sql).toMatch(/where `users`\.`id` = \(select `id` from `users` order by `users`\.`id` desc limit \?/i);
+  expect(condition.params).toEqual([1]);
+  expect(aliasCondition.sql).toMatch(/where `u`\.`id` = \(select `id` from `users` order by `users`\.`id` desc limit \?/i);
+  expect(aliasCondition.params).toEqual([1]);
+});
+
+test('서브쿼리와 일반 컬럼을 한 선택 객체에서 함께 사용한다', () => {
+  const query = db.query(user);
+  const builder = query.select(['id']).limit(1).orderBy(query.desc('id'));
+  const statement = query.select({ id: 'id', sub_query_value: builder });
+  type Row = Awaited<typeof statement>[number];
+  const row: Row = { id: 1, sub_query_value: 1 };
+  const selected = statement.toSQL();
+
+  expect(selected.sql).toMatch(/select .*`id` as `id`.*\(select `id` from `users` order by `users`\.`id` desc limit \?\) as `sub_query_value` from `users`/i);
+  expect(selected.params).toEqual([1]);
+  expect(row).toEqual({ id: 1, sub_query_value: 1 });
+  const rawSqlSelection = query.select({ id: 'id', sub_query_value: sql`(${builder})` }).toSQL();
+  expect(rawSqlSelection.sql).toMatch(/as `sub_query_value` from `users`/i);
+});
+
 test('find와 findByPrimaryKey에서 문자열 매핑 객체와 결과 타입을 지원한다', () => {
   const q = db.query(user);
   if (false) {
