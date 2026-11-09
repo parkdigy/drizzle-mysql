@@ -81,6 +81,11 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     );
   }
 
+  async orderByTest() {
+    await this.select().orderBy(this.desc('id'));
+    await this.select().orderBy(this.asc('id'));
+  }
+
   async addTest() {
     await this.add({
       name: 'name',

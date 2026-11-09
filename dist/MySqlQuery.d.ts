@@ -37,6 +37,14 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     max<N extends keyof TTable['_']['columns'] & string>(name: N): ReturnType<typeof drizzleMax<TTable['_']['columns'][N]>>;
     max<C extends MySqlColumn>(column: C): ReturnType<typeof drizzleMax<C>>;
     private resolveAggregateColumn;
+    private resolveOrderColumn;
+    /********************************************************************************************************************
+     * asc / desc
+     * ******************************************************************************************************************/
+    asc(name: MySqlColumnName<TTable>): SQL;
+    asc<TAlias extends string>(table: MySqlAliasTable<TTable, TAlias>, name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>): SQL;
+    desc(name: MySqlColumnName<TTable>): SQL;
+    desc<TAlias extends string>(table: MySqlAliasTable<TTable, TAlias>, name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>): SQL;
     private resolveFields;
     /********************************************************************************************************************
      * select

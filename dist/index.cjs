@@ -275,6 +275,24 @@ class MySqlQuery {
             throw new Error(`aggregate: unknown column "${columnOrName}".`);
         return column;
     }
+    resolveOrderColumn(name, table) {
+        if (name === undefined)
+            throw new Error('orderBy: column name is required.');
+        const columns = native.getTableColumns(table);
+        if (!Object.hasOwn(columns, name))
+            throw new Error(`orderBy: unknown column "${name}".`);
+        return columns[name];
+    }
+    asc(tableOrName, name) {
+        const table = typeof tableOrName === 'string' ? this.t : tableOrName;
+        const columnName = typeof tableOrName === 'string' ? tableOrName : name;
+        return native.asc(this.resolveOrderColumn(columnName, table));
+    }
+    desc(tableOrName, name) {
+        const table = typeof tableOrName === 'string' ? this.t : tableOrName;
+        const columnName = typeof tableOrName === 'string' ? tableOrName : name;
+        return native.desc(this.resolveOrderColumn(columnName, table));
+    }
     resolveFields(fields, table = this.t) {
         if (Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === 'string')) {
             return TableColumns(table, ...fields);

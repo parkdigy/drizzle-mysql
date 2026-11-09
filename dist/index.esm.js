@@ -1,4 +1,4 @@
-import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,getTableColumns,sql,min,max,is,SQL,eq,and,count,defineRelations}from'drizzle-orm';export{asc,avg,avgDistinct,count,countDistinct,desc,exists,max,min,not,notExists,sum,sumDistinct}from'drizzle-orm';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlTable,mysqlTable as mysqlTable$1,getTableConfig,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createAlias(schema) {
+import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,getTableColumns,sql,min,max,asc,desc,is,SQL,eq,and,count,defineRelations}from'drizzle-orm';export{asc,avg,avgDistinct,count,countDistinct,desc,exists,max,min,not,notExists,sum,sumDistinct}from'drizzle-orm';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlTable,mysqlTable as mysqlTable$1,getTableConfig,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
      * ******************************************************************************************************************/
@@ -274,6 +274,24 @@ class MySqlQuery {
         if (!column)
             throw new Error(`aggregate: unknown column "${columnOrName}".`);
         return column;
+    }
+    resolveOrderColumn(name, table) {
+        if (name === undefined)
+            throw new Error('orderBy: column name is required.');
+        const columns = getTableColumns(table);
+        if (!Object.hasOwn(columns, name))
+            throw new Error(`orderBy: unknown column "${name}".`);
+        return columns[name];
+    }
+    asc(tableOrName, name) {
+        const table = typeof tableOrName === 'string' ? this.t : tableOrName;
+        const columnName = typeof tableOrName === 'string' ? tableOrName : name;
+        return asc(this.resolveOrderColumn(columnName, table));
+    }
+    desc(tableOrName, name) {
+        const table = typeof tableOrName === 'string' ? this.t : tableOrName;
+        const columnName = typeof tableOrName === 'string' ? tableOrName : name;
+        return desc(this.resolveOrderColumn(columnName, table));
     }
     resolveFields(fields, table = this.t) {
         if (Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === 'string')) {

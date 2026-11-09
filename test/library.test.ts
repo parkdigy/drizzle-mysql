@@ -1,5 +1,5 @@
 import { int, mysqlTable, varchar } from 'drizzle-orm/mysql-core';
-import type { SQL } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import { drizzleMySql } from '../src';
 import * as api from '../src';
 
@@ -30,6 +30,33 @@ test('select 문자열 매핑 객체의 키를 결과 별칭으로 사용한다'
   expect(selected.toSQL().sql).toBe('select `id` as `id_2`, `display_name` as `display_name_2` from `users`');
   expect(row).toEqual({ id_2: 1, display_name_2: 'Ada' });
   expect(() => db.query(user).select({ missing: 'missing' } as never)).toThrow('select: unknown column "missing".');
+});
+
+test('컬럼명과 별칭 테이블로 오름차순과 내림차순을 지정한다', () => {
+  const query = db.query(user);
+  const alias = db.a.user('u');
+  const descending = query.select().orderBy(query.desc('id')).toSQL();
+  const ascending = query.select().orderBy(query.asc('id')).toSQL();
+  const aliasDescending = query.select(alias).orderBy(query.desc(alias, 'id')).toSQL();
+  const aliasAscending = query.select(alias).orderBy(query.asc(alias, 'id')).toSQL();
+
+  expect(descending.sql).toMatch(/order by `users`\.`id` desc/i);
+  expect(ascending.sql).toMatch(/order by `users`\.`id` asc/i);
+  expect(aliasDescending.sql).toMatch(/order by `u`\.`id` desc/i);
+  expect(aliasAscending.sql).toMatch(/order by `u`\.`id` asc/i);
+  expect(() => query.desc('missing' as never)).toThrow('orderBy: unknown column "missing".');
+});
+
+test('select 빌더를 조건과 선택 필드의 서브쿼리로 사용한다', () => {
+  const query = db.query(user);
+  const builder = query.select({ min_id: query.min('id').as('id') }).where(query.gt({ id: 2 }));
+  const condition = db.current().select().from(user).where(query.eq({ id: builder })).toSQL();
+  const selected = query.select({ sub_query_value: sql`(${builder})`.as('sub_query_value') }).toSQL();
+
+  expect(condition.sql).toMatch(/where `users`\.`id` = \(select min\(`id`\) as `id` from `users` where `users`\.`id` > \?/i);
+  expect(condition.params).toEqual([2]);
+  expect(selected.sql).toMatch(/select \(\(select min\(`id`\) as `id` from `users` where `users`\.`id` > \?\)\) as `sub_query_value` from `users`/i);
+  expect(selected.params).toEqual([2]);
 });
 
 test('find와 findByPrimaryKey에서 문자열 매핑 객체와 결과 타입을 지원한다', () => {

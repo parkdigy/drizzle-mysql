@@ -7,6 +7,8 @@ import {
   eq,
   getTableColumns,
   and as drizzleAnd,
+  asc as drizzleAsc,
+  desc as drizzleDesc,
   max as drizzleMax,
   min as drizzleMin,
 } from 'drizzle-orm';
@@ -113,6 +115,41 @@ export class MySqlQuery<
     if (!column) throw new Error(`aggregate: unknown column "${columnOrName}".`);
     return column;
   }
+
+  private resolveOrderColumn(name: string | undefined, table: MySqlTable): MySqlColumn {
+    if (name === undefined) throw new Error('orderBy: column name is required.');
+    const columns = getTableColumns(table);
+    if (!Object.hasOwn(columns, name)) throw new Error(`orderBy: unknown column "${name}".`);
+    return columns[name];
+  }
+
+  /********************************************************************************************************************
+   * asc / desc
+   * ******************************************************************************************************************/
+  asc(name: MySqlColumnName<TTable>): SQL;
+  asc<TAlias extends string>(
+    table: MySqlAliasTable<TTable, TAlias>,
+    name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>
+  ): SQL;
+
+  asc(tableOrName: MySqlTable | string, name?: string): SQL {
+    const table = typeof tableOrName === 'string' ? this.t : tableOrName;
+    const columnName = typeof tableOrName === 'string' ? tableOrName : name;
+    return drizzleAsc(this.resolveOrderColumn(columnName, table));
+  }
+
+  desc(name: MySqlColumnName<TTable>): SQL;
+  desc<TAlias extends string>(
+    table: MySqlAliasTable<TTable, TAlias>,
+    name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>
+  ): SQL;
+
+  desc(tableOrName: MySqlTable | string, name?: string): SQL {
+    const table = typeof tableOrName === 'string' ? this.t : tableOrName;
+    const columnName = typeof tableOrName === 'string' ? tableOrName : name;
+    return drizzleDesc(this.resolveOrderColumn(columnName, table));
+  }
+
 
   private resolveFields(fields: unknown, table: MySqlTable = this.t): FieldSet | undefined {
     if (Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === 'string')) {

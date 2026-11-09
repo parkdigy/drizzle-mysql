@@ -106,12 +106,18 @@ const foundByPrimaryKeyWithAlias = await user.findByPrimaryKey({ id_2: 'id' }, i
 
 `select`는 Drizzle 조회 빌더를 반환하므로 `where`, `orderBy`, `limit` 등 Drizzle의 빌더 메서드를 이어서 사용할 수 있습니다. `find`는 한 행을 조회하며, 결과가 없으면 `undefined`를 반환합니다.
 
+`MySqlQuery`의 `asc`와 `desc`는 스키마 속성명으로 정렬 표현식을 만듭니다. 별칭 테이블을 사용할 때는 별칭 테이블과 속성명을 함께 전달할 수 있습니다.
+
 ```ts
 const rows = await user
   .select(['id', 'name'])
   .where(user.gt({ id: 0 }))
-  .orderBy(user.t.id)
+  .orderBy(user.asc('id'))
   .limit(20);
+
+const newest = user.select().orderBy(user.desc('created_at'));
+const u = db.a.users('u');
+const byAlias = user.select(u).orderBy(user.asc(u, 'name'));
 
 const found = await user.find(['id', 'name'], user.eq({ id }));
 const count = await user.count(user.isNotNull('email'));
