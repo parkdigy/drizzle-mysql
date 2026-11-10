@@ -1,6 +1,6 @@
 import * as native from 'drizzle-orm';
 import { MySqlTable } from 'drizzle-orm/mysql-core';
-import type { Column, SQL } from 'drizzle-orm';
+import type { Column, SQL, SQLWrapper } from 'drizzle-orm';
 import type { MySqlColumnName, MySqlConditions, MySqlNullConditionInput } from './@types/index';
 
 export function createConditions<TSchema extends Record<string, MySqlTable>>(schema: TSchema) {
@@ -34,6 +34,9 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     return Object.entries(values);
   };
 
+  const isSQLWrapper = (value: unknown): value is SQLWrapper =>
+    typeof value === 'object' && value !== null && 'getSQL' in value && typeof value.getSQL === 'function';
+
   const compareValue = (column: Column, value: unknown, operator: ValueOperators): SQL => {
     if (value === null) {
       if (operator === 'eq') return native.isNull(column);
@@ -55,7 +58,9 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
         return native.lte(column, value);
       case 'inArray':
       case 'notInArray':
-        if (!Array.isArray(value)) throw new Error(`${operator}: expected an array.`);
+        if (!Array.isArray(value) && !isSQLWrapper(value)) {
+          throw new Error(`${operator}: expected an array or a SQL query.`);
+        }
         return operator === 'inArray' ? native.inArray(column, value) : native.notInArray(column, value);
       case 'between':
       case 'notBetween':

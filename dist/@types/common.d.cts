@@ -5,10 +5,13 @@ export type MySqlCompareValues<T extends MySqlTable> = {
 };
 export type MySqlColumnName<T extends MySqlTable> = keyof T['_']['columns'] & string;
 export type MySqlArrayCompareValues<T extends MySqlTable> = {
-    [P in keyof InferSelectModel<T>]?: (NonNullable<InferSelectModel<T>[P]> | SQLWrapper)[];
+    [P in keyof InferSelectModel<T>]?: (NonNullable<InferSelectModel<T>[P]> | SQLWrapper)[] | SQLWrapper;
 };
 export type MySqlRangeCompareValues<T extends MySqlTable> = {
-    [P in keyof InferSelectModel<T>]?: [NonNullable<InferSelectModel<T>[P]>, NonNullable<InferSelectModel<T>[P]>];
+    [P in keyof InferSelectModel<T>]?: [
+        NonNullable<InferSelectModel<T>[P]> | SQLWrapper,
+        NonNullable<InferSelectModel<T>[P]> | SQLWrapper
+    ];
 };
 export type MySqlPatternCompareValues<T extends MySqlTable> = {
     [P in keyof InferSelectModel<T> as NonNullable<InferSelectModel<T>[P]> extends string ? P : never]?: string;

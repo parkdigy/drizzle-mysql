@@ -152,8 +152,18 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     this.eq({ id: 1, name: 'name' });
     this.ne({ id: 1, name: 'name' });
     this.and({
-      eq: { id: 1 },
+      eq: { id: 1, name: 'name' },
       like: { name: '%name%' },
+    });
+
+    const oneRowBuilder = this.select(['id'])
+      .where((q) => q.lt({ id: 1 }))
+      .limit(1);
+    const multiRowBuilder = this.select(['id']).where((q) => q.lt({ id: 10 }));
+    this.and({
+      inArray: { id: multiRowBuilder },
+      notInArray: { id: multiRowBuilder },
+      between: { id: [oneRowBuilder, oneRowBuilder] },
     });
   }
 

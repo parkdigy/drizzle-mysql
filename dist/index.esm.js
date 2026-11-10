@@ -34,6 +34,7 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
         }
         return Object.entries(values);
     };
+    const isSQLWrapper = (value) => typeof value === 'object' && value !== null && 'getSQL' in value && typeof value.getSQL === 'function';
     const compareValue = (column, value, operator) => {
         if (value === null) {
             if (operator === 'eq')
@@ -57,8 +58,9 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
                 return native.lte(column, value);
             case 'inArray':
             case 'notInArray':
-                if (!Array.isArray(value))
-                    throw new Error(`${operator}: expected an array.`);
+                if (!Array.isArray(value) && !isSQLWrapper(value)) {
+                    throw new Error(`${operator}: expected an array or a SQL query.`);
+                }
                 return operator === 'inArray' ? native.inArray(column, value) : native.notInArray(column, value);
             case 'between':
             case 'notBetween':

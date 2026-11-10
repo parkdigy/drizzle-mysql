@@ -197,6 +197,34 @@ test('배열 조건에서 일반 값과 컬럼 및 SQL 표현식을 함께 사�
   }
 });
 
+test('배열 및 범위 조건에서 SQL 서브쿼리 빌더를 사용한다', () => {
+  const query = db.query(user);
+  const oneRowBuilder = query.select(['id']).limit(1).where(query.lt({ id: 1 }));
+  const multiRowBuilder = query.select(['id']).where(query.lt({ id: 10 }));
+  const inArray = db.current().select().from(user).where(query.inArray({ id: multiRowBuilder })).toSQL();
+  const notInArray = db.current().select().from(user).where(query.notInArray({ id: multiRowBuilder })).toSQL();
+  const between = db.current().select().from(user).where(query.between({ id: [oneRowBuilder, oneRowBuilder] })).toSQL();
+  const grouped = db.current().select().from(user).where(db.and(user, { inArray: { id: multiRowBuilder } })).toSQL();
+
+  expect(inArray.sql).toContain('`users`.`id` in (select `id` from `users` where `users`.`id` < ?)');
+  expect(inArray.params).toEqual([10]);
+  expect(notInArray.sql).toContain('`users`.`id` not in (select `id` from `users` where `users`.`id` < ?)');
+  expect(notInArray.params).toEqual([10]);
+  expect(between.sql).toContain(
+    '`users`.`id` between (select `id` from `users` where `users`.`id` < ? limit ?) and (select `id` from `users` where `users`.`id` < ? limit ?)',
+  );
+  expect(between.params).toEqual([1, 1, 1, 1]);
+  expect(grouped.sql).toContain('`users`.`id` in (select `id` from `users` where `users`.`id` < ?)');
+  expect(grouped.params).toEqual([10]);
+
+  if (false) {
+    // @ts-expect-error 서브쿼리 배열 조건도 컬럼의 데이터 타입을 검사한다.
+    query.inArray({ id: ['wrong'] });
+    // @ts-expect-error 서브쿼리 범위 경계도 컬럼의 데이터 타입을 검사한다.
+    query.between({ id: ['wrong', oneRowBuilder] });
+  }
+});
+
 test('서브쿼리와 일반 컬럼을 한 선택 객체에서 함께 사용한다', () => {
   const query = db.query(user);
   const builder = query.select(['id']).limit(1).orderBy(query.desc('id'));

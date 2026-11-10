@@ -374,12 +374,12 @@ type SubqueryValues<T extends Subquery> = {
     [K in keyof T['_']['selectedFields']]?: SubqueryFieldData<T['_']['selectedFields'][K]> | SQLWrapper;
 };
 type SubqueryArrayValues<T extends Subquery> = {
-    [K in keyof T['_']['selectedFields']]?: (NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> | SQLWrapper)[];
+    [K in keyof T['_']['selectedFields']]?: (NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> | SQLWrapper)[] | SQLWrapper;
 };
 type SubqueryRangeValues<T extends Subquery> = {
     [K in keyof T['_']['selectedFields']]?: [
-        NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>>,
-        NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>>
+        NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> | SQLWrapper,
+        NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> | SQLWrapper
     ];
 };
 type SubqueryPatternValues<T extends Subquery> = {
