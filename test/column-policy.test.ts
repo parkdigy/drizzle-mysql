@@ -388,6 +388,31 @@ const primaryKeyTable = mysqlTable('primary_key_policy', {
   value: int(),
 });
 
+const createdAllowedTable = mysqlTable('created_allowed_policy', {
+  id: int().autoincrement().createdAt().updateAllowed(),
+});
+
+if (false) {
+  const createdAllowed: MySqlEditValues<typeof createdAllowedTable> = { id: 2 };
+  void createdAllowed;
+}
+
+test('updateAllowed는 createdAt 컬럼의 기본 수정 금지를 해제한다', async () => {
+  const updated: unknown[] = [];
+  const fake = {
+    update: () => ({
+      set: (value: unknown) => {
+        updated.push(value);
+        return { where: () => Promise.resolve() };
+      },
+    }),
+  } as unknown as MySql2Database;
+  const query = new MySqlQuery(createdAllowedTable, () => fake);
+
+  await query.edit({ id: 2 }, sql`1 = 1`);
+  expect(updated).toEqual([{ id: 2 }]);
+});
+
 if (false) {
   const allowed: MySqlEditValues<typeof primaryKeyTable> = { allowedBefore: 'a', allowedAfter: 'b' };
   // @ts-expect-error 자동 증가가 아닌 기본 키도 수정이 금지된다.

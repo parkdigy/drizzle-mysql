@@ -593,7 +593,7 @@ class MySqlQuery {
             const auto = 'autoIncrement' in column && column.autoIncrement === true;
             const rule = operation === 'insert' ? policy.insert : policy.update;
             const primary = column.primary;
-            const blocked = (operation === 'update' && policy.timestamp === 'created') ||
+            const blocked = (operation === 'update' && policy.timestamp === 'created' && rule !== 'allowed') ||
                 rule === 'blocked' ||
                 (operation === 'update' && primary && rule !== 'allowed') ||
                 (auto && rule !== 'allowed' && rule !== 'required');

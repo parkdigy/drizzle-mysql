@@ -11,10 +11,12 @@ type DefaultBlocked<T extends MySqlTable, K> = K extends keyof T['_']['columns']
   : never;
 type Blocked<T extends MySqlTable> = {
   [K in keyof MySqlUpdateSetSource<T>]-?: K extends keyof TablePolicies<T>
-    ? TablePolicies<T>[K] extends { timestamp: 'created' } | { update: 'blocked' }
+    ? TablePolicies<T>[K] extends { update: 'blocked' }
       ? K
       : TablePolicies<T>[K] extends { update: 'allowed' }
         ? never
+        : TablePolicies<T>[K] extends { timestamp: 'created' }
+          ? K
         : K extends keyof T['_']['columns']
           ? T['_']['columns'][K]['_']['isPrimaryKey'] extends true
             ? K
