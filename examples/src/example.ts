@@ -33,6 +33,9 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     super('adminUser');
   }
 
+  /********************************************************************************************************************
+   * selectTest
+   * ******************************************************************************************************************/
   async selectTest() {
     console.log(await this.select(['id', 'name', 'email']));
 
@@ -51,16 +54,18 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     console.log(await this.select(['id']).orderBy((q) => mysql.asc(q.t.id)));
   }
 
+  /********************************************************************************************************************
+   * selectColumnsTest
+   * ******************************************************************************************************************/
   async selectColumnsTest() {
     await this.select([this.columns('id', 'name', 'email'), { min_id: this.min('id'), max_id: this.max('id') }]);
   }
 
+  /********************************************************************************************************************
+   * aliasSelectTest
+   * ******************************************************************************************************************/
   async aliasSelectTest() {
     const au = mysql.a.adminUser('au');
-
-    const builder = this.select((q) => ({ id: q.t.id, test: mysql.sql<number>`0` })).where((q) => q.eq({ id: 1 }));
-    const aa = builder.as('aa');
-    mysql.select(aa, mysql.columns(aa, 'id', 'test')).where((q) => q.eq({ test: 0 }));
 
     console.log(await this.select(au, { id: au.id, name: au.name }));
 
@@ -69,6 +74,9 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     console.log(await this.select(au, ['id', 'name as as_name', 'email AS as_email', 'tel As as_tel']));
   }
 
+  /********************************************************************************************************************
+   * subQueryTest
+   * ******************************************************************************************************************/
   async subQueryTest() {
     console.log('::::: TestData::subQueryTest() :::::');
 
@@ -109,6 +117,16 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     }
   }
 
+  /********************************************************************************************************************
+   * selectDistinctTest
+   * ******************************************************************************************************************/
+  async selectDistinctTest() {
+    console.log(await this.selectDistinct(['name']));
+  }
+
+  /********************************************************************************************************************
+   * findTest
+   * ******************************************************************************************************************/
   async findTest() {
     console.log(await this.find(['id', 'name', 'email']));
 
@@ -127,6 +145,9 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     console.log(await this.findByPrimaryKey({ min_id: this.min('id'), max_id: this.max('id') }, 1));
   }
 
+  /********************************************************************************************************************
+   * conditionTest
+   * ******************************************************************************************************************/
   async conditionTest() {
     this.eq({ id: 1, name: 'name' });
     this.ne({ id: 1, name: 'name' });
@@ -136,6 +157,9 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     });
   }
 
+  /********************************************************************************************************************
+   * selectConditionTest
+   * ******************************************************************************************************************/
   async selectConditionTest() {
     await this.select().where(this.eq({ id: 1 }));
     await this.select().where(
@@ -153,6 +177,9 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     console.log(await this.select(au, ['id']).where((q) => mysql.eq(q.t.name, 'name')));
   }
 
+  /********************************************************************************************************************
+   * orderByTest
+   * ******************************************************************************************************************/
   async orderByTest() {
     await this.select().orderBy(this.desc('id'));
     await this.select().orderBy(this.asc('id'));
@@ -188,6 +215,9 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     });
   }
 
+  /********************************************************************************************************************
+   * addValuesTest
+   * ******************************************************************************************************************/
   async addValuesTest() {
     const addValues = this.addValues({
       name: 'name',
@@ -199,14 +229,23 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     await this.add(addValues);
   }
 
+  /********************************************************************************************************************
+   * editTest
+   * ******************************************************************************************************************/
   async editTest() {
     await this.edit({ is_lock: true }, this.eq({ id: 1 }));
   }
 
+  /********************************************************************************************************************
+   * editByPrimaryKeyTest
+   * ******************************************************************************************************************/
   async editByPrimaryKeyTest() {
     await this.editByPrimaryKey({ is_lock: true }, 1);
   }
 
+  /********************************************************************************************************************
+   * editValuesTest
+   * ******************************************************************************************************************/
   async editValuesTest() {
     const editValues = this.editValues({
       is_lock: true,
@@ -214,14 +253,23 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     await this.editByPrimaryKey(editValues, 1);
   }
 
+  /********************************************************************************************************************
+   * removeTest
+   * ******************************************************************************************************************/
   async removeTest() {
     await this.remove(this.eq({ id: 1 }));
   }
 
+  /********************************************************************************************************************
+   * removeByPrimaryKeyTest
+   * ******************************************************************************************************************/
   async removeByPrimaryKeyTest() {
     await this.removeByPrimaryKey(1);
   }
 
+  /********************************************************************************************************************
+   * paginateTest
+   * ******************************************************************************************************************/
   async paginateTest() {
     await mysql.paginate(this.select(), 1, 10);
   }

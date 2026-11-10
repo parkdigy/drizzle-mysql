@@ -41,10 +41,13 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     private resolveOrderColumn;
     private resolveConditionColumn;
     /********************************************************************************************************************
-     * asc / desc
+     * asc
      * ******************************************************************************************************************/
     asc(name: MySqlColumnName<TTable>): SQL;
     asc<TAlias extends string>(table: MySqlAliasTable<TTable, TAlias>, name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>): SQL;
+    /********************************************************************************************************************
+     * desc
+     * ******************************************************************************************************************/
     desc(name: MySqlColumnName<TTable>): SQL;
     desc<TAlias extends string>(table: MySqlAliasTable<TTable, TAlias>, name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>): SQL;
     private resolveFields;
@@ -67,6 +70,29 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     select<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: TSelection): SelectFrom<MySqlAliasTable<TTable, TAlias>, ResolveMixedSelection<MySqlAliasTable<TTable, TAlias>, TSelection>>;
     select<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>): SelectFrom<MySqlAliasTable<TTable, TAlias>, TSelection>;
     select<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(source: TSource, ...args: TArgs): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
+    /********************************************************************************************************************
+     * selectDistinct
+     * ******************************************************************************************************************/
+    selectDistinct(): SelectFrom<TTable, undefined>;
+    selectDistinct(fields: readonly []): SelectFrom<TTable, {}>;
+    selectDistinct<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[]): SelectFrom<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>;
+    selectDistinct<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T): SelectFrom<TTable, MergeFields<T>>;
+    selectDistinct<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(fields: T): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
+    selectDistinct<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection): SelectFrom<TTable, StringColumnSelectionFields<TTable, TSelection>>;
+    selectDistinct<const TSelection extends MixedSelection<TTable>>(fields: TSelection): SelectFrom<TTable, ResolveMixedSelection<TTable, TSelection>>;
+    selectDistinct<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields?: Fields<FieldsQuery<TTable>, TSelection>): SelectFrom<TTable, TSelection>;
+    selectDistinct<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>): SelectFrom<MySqlAliasTable<TTable, TAlias>, undefined>;
+    selectDistinct<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly []): SelectFrom<MySqlAliasTable<TTable, TAlias>, {}>;
+    selectDistinct<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly N[]): SelectFrom<MySqlAliasTable<TTable, TAlias>, MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>>;
+    selectDistinct<TAlias extends string, const T extends readonly FieldInput[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>;
+    selectDistinct<TAlias extends string, const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
+    selectDistinct<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: TSelection): SelectFrom<MySqlAliasTable<TTable, TAlias>, ResolveMixedSelection<MySqlAliasTable<TTable, TAlias>, TSelection>>;
+    selectDistinct<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>): SelectFrom<MySqlAliasTable<TTable, TAlias>, TSelection>;
+    selectDistinct<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(source: TSource, ...args: TArgs): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
+    /********************************************************************************************************************
+     * (PRIVATE) buildSelectQuery
+     * ******************************************************************************************************************/
+    private buildSelectQuery;
     /********************************************************************************************************************
      * find
      * ******************************************************************************************************************/

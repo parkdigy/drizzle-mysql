@@ -336,6 +336,15 @@ class MySqlQuery {
         return normalizeFields(fields(query), table);
     }
     select(fieldsOrAlias, fields) {
+        return this.buildSelectQuery(fieldsOrAlias, fields);
+    }
+    selectDistinct(fieldsOrAlias, fields) {
+        return this.buildSelectQuery(fieldsOrAlias, fields, true);
+    }
+    /********************************************************************************************************************
+     * (PRIVATE) buildSelectQuery
+     * ******************************************************************************************************************/
+    buildSelectQuery(fieldsOrAlias, fields, distinct = false) {
         const tx = this.getTx();
         const isAlias = isTable(fieldsOrAlias) || is(fieldsOrAlias, Subquery);
         const table = isAlias ? fieldsOrAlias : this.t;
@@ -440,7 +449,10 @@ class MySqlQuery {
             }
             return Object.assign(query, enhancements);
         };
-        return enhance(tx.select(selectedFields ?? sourceColumns(table)).from(table));
+        const selectBuilder = distinct
+            ? tx.selectDistinct(selectedFields ?? sourceColumns(table)).from(table)
+            : tx.select(selectedFields ?? sourceColumns(table)).from(table);
+        return enhance(selectBuilder);
     }
     async find(aliasOrFieldsOrWhere, fieldsOrWhere, where) {
         const hasAlias = isTable(aliasOrFieldsOrWhere);

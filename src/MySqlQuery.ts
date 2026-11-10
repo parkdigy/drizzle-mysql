@@ -114,7 +114,10 @@ export class MySqlQuery<
     return drizzleMax(this.resolveAggregateColumn(columnOrName));
   }
 
-  private resolveAggregateColumn(columnOrName: string | MySqlColumn, table: MySqlTable | Subquery = this.t): MySqlColumn {
+  private resolveAggregateColumn(
+    columnOrName: string | MySqlColumn,
+    table: MySqlTable | Subquery = this.t
+  ): MySqlColumn {
     if (typeof columnOrName !== 'string') return columnOrName;
     const columns = is(table, Subquery) ? sourceColumns(table) : getTableColumns(table);
     const column = columns[columnOrName];
@@ -136,7 +139,7 @@ export class MySqlQuery<
   }
 
   /********************************************************************************************************************
-   * asc / desc
+   * asc
    * ******************************************************************************************************************/
   asc(name: MySqlColumnName<TTable>): SQL;
   asc<TAlias extends string>(
@@ -150,6 +153,9 @@ export class MySqlQuery<
     return drizzleAsc(this.resolveOrderColumn(columnName, table));
   }
 
+  /********************************************************************************************************************
+   * desc
+   * ******************************************************************************************************************/
   desc(name: MySqlColumnName<TTable>): SQL;
   desc<TAlias extends string>(
     table: MySqlAliasTable<TTable, TAlias>,
@@ -161,7 +167,6 @@ export class MySqlQuery<
     const columnName = typeof tableOrName === 'string' ? tableOrName : name;
     return drizzleDesc(this.resolveOrderColumn(columnName, table));
   }
-
 
   private resolveFields(fields: unknown, table: MySqlTable | Subquery = this.t): FieldSet | undefined {
     if (Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === 'string')) {
@@ -242,10 +247,7 @@ export class MySqlQuery<
   select<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: TSelection
-  ): SelectFrom<
-    MySqlAliasTable<TTable, TAlias>,
-    ResolveMixedSelection<MySqlAliasTable<TTable, TAlias>, TSelection>
-  >;
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, ResolveMixedSelection<MySqlAliasTable<TTable, TAlias>, TSelection>>;
 
   select<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
@@ -258,6 +260,97 @@ export class MySqlQuery<
   ): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
 
   select(fieldsOrAlias?: unknown, fields?: unknown): any {
+    return this.buildSelectQuery(fieldsOrAlias, fields);
+  }
+
+  /********************************************************************************************************************
+   * selectDistinct
+   * ******************************************************************************************************************/
+
+  selectDistinct(): SelectFrom<TTable, undefined>;
+
+  selectDistinct(fields: readonly []): SelectFrom<TTable, {}>;
+
+  selectDistinct<N extends MySqlColumnSelectionName<TTable>>(
+    fields: readonly N[]
+  ): SelectFrom<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>;
+
+  selectDistinct<const T extends readonly FieldInput[]>(
+    fields: (query: FieldsQuery<TTable>) => T
+  ): SelectFrom<TTable, MergeFields<T>>;
+
+  selectDistinct<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(
+    fields: T
+  ): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
+
+  selectDistinct<const TSelection extends StringColumnSelection<TTable>>(
+    fields: TSelection
+  ): SelectFrom<TTable, StringColumnSelectionFields<TTable, TSelection>>;
+
+  selectDistinct<const TSelection extends MixedSelection<TTable>>(
+    fields: TSelection
+  ): SelectFrom<TTable, ResolveMixedSelection<TTable, TSelection>>;
+
+  selectDistinct<TSelection extends SelectedFields<MySqlColumn, TTable>>(
+    fields?: Fields<FieldsQuery<TTable>, TSelection>
+  ): SelectFrom<TTable, TSelection>;
+
+  selectDistinct<TAlias extends string>(
+    alias: MySqlAliasTable<TTable, TAlias>
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, undefined>;
+
+  selectDistinct<TAlias extends string>(
+    alias: MySqlAliasTable<TTable, TAlias>,
+    fields: readonly []
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, {}>;
+
+  selectDistinct<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(
+    alias: MySqlAliasTable<TTable, TAlias>,
+    fields: readonly N[]
+  ): SelectFrom<
+    MySqlAliasTable<TTable, TAlias>,
+    MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>
+  >;
+
+  selectDistinct<TAlias extends string, const T extends readonly FieldInput[]>(
+    alias: MySqlAliasTable<TTable, TAlias>,
+    fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>;
+
+  selectDistinct<
+    TAlias extends string,
+    const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[],
+  >(
+    alias: MySqlAliasTable<TTable, TAlias>,
+    fields: T
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
+
+  selectDistinct<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(
+    alias: MySqlAliasTable<TTable, TAlias>,
+    fields: TSelection
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, ResolveMixedSelection<MySqlAliasTable<TTable, TAlias>, TSelection>>;
+
+  selectDistinct<
+    TAlias extends string,
+    TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>,
+  >(
+    alias: MySqlAliasTable<TTable, TAlias>,
+    fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, TSelection>;
+
+  selectDistinct<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(
+    source: TSource,
+    ...args: TArgs
+  ): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
+
+  selectDistinct(fieldsOrAlias?: unknown, fields?: unknown): any {
+    return this.buildSelectQuery(fieldsOrAlias, fields, true);
+  }
+
+  /********************************************************************************************************************
+   * (PRIVATE) buildSelectQuery
+   * ******************************************************************************************************************/
+  private buildSelectQuery(fieldsOrAlias?: unknown, fields?: unknown, distinct = false): any {
     const tx = this.getTx();
 
     const isAlias = isTable(fieldsOrAlias) || is(fieldsOrAlias, Subquery);
@@ -272,75 +365,79 @@ export class MySqlQuery<
       const originalWhere = builder.where.bind(query);
       const orderBy = query.orderBy;
       const originalOrderBy = typeof orderBy === 'function' ? orderBy.bind(query) : undefined;
-    const bindCondition: (
-      operator: string,
-      conditionTable?: MySqlTable | Subquery
-    ) => (input: unknown) => SQL | undefined = (operator, conditionTable = table) => (input) => {
-      const conditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[operator];
-      if (isTable(conditionTable)) {
-        return Reflect.apply(conditionOperator, undefined, [conditionTable, input]) as SQL | undefined;
-      }
-
-      const columns = conditionTable as unknown as Record<string, unknown>;
-      if (operator === 'and' || operator === 'or') {
-        if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-          throw new Error(`${operator}: expected a condition object.`);
-        }
-        const conditions: (SQL | undefined)[] = Object.entries(input).map(([nestedOperator, values]) =>
-          bindCondition(nestedOperator, conditionTable)(values) as SQL | undefined
-        );
-        return operator === 'and' ? drizzleAnd(...conditions) : drizzleOr(...conditions);
-      }
-
-      if (operator === 'isNull' || operator === 'isNotNull') {
-        const names = typeof input === 'string' ? [input] : Array.isArray(input) ? input : [];
-        if (names.length === 0 && input !== undefined) throw new Error(`${operator}: expected column names.`);
-        return drizzleAnd(
-          ...names.map((name) => {
-            if (typeof name !== 'string' || columns[name] === undefined) {
-              throw new Error(`Condition: unknown column "${String(name)}".`);
-            }
-            return Reflect.apply(conditionOperator, undefined, [columns[name]]) as SQL;
-          })
-        );
-      }
-
-      if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-        throw new Error(`${operator}: expected a column/value object.`);
-      }
-      return drizzleAnd(
-        ...Object.entries(input).map(([name, value]) => {
-          const column = columns[name];
-          if (column === undefined) throw new Error(`Condition: unknown column "${name}".`);
-          if (operator === 'between' || operator === 'notBetween') {
-            if (!Array.isArray(value) || value.length !== 2) throw new Error(`${operator}: expected two bounds.`);
-            return Reflect.apply(conditionOperator, undefined, [column, value[0], value[1]]) as SQL;
+      const bindCondition: (
+        operator: string,
+        conditionTable?: MySqlTable | Subquery
+      ) => (input: unknown) => SQL | undefined =
+        (operator, conditionTable = table) =>
+        (input) => {
+          const conditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[
+            operator
+          ];
+          if (isTable(conditionTable)) {
+            return Reflect.apply(conditionOperator, undefined, [conditionTable, input]) as SQL | undefined;
           }
-          return Reflect.apply(conditionOperator, undefined, [column, value]) as SQL;
-        })
-      );
-    };
+
+          const columns = conditionTable as unknown as Record<string, unknown>;
+          if (operator === 'and' || operator === 'or') {
+            if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+              throw new Error(`${operator}: expected a condition object.`);
+            }
+            const conditions: (SQL | undefined)[] = Object.entries(input).map(
+              ([nestedOperator, values]) => bindCondition(nestedOperator, conditionTable)(values) as SQL | undefined
+            );
+            return operator === 'and' ? drizzleAnd(...conditions) : drizzleOr(...conditions);
+          }
+
+          if (operator === 'isNull' || operator === 'isNotNull') {
+            const names = typeof input === 'string' ? [input] : Array.isArray(input) ? input : [];
+            if (names.length === 0 && input !== undefined) throw new Error(`${operator}: expected column names.`);
+            return drizzleAnd(
+              ...names.map((name) => {
+                if (typeof name !== 'string' || columns[name] === undefined) {
+                  throw new Error(`Condition: unknown column "${String(name)}".`);
+                }
+                return Reflect.apply(conditionOperator, undefined, [columns[name]]) as SQL;
+              })
+            );
+          }
+
+          if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+            throw new Error(`${operator}: expected a column/value object.`);
+          }
+          return drizzleAnd(
+            ...Object.entries(input).map(([name, value]) => {
+              const column = columns[name];
+              if (column === undefined) throw new Error(`Condition: unknown column "${name}".`);
+              if (operator === 'between' || operator === 'notBetween') {
+                if (!Array.isArray(value) || value.length !== 2) throw new Error(`${operator}: expected two bounds.`);
+                return Reflect.apply(conditionOperator, undefined, [column, value[0], value[1]]) as SQL;
+              }
+              return Reflect.apply(conditionOperator, undefined, [column, value]) as SQL;
+            })
+          );
+        };
       const conditionQuery = (conditionTable: MySqlTable | Subquery, contextTable: MySqlTable | Subquery) =>
         ({
-        t: contextTable,
-        eq: bindCondition('eq', conditionTable),
-        ne: bindCondition('ne', conditionTable),
-        gt: bindCondition('gt', conditionTable),
-        gte: bindCondition('gte', conditionTable),
-        lt: bindCondition('lt', conditionTable),
-        lte: bindCondition('lte', conditionTable),
-        inArray: bindCondition('inArray', conditionTable),
-        notInArray: bindCondition('notInArray', conditionTable),
-        between: bindCondition('between', conditionTable),
-        notBetween: bindCondition('notBetween', conditionTable),
-        like: bindCondition('like', conditionTable),
-        notLike: bindCondition('notLike', conditionTable),
-        ilike: bindCondition('ilike', conditionTable),
-        notIlike: bindCondition('notIlike', conditionTable),
-        isNull: bindCondition('isNull', conditionTable),
-        isNotNull: bindCondition('isNotNull', conditionTable),
-        and: bindCondition('and', conditionTable),
-        or: bindCondition('or', conditionTable),
+          t: contextTable,
+          eq: bindCondition('eq', conditionTable),
+          ne: bindCondition('ne', conditionTable),
+          gt: bindCondition('gt', conditionTable),
+          gte: bindCondition('gte', conditionTable),
+          lt: bindCondition('lt', conditionTable),
+          lte: bindCondition('lte', conditionTable),
+          inArray: bindCondition('inArray', conditionTable),
+          notInArray: bindCondition('notInArray', conditionTable),
+          between: bindCondition('between', conditionTable),
+          notBetween: bindCondition('notBetween', conditionTable),
+          like: bindCondition('like', conditionTable),
+          notLike: bindCondition('notLike', conditionTable),
+          ilike: bindCondition('ilike', conditionTable),
+          notIlike: bindCondition('notIlike', conditionTable),
+          isNull: bindCondition('isNull', conditionTable),
+          isNotNull: bindCondition('isNotNull', conditionTable),
+          and: bindCondition('and', conditionTable),
+          or: bindCondition('or', conditionTable),
         }) as unknown as SelectConditionQuery<MySqlTable>;
       const whereQuery = conditionQuery(table, table);
       const orderByQuery: SelectOrderByQuery<MySqlTable | Subquery> = {
@@ -362,7 +459,9 @@ export class MySqlQuery<
         enhancements.orderBy = (...args: unknown[]) =>
           enhance(
             typeof args[0] === 'function'
-              ? originalOrderBy(() => (args[0] as (query: SelectOrderByQuery<MySqlTable | Subquery>) => unknown)(orderByQuery))
+              ? originalOrderBy(() =>
+                  (args[0] as (query: SelectOrderByQuery<MySqlTable | Subquery>) => unknown)(orderByQuery)
+                )
               : originalOrderBy(...args)
           );
       }
@@ -385,7 +484,10 @@ export class MySqlQuery<
       return Object.assign(query, enhancements);
     };
 
-    return enhance(tx.select(selectedFields ?? sourceColumns(table)).from(table));
+    const selectBuilder = distinct
+      ? tx.selectDistinct(selectedFields ?? sourceColumns(table)).from(table)
+      : tx.select(selectedFields ?? sourceColumns(table)).from(table);
+    return enhance(selectBuilder);
   }
 
   /********************************************************************************************************************
@@ -1005,13 +1107,17 @@ export class MySqlQuery<
  * types
  * ******************************************************************************************************************/
 
-type SelectQueryBase<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<
+type SelectQueryBase<
+  TTable extends MySqlTable | Subquery,
+  TSelection extends FieldSet | undefined,
+> = MySqlAsyncSelectBase<
   GetSelectTableName<TTable>,
   TSelection extends undefined ? SourceSelection<TTable> : AliasedSelection<NonNullable<TSelection>>,
   'partial'
 >;
 
-type TableWhere<TTable extends MySqlTable | Subquery> = SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
+type TableWhere<TTable extends MySqlTable | Subquery> =
+  SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
 
 type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
 type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
@@ -1019,7 +1125,9 @@ type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
   asc(name: SourceColumnName<TTable>): SQL;
   desc(name: SourceColumnName<TTable>): SQL;
 };
-type OrderByCallback<TTable extends MySqlTable | Subquery> = (query: SelectOrderByQuery<TTable>) => OrderByValue | OrderByValue[];
+type OrderByCallback<TTable extends MySqlTable | Subquery> = (
+  query: SelectOrderByQuery<TTable>
+) => OrderByValue | OrderByValue[];
 
 type Joinable = MySqlTable | Subquery | MySqlViewBase | SQL;
 type JoinConditionValues<TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable
@@ -1027,13 +1135,19 @@ type JoinConditionValues<TJoinedTable extends Joinable> = TJoinedTable extends M
   : TJoinedTable extends Subquery<string, infer TFields>
     ? { [K in keyof TFields]?: unknown }
     : never;
-type JoinConditionQuery<TTable extends MySqlTable | Subquery, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable
+type JoinConditionQuery<
+  TTable extends MySqlTable | Subquery,
+  TJoinedTable extends Joinable,
+> = TJoinedTable extends MySqlTable
   ? Omit<SelectConditionQuery<TJoinedTable>, 't'> & { readonly t: TTable }
   : { readonly t: TTable; eq(values: JoinConditionValues<TJoinedTable>): SQL | undefined };
-type JoinCondition<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable> =
-  TJoinedTable extends MySqlTable | Subquery
-    ? SQL | undefined | ((query: JoinConditionQuery<TTable, TJoinedTable>) => SQL | undefined)
-    : SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
+type JoinCondition<
+  TTable extends MySqlTable | Subquery,
+  TSelection extends FieldSet | undefined,
+  TJoinedTable extends Joinable,
+> = TJoinedTable extends MySqlTable | Subquery
+  ? SQL | undefined | ((query: JoinConditionQuery<TTable, TJoinedTable>) => SQL | undefined)
+  : SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
 type JoinedSelect<
   TTable extends MySqlTable | Subquery,
   TSelection extends FieldSet | undefined,
@@ -1042,11 +1156,12 @@ type JoinedSelect<
 > = Omit<
   MySqlJoin<SelectQueryBase<TTable, TSelection>, false, TKind, TJoinedTable>,
   'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>
-> & SelectJoinMethods<TTable, TSelection> & {
-  where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'where'>;
-  orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
-  orderBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
-};
+> &
+  SelectJoinMethods<TTable, TSelection> & {
+    where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'where'>;
+    orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+    orderBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+  };
 type SelectJoinMethods<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = {
   innerJoin<TJoinedTable extends Joinable>(
     table: TJoinedTable,
@@ -1065,11 +1180,12 @@ type SelectJoinMethods<TTable extends MySqlTable | Subquery, TSelection extends 
 export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = Omit<
   SelectQueryBase<TTable, TSelection>,
   'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>
-> & SelectJoinMethods<TTable, TSelection> & {
-  where(condition: TableWhere<TTable>): Omit<SelectFrom<TTable, TSelection>, 'where'>;
-  orderBy(builder: OrderByCallback<TTable>): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
-  orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
-};
+> &
+  SelectJoinMethods<TTable, TSelection> & {
+    where(condition: TableWhere<TTable>): Omit<SelectFrom<TTable, TSelection>, 'where'>;
+    orderBy(builder: OrderByCallback<TTable>): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+    orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+  };
 
 type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefined> =
   Awaited<SelectFrom<TTable, TSelection>>[number] | undefined;
@@ -1189,14 +1305,21 @@ type SubqueryFieldsQuery<T extends Subquery> = {
   readonly t: T;
   columns(): T['_']['selectedFields'];
   columns<N extends keyof T['_']['selectedFields'] & string>(...names: N[]): Pick<T['_']['selectedFields'], N>;
-  min<N extends keyof T['_']['selectedFields'] & string>(name: N): SQL<SubqueryFieldData<T['_']['selectedFields'][N]> | null>;
-  max<N extends keyof T['_']['selectedFields'] & string>(name: N): SQL<SubqueryFieldData<T['_']['selectedFields'][N]> | null>;
+  min<N extends keyof T['_']['selectedFields'] & string>(
+    name: N
+  ): SQL<SubqueryFieldData<T['_']['selectedFields'][N]> | null>;
+  max<N extends keyof T['_']['selectedFields'] & string>(
+    name: N
+  ): SQL<SubqueryFieldData<T['_']['selectedFields'][N]> | null>;
 };
 export type SubquerySelectInput<T extends Subquery> =
   | readonly (FieldInput | (keyof T['_']['selectedFields'] & string))[]
   | Record<string, FieldSet[string] | (keyof T['_']['selectedFields'] & string) | SQLWrapper>
   | ((query: SubqueryFieldsQuery<T>) => FieldSet | readonly FieldInput[]);
-export type ResolveSubquerySelectInput<T extends Subquery, V> = Extract<ResolvedSubqueryInput<T, V>, FieldSet | undefined>;
+export type ResolveSubquerySelectInput<T extends Subquery, V> = Extract<
+  ResolvedSubqueryInput<T, V>,
+  FieldSet | undefined
+>;
 type ResolvedSubqueryInput<T extends Subquery, V> = V extends undefined
   ? undefined
   : V extends (...args: never[]) => infer R
@@ -1236,9 +1359,11 @@ type SubqueryRangeValues<T extends Subquery> = {
   ];
 };
 type SubqueryPatternValues<T extends Subquery> = {
-  [K in keyof T['_']['selectedFields'] as NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> extends string
-    ? K
-    : never]?: string;
+  [
+    K in keyof T['_']['selectedFields'] as NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> extends string
+      ? K
+      : never
+  ]?: string;
 };
 type SubqueryConditionQuery<T extends Subquery> = {
   readonly t: T;
