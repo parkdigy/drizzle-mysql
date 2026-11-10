@@ -165,6 +165,38 @@ test('eq에서 컬럼명 또는 별칭 컬럼과 서브쿼리 빌더를 비교�
   expect(aliasCondition.params).toEqual([1]);
 });
 
+test('배열 조건에서 일반 값과 컬럼 및 SQL 표현식을 함께 사용한다', () => {
+  const alias = db.alias(user, 'td');
+  const grouped = db
+    .current()
+    .select()
+    .from(alias)
+    .where(db.and(alias, { inArray: { id: [0, alias.id] } }))
+    .toSQL();
+  expect(grouped.sql).toContain('`td`.`id` in (?, `td`.`id`)');
+  expect(grouped.params).toEqual([0]);
+
+  const excluded = db
+    .current()
+    .select()
+    .from(alias)
+    .where(db.notInArray(alias, { id: [0, alias.id, sql`1 + 1`] }))
+    .toSQL();
+  expect(excluded.sql).toContain('`td`.`id` not in (?, `td`.`id`, 1 + 1)');
+  expect(excluded.params).toEqual([0]);
+
+  const queryCondition = db.query(user).select().where((q) => q.inArray({ id: [0, q.t.id] })).toSQL();
+  expect(queryCondition.sql).toContain('`users`.`id` in (?, `users`.`id`)');
+  expect(queryCondition.params).toEqual([0]);
+
+  if (false) {
+    // @ts-expect-error 숫자 컬럼의 배열에는 문자열 값을 넣을 수 없다.
+    db.and(alias, { inArray: { id: [0, 'wrong'] } });
+    // @ts-expect-error notInArray도 컬럼의 값 타입을 검사한다.
+    db.notInArray(alias, { id: ['wrong'] });
+  }
+});
+
 test('서브쿼리와 일반 컬럼을 한 선택 객체에서 함께 사용한다', () => {
   const query = db.query(user);
   const builder = query.select(['id']).limit(1).orderBy(query.desc('id'));

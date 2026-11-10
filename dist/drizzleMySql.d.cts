@@ -1,11 +1,11 @@
 import mysql from 'mysql2/promise';
-import { SQL, sql, type Subquery } from 'drizzle-orm';
+import { SQL, sql, Subquery } from 'drizzle-orm';
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import * as native from 'drizzle-orm';
 import { type MySqlAliases } from './alias.cjs';
 import { type MySqlSchemaConditions } from './conditions.cjs';
 import { TableColumns } from './columns.cjs';
-import { MySqlQuery } from './MySqlQuery.cjs';
+import { MySqlQuery, type SelectFrom, type SelectInput, type ResolveSelectInput, type SubquerySelectInput, type ResolveSubquerySelectInput } from './MySqlQuery.cjs';
 export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> {
     url: string;
     schema: TSchema;
@@ -25,6 +25,9 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
     trans: MySqlConnection<TSchema>['trans'];
     paginate: MySqlConnection<TSchema>['paginate'];
     close: MySqlConnection<TSchema>['close'];
+    select<K extends keyof TSchema & string, const TArgs extends readonly [fields?: SelectInput<TSchema[K]>]>(table: K, ...args: TArgs): SelectFrom<TSchema[K], ResolveSelectInput<TSchema[K], TArgs[0]>>;
+    select<TTable extends MySqlTable, const TArgs extends readonly [fields?: SelectInput<TTable>]>(table: TTable, ...args: TArgs): SelectFrom<TTable, ResolveSelectInput<TTable, TArgs[0]>>;
+    select<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(source: TSource, ...args: TArgs): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
     query<TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable>;
 }
 type MySqlNativeHelpers = Pick<typeof native, 'asc' | 'desc' | 'count' | 'countDistinct' | 'avg' | 'avgDistinct' | 'sum' | 'sumDistinct' | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'>;

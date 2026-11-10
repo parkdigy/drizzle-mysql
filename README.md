@@ -57,6 +57,21 @@ const query = db.query(u);
 
 `drizzleMySql` 옵션은 모두 필수인 `url`, `schema`, `getTimestamp`입니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. `new MySqlQuery(table, db.current, getTimestamp?)`의 세 번째 인자는 선택 사항이며, 생략하면 해당 `drizzleMySql`에 설정한 생성 함수를 사용합니다. 명시하면 그 쿼리 객체에서만 해당 함수를 우선 사용합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
 
+연결 객체의 `select(table, fields?)`에서도 같은 선택 기능을 사용할 수 있습니다. 첫 인자는 등록된 스키마의 테이블명 또는 alias 테이블이며, 이후 선택 인자와 반환 빌더는 `MySqlQuery.select`와 동일합니다.
+
+```ts
+const rows = await db.select('users', ['id', 'name']).where((q) => q.gt({ id: 0 }));
+const u = db.a.users('u');
+const aliasedRows = await db.select(u, (q) => q.columns('id', 'name as displayName'));
+```
+
+`select`의 첫 인자로 `.as()`가 반환한 서브쿼리도 전달할 수 있습니다. 서브쿼리에서 선택한 컬럼만 외부 조회에 사용할 수 있습니다.
+
+```ts
+const aa = db.select('users', ['id', 'name']).where((q) => q.eq({ id: 1 })).as('aa');
+const rows = await db.select(aa, (q) => q.columns('id', 'name'));
+```
+
 ### 데이터 추가·수정·삭제
 
 입력값을 변수로 준비할 때는 `addValues` / `editValues` 헬퍼를 사용하면 스키마 제네릭을 반복해서 지정하지 않아도 됩니다. 해당 쿼리의 입력 타입과 컬럼 정책으로 검사하며, 전달한 객체 또는 배열을 그대로 반환합니다. 헬퍼 자체는 DB 쿼리, 런타임 정책 검사, 기본 시각 생성을 실행하지 않습니다. 런타임 처리는 `add` / `edit`에서 수행합니다.
@@ -218,6 +233,8 @@ const changedIds = await user
 #### 배열과 범위
 
 `inArray`와 `notInArray`는 컬럼별 허용·제외 값 배열을 받고, `between`과 `notBetween`은 `[시작, 끝]` 튜플을 받습니다. 한 객체에 여러 컬럼을 지정하면 각각의 조건은 `AND`로 결합됩니다.
+
+배열 원소에는 해당 컬럼의 일반 값과 컬럼 또는 SQL 표현식을 함께 넣을 수 있습니다. 예를 들어 `inArray: { id: [0, query.t.id] }`처럼 다른 컬럼의 값과 비교할 수 있습니다.
 
 ```ts
 const selected = await user.find((query) =>

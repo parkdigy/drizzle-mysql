@@ -1,13 +1,20 @@
 import mysql from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
-import { count, defineRelations, is, SQL, sql, type Subquery } from 'drizzle-orm';
+import { count, defineRelations, is, SQL, sql, Subquery } from 'drizzle-orm';
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as native from 'drizzle-orm';
 import { createAlias, type MySqlAliases } from './alias';
 import { createConditions, type MySqlSchemaConditions } from './conditions';
 import { TableColumns } from './columns';
-import { MySqlQuery } from './MySqlQuery';
+import {
+  MySqlQuery,
+  type SelectFrom,
+  type SelectInput,
+  type ResolveSelectInput,
+  type SubquerySelectInput,
+  type ResolveSubquerySelectInput,
+} from './MySqlQuery';
 
 export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> {
   url: string;
@@ -30,6 +37,18 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
   trans: MySqlConnection<TSchema>['trans'];
   paginate: MySqlConnection<TSchema>['paginate'];
   close: MySqlConnection<TSchema>['close'];
+  select<K extends keyof TSchema & string, const TArgs extends readonly [fields?: SelectInput<TSchema[K]>]>(
+    table: K,
+    ...args: TArgs
+  ): SelectFrom<TSchema[K], ResolveSelectInput<TSchema[K], TArgs[0]>>;
+  select<TTable extends MySqlTable, const TArgs extends readonly [fields?: SelectInput<TTable>]>(
+    table: TTable,
+    ...args: TArgs
+  ): SelectFrom<TTable, ResolveSelectInput<TTable, TArgs[0]>>;
+  select<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(
+    source: TSource,
+    ...args: TArgs
+  ): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
   query<TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable>;
 }
 
@@ -93,7 +112,19 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
   options: DrizzleMySqlOptions<TSchema>
 ): DrizzleMySql<TSchema> {
   const connection = createConnection(options);
+  function select(tableOrName: string | MySqlTable | Subquery, fields?: unknown): unknown {
+    const table = typeof tableOrName === 'string' ? options.schema[tableOrName] : tableOrName;
+    if (!table) throw new Error(`select: unknown table "${tableOrName}".`);
+    if (is(table, Subquery)) {
+      return new MySqlQuery(table as unknown as MySqlTable, connection.current).select(
+        table,
+        fields as SubquerySelectInput<Subquery>
+      );
+    }
+    return new MySqlQuery(table, connection.current).select(fields as never);
+  }
   return {
+    select: select as MySqlDatabaseHelpers<TSchema>['select'],
     asc: native.asc,
     desc: native.desc,
     count: native.count,

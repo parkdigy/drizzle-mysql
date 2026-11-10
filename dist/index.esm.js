@@ -288,10 +288,11 @@ class MySqlQuery {
     max(columnOrName) {
         return max(this.resolveAggregateColumn(columnOrName));
     }
-    resolveAggregateColumn(columnOrName) {
+    resolveAggregateColumn(columnOrName, table = this.t) {
         if (typeof columnOrName !== 'string')
             return columnOrName;
-        const column = getTableColumns(this.t)[columnOrName];
+        const columns = is(table, Subquery) ? sourceColumns(table) : getTableColumns(table);
+        const column = columns[columnOrName];
         if (!column)
             throw new Error(`aggregate: unknown column "${columnOrName}".`);
         return column;
@@ -299,7 +300,7 @@ class MySqlQuery {
     resolveOrderColumn(name, table) {
         if (name === undefined)
             throw new Error('orderBy: column name is required.');
-        const columns = getTableColumns(table);
+        const columns = is(table, Subquery) ? sourceColumns(table) : getTableColumns(table);
         if (!Object.hasOwn(columns, name))
             throw new Error(`orderBy: unknown column "${name}".`);
         return columns[name];
@@ -322,19 +323,21 @@ class MySqlQuery {
     }
     resolveFields(fields, table = this.t) {
         if (Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === 'string')) {
-            return TableColumns(table, ...fields);
+            return sourceColumns(table, fields);
         }
         if (typeof fields !== 'function')
             return normalizeFields(fields, table);
         const query = {
             t: table,
-            columns: (...names) => TableColumns(table, ...names),
+            columns: (...names) => sourceColumns(table, names),
+            min: (columnOrName) => min(this.resolveAggregateColumn(columnOrName, table)),
+            max: (columnOrName) => max(this.resolveAggregateColumn(columnOrName, table)),
         };
         return normalizeFields(fields(query), table);
     }
     select(fieldsOrAlias, fields) {
         const tx = this.getTx();
-        const isAlias = isTable(fieldsOrAlias);
+        const isAlias = isTable(fieldsOrAlias) || is(fieldsOrAlias, Subquery);
         const table = isAlias ? fieldsOrAlias : this.t;
         const selectedFields = this.resolveFields(isAlias ? fields : fieldsOrAlias, table);
         const enhancedQueries = new WeakSet();
@@ -437,7 +440,7 @@ class MySqlQuery {
             }
             return Object.assign(query, enhancements);
         };
-        return enhance(tx.select(selectedFields ?? TableColumns(table)).from(table));
+        return enhance(tx.select(selectedFields ?? sourceColumns(table)).from(table));
     }
     async find(aliasOrFieldsOrWhere, fieldsOrWhere, where) {
         const hasAlias = isTable(aliasOrFieldsOrWhere);
@@ -816,10 +819,15 @@ const normalizeFields = (fields, table) => {
     }
     for (const [name, field] of Object.entries(result)) {
         if (typeof field === 'string') {
-            const column = table && getTableColumns(table)[field];
+            const column = table && (is(table, Subquery) ? sourceColumns(table) : getTableColumns(table))[field];
             if (!column)
                 throw new Error(`select: unknown column "${field}".`);
-            result[name] = sql `${column}`.mapWith(column).as(name);
+            const decoder = is(column, MySqlColumn)
+                ? column
+                : is(column, SQL.Aliased)
+                    ? column.sql.decoder
+                    : (value) => value;
+            result[name] = sql `${column}`.mapWith(decoder).as(name);
             continue;
         }
         if (is(field, SQL)) {
@@ -837,7 +845,12 @@ const normalizeFields = (fields, table) => {
         }
     }
     return result;
-};function createConnection(options) {
+};
+function sourceColumns(source, names = []) {
+    return is(source, Subquery)
+        ? TableColumns(source, ...names)
+        : TableColumns(source, ...names);
+}function createConnection(options) {
     const pool = mysql.createPool({ uri: options.url });
     const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
     const context = new AsyncLocalStorage();
@@ -877,7 +890,17 @@ const normalizeFields = (fields, table) => {
 }
 function drizzleMySql(options) {
     const connection = createConnection(options);
+    function select(tableOrName, fields) {
+        const table = typeof tableOrName === 'string' ? options.schema[tableOrName] : tableOrName;
+        if (!table)
+            throw new Error(`select: unknown table "${tableOrName}".`);
+        if (is(table, Subquery)) {
+            return new MySqlQuery(table, connection.current).select(table, fields);
+        }
+        return new MySqlQuery(table, connection.current).select(fields);
+    }
     return {
+        select: select,
         asc: native.asc,
         desc: native.desc,
         count: native.count,

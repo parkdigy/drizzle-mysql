@@ -66,6 +66,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     select<TAlias extends string, const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
     select<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: TSelection): SelectFrom<MySqlAliasTable<TTable, TAlias>, ResolveMixedSelection<MySqlAliasTable<TTable, TAlias>, TSelection>>;
     select<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>): SelectFrom<MySqlAliasTable<TTable, TAlias>, TSelection>;
+    select<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(source: TSource, ...args: TArgs): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
     /********************************************************************************************************************
      * find
      * ******************************************************************************************************************/
@@ -240,44 +241,45 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
 /********************************************************************************************************************
  * types
  * ******************************************************************************************************************/
-type SelectQueryBase<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<GetSelectTableName<TTable>, TSelection extends undefined ? MySqlSelectedTableColumns<TTable> : TSelection, 'partial'>;
-type TableWhere<TTable extends MySqlTable> = SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
+type SelectQueryBase<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<GetSelectTableName<TTable>, TSelection extends undefined ? SourceSelection<TTable> : AliasedSelection<NonNullable<TSelection>>, 'partial'>;
+type TableWhere<TTable extends MySqlTable | Subquery> = SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
 type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
-type SelectOrderByQuery<TTable extends MySqlTable> = {
+type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
     readonly t: TTable;
-    asc(name: MySqlColumnName<TTable>): SQL;
-    desc(name: MySqlColumnName<TTable>): SQL;
+    asc(name: SourceColumnName<TTable>): SQL;
+    desc(name: SourceColumnName<TTable>): SQL;
 };
-type OrderByCallback<TTable extends MySqlTable> = (query: SelectOrderByQuery<TTable>) => OrderByValue | OrderByValue[];
+type OrderByCallback<TTable extends MySqlTable | Subquery> = (query: SelectOrderByQuery<TTable>) => OrderByValue | OrderByValue[];
 type Joinable = MySqlTable | Subquery | MySqlViewBase | SQL;
 type JoinConditionValues<TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable ? MySqlCompareValues<TJoinedTable> : TJoinedTable extends Subquery<string, infer TFields> ? {
     [K in keyof TFields]?: unknown;
 } : never;
-type JoinConditionQuery<TTable extends MySqlTable, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable ? Omit<SelectConditionQuery<TJoinedTable>, 't'> & {
+type JoinConditionQuery<TTable extends MySqlTable | Subquery, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable ? Omit<SelectConditionQuery<TJoinedTable>, 't'> & {
     readonly t: TTable;
 } : {
     readonly t: TTable;
     eq(values: JoinConditionValues<TJoinedTable>): SQL | undefined;
 };
-type JoinCondition<TTable extends MySqlTable, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable | Subquery ? SQL | undefined | ((query: JoinConditionQuery<TTable, TJoinedTable>) => SQL | undefined) : SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
-type JoinedSelect<TTable extends MySqlTable, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable, TKind extends 'inner' | 'left' | 'right'> = Omit<MySqlJoin<SelectQueryBase<TTable, TSelection>, false, TKind, TJoinedTable>, 'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>> & SelectJoinMethods<TTable, TSelection> & {
+type JoinCondition<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable | Subquery ? SQL | undefined | ((query: JoinConditionQuery<TTable, TJoinedTable>) => SQL | undefined) : SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
+type JoinedSelect<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable, TKind extends 'inner' | 'left' | 'right'> = Omit<MySqlJoin<SelectQueryBase<TTable, TSelection>, false, TKind, TJoinedTable>, 'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>> & SelectJoinMethods<TTable, TSelection> & {
     where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'where'>;
     orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
     orderBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
 };
-type SelectJoinMethods<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = {
+type SelectJoinMethods<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = {
     innerJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'inner'>;
     leftJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'left'>;
     rightJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'right'>;
 };
-type SelectFrom<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = Omit<SelectQueryBase<TTable, TSelection>, 'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>> & SelectJoinMethods<TTable, TSelection> & {
+export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = Omit<SelectQueryBase<TTable, TSelection>, 'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>> & SelectJoinMethods<TTable, TSelection> & {
     where(condition: TableWhere<TTable>): Omit<SelectFrom<TTable, TSelection>, 'where'>;
     orderBy(builder: OrderByCallback<TTable>): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
     orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
 };
 type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = Awaited<SelectFrom<TTable, TSelection>>[number] | undefined;
 type WhereQuery<TQuery> = Pick<TQuery, Extract<keyof TQuery, 't' | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull' | 'and' | 'or'>>;
-type SelectConditionQuery<TTable extends MySqlTable> = {
+type SelectConditionQuery<TSource extends MySqlTable | Subquery> = TSource extends MySqlTable ? TableConditionQuery<TSource> : TSource extends Subquery ? SubqueryConditionQuery<TSource> : never;
+type TableConditionQuery<TTable extends MySqlTable> = {
     readonly t: TTable;
     eq(values: MySqlCompareValues<TTable>): SQL | undefined;
     ne(values: MySqlCompareValues<TTable>): SQL | undefined;
@@ -300,9 +302,12 @@ type SelectConditionQuery<TTable extends MySqlTable> = {
 };
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;
+type AliasedSelection<T extends FieldSet> = {
+    [K in keyof T]: T[K] extends SQL<infer D> ? SQL.Aliased<D> : T[K];
+};
 type MixedSelection<TTable extends MySqlTable> = Record<string, FieldSet[string] | MySqlColumnName<TTable> | SQLWrapper>;
 type ResolveMixedSelection<TTable extends MySqlTable, TSelection> = {
-    [K in keyof TSelection]: TSelection[K] extends MySqlColumnName<TTable> ? TTable['_']['columns'][TSelection[K]] : TSelection[K] extends SQLWrapper<infer TData> ? SQL.Aliased<TData> : Extract<TSelection[K], FieldSet[string]>;
+    [K in keyof TSelection]: TSelection[K] extends MySqlColumnName<TTable> ? TTable['_']['columns'][TSelection[K]] : TSelection[K] extends MySqlColumn ? TSelection[K] : TSelection[K] extends SQLWrapper<infer TData> ? SQL.Aliased<TData> : Extract<TSelection[K], FieldSet[string]>;
 };
 type StringColumnSelection<TTable extends MySqlTable> = Record<string, keyof TTable['_']['columns'] & string>;
 type StringColumnSelectionFields<TTable extends MySqlTable, TSelection extends StringColumnSelection<TTable>> = {
@@ -317,6 +322,59 @@ type FieldsQuery<TTable extends MySqlTable> = {
     max: MySqlQuery<TTable>['max'];
 };
 type Fields<TQuery, TSelection> = TSelection | ((query: TQuery) => TSelection);
+export type SelectInput<TTable extends MySqlTable> = readonly (FieldInput | MySqlColumnSelectionName<TTable>)[] | MixedSelection<TTable> | ((query: FieldsQuery<TTable>) => FieldSet | readonly FieldInput[]);
+export type ResolveSelectInput<TTable extends MySqlTable, T> = T extends undefined ? undefined : T extends (...args: never[]) => infer R ? R extends readonly FieldInput[] ? MergeFields<R> : Extract<R, FieldSet> : T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[] ? MergeFields<NamedFields<TTable, T>> : T extends StringColumnSelection<TTable> ? StringColumnSelectionFields<TTable, T> : ResolveMixedSelection<TTable, T>;
+type SourceSelection<T extends MySqlTable | Subquery> = T extends MySqlTable ? MySqlSelectedTableColumns<T> : T extends Subquery ? T['_']['selectedFields'] : never;
+type SourceColumnName<T extends MySqlTable | Subquery> = T extends MySqlTable ? MySqlColumnName<T> : keyof SourceSelection<T> & string;
+type SubqueryFieldsQuery<T extends Subquery> = {
+    readonly t: T;
+    columns(): T['_']['selectedFields'];
+    columns<N extends keyof T['_']['selectedFields'] & string>(...names: N[]): Pick<T['_']['selectedFields'], N>;
+    min<N extends keyof T['_']['selectedFields'] & string>(name: N): SQL<SubqueryFieldData<T['_']['selectedFields'][N]> | null>;
+    max<N extends keyof T['_']['selectedFields'] & string>(name: N): SQL<SubqueryFieldData<T['_']['selectedFields'][N]> | null>;
+};
+export type SubquerySelectInput<T extends Subquery> = readonly (FieldInput | (keyof T['_']['selectedFields'] & string))[] | Record<string, FieldSet[string] | (keyof T['_']['selectedFields'] & string) | SQLWrapper> | ((query: SubqueryFieldsQuery<T>) => FieldSet | readonly FieldInput[]);
+export type ResolveSubquerySelectInput<T extends Subquery, V> = Extract<ResolvedSubqueryInput<T, V>, FieldSet | undefined>;
+type ResolvedSubqueryInput<T extends Subquery, V> = V extends undefined ? undefined : V extends (...args: never[]) => infer R ? R extends readonly FieldInput[] ? MergeFields<R> : Extract<R, FieldSet> : V extends readonly unknown[] ? MergeFields<{
+    [I in keyof V]: V[I] extends keyof T['_']['selectedFields'] ? Extract<Pick<T['_']['selectedFields'], V[I]>, FieldSet> : Extract<V[I], FieldInput>;
+}> : {
+    [K in keyof V]: V[K] extends keyof T['_']['selectedFields'] ? T['_']['selectedFields'][V[K]] : V[K] extends MySqlColumn | SQL | SQL.Aliased ? V[K] : V[K] extends SQLWrapper<infer D> ? SQL.Aliased<D> : Extract<V[K], FieldSet[string]>;
+};
+type SubqueryFieldData<F> = F extends MySqlColumn ? F['_']['data'] | (F['_']['notNull'] extends true ? never : null) : F extends SQL<infer D> | SQL.Aliased<infer D> ? D : unknown;
+type SubqueryValues<T extends Subquery> = {
+    [K in keyof T['_']['selectedFields']]?: SubqueryFieldData<T['_']['selectedFields'][K]> | SQLWrapper;
+};
+type SubqueryArrayValues<T extends Subquery> = {
+    [K in keyof T['_']['selectedFields']]?: (NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> | SQLWrapper)[];
+};
+type SubqueryRangeValues<T extends Subquery> = {
+    [K in keyof T['_']['selectedFields']]?: [
+        NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>>,
+        NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>>
+    ];
+};
+type SubqueryPatternValues<T extends Subquery> = {
+    [K in keyof T['_']['selectedFields'] as NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> extends string ? K : never]?: string;
+};
+type SubqueryConditionQuery<T extends Subquery> = {
+    readonly t: T;
+} & {
+    [K in 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte']: (values: SubqueryValues<T>) => SQL | undefined;
+} & {
+    [K in 'inArray' | 'notInArray']: (values: SubqueryArrayValues<T>) => SQL | undefined;
+} & {
+    [K in 'between' | 'notBetween']: (values: SubqueryRangeValues<T>) => SQL | undefined;
+} & {
+    [K in 'like' | 'notLike' | 'ilike' | 'notIlike']: (values: SubqueryPatternValues<T>) => SQL | undefined;
+} & {
+    isNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
+    isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
+    and(values: SubqueryConditions<T>): SQL | undefined;
+    or(values: SubqueryConditions<T>): SQL | undefined;
+};
+type SubqueryConditions<T extends Subquery> = {
+    [K in keyof Omit<SubqueryConditionQuery<T>, 't'>]?: SubqueryConditionQuery<T>[K] extends (values: infer V) => unknown ? V : never;
+};
 type NamedFields<TTable extends MySqlTable, T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]> = {
     [I in keyof T]: T[I] extends MySqlColumnSelectionName<TTable> ? MySqlSelectedNamedColumns<TTable, readonly [T[I]]> : Extract<T[I], FieldInput>;
 };

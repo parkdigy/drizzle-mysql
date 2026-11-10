@@ -5,7 +5,7 @@ export type MySqlCompareValues<T extends MySqlTable> = {
 };
 export type MySqlColumnName<T extends MySqlTable> = keyof T['_']['columns'] & string;
 export type MySqlArrayCompareValues<T extends MySqlTable> = {
-    [P in keyof InferSelectModel<T>]?: NonNullable<InferSelectModel<T>[P]>[];
+    [P in keyof InferSelectModel<T>]?: (NonNullable<InferSelectModel<T>[P]> | SQLWrapper)[];
 };
 export type MySqlRangeCompareValues<T extends MySqlTable> = {
     [P in keyof InferSelectModel<T>]?: [NonNullable<InferSelectModel<T>[P]>, NonNullable<InferSelectModel<T>[P]>];

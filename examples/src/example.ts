@@ -58,7 +58,9 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
   async aliasSelectTest() {
     const au = mysql.a.adminUser('au');
 
-    console.log(await this.select(au));
+    const builder = this.select((q) => ({ id: q.t.id, test: mysql.sql<number>`0` })).where((q) => q.eq({ id: 1 }));
+    const aa = builder.as('aa');
+    mysql.select(aa, mysql.columns(aa, 'id', 'test')).where((q) => q.eq({ test: 0 }));
 
     console.log(await this.select(au, { id: au.id, name: au.name }));
 
