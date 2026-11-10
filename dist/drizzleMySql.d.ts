@@ -9,7 +9,7 @@ import { MySqlQuery, type SelectFrom, type SelectInput, type ResolveSelectInput,
 export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> {
     url: string;
     schema: TSchema;
-    getTimestamp: () => unknown;
+    getTimestamp?: () => unknown;
 }
 type MySqlConnection<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConnection<TSchema>>;
 interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> extends MySqlNativeHelpers {

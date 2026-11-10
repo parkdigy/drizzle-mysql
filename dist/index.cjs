@@ -649,6 +649,41 @@ class MySqlQuery {
             }
         }
     }
+    async executeInsertSelect(selectQuery) {
+        const selectedFields = selectQuery.getSelectedFields();
+        const columns = native.getTableColumns(this.t);
+        const policies = getColumnPolicies(this.t);
+        for (const name of Object.keys(selectedFields)) {
+            const column = columns[name];
+            const policy = policies[name] ?? {};
+            const autoIncrement = column && 'autoIncrement' in column && column.autoIncrement === true;
+            if (policy.insert === 'blocked' || (autoIncrement && policy.insert !== 'allowed' && policy.insert !== 'required')) {
+                throw new Error(`insert: column "${name}" is blocked.`);
+            }
+        }
+        const timestampColumns = Object.entries(policies).filter(([, policy]) => policy.timestamp === 'created' || policy.timestamp === 'updated');
+        const missingTimestamps = timestampColumns.filter(([name]) => !Object.hasOwn(selectedFields, name));
+        if (missingTimestamps.length > 0) {
+            const getTimestamp = this.getTimestamp ?? this.current.getTimestamp;
+            if (!getTimestamp)
+                throw new Error('timestamp generator is not configured');
+            const source = selectQuery.as('__insert_source');
+            const fields = Object.fromEntries(Object.keys(selectedFields).map((name) => [name, source[name]]));
+            const timestamp = getTimestamp();
+            for (const [name] of missingTimestamps)
+                fields[name] = native.sql `${timestamp}`.as(name);
+            selectQuery = this.getTx().select(fields).from(source);
+        }
+        const autoIncrementColumn = mysqlCore.getTableConfig(this.t).columns.find((column) => 'autoIncrement' in column && column.autoIncrement === true);
+        const insert = this.getTx().insert(this.t).select(selectQuery);
+        if (autoIncrementColumn) {
+            const autoIncrementKey = Object.keys(columns).find((key) => columns[key] === autoIncrementColumn);
+            const rows = await insert.$returningId();
+            return rows.map((row) => row[autoIncrementKey]);
+        }
+        const [result] = (await insert);
+        return Array(result.affectedRows).fill(undefined);
+    }
     addValues(values) {
         return values;
     }
@@ -659,6 +694,9 @@ class MySqlQuery {
         return values;
     }
     add(value) {
+        if (native.is(value, mysqlCore.MySqlSelectBase)) {
+            return this.executeInsertSelect(value);
+        }
         const items = Array.isArray(value) ? value : [value];
         const values = items.map((item) => this.prepareValues(item, 'insert'));
         return this.executeInsert((Array.isArray(value) ? values : values[0]));
@@ -866,7 +904,8 @@ function sourceColumns(source, names = []) {
     const pool = mysql.createPool({ uri: options.url });
     const raw = mysql2.drizzle({ client: pool, relations: native.defineRelations(options.schema) });
     const context = new node_async_hooks.AsyncLocalStorage();
-    const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp: options.getTimestamp });
+    const getTimestamp = options.getTimestamp ?? (() => native.sql `CURRENT_TIMESTAMP`);
+    const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp });
     const trans = (callback) => {
         const parent = context.getStore();
         const execute = (tx) => context.run(tx, callback);

@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { SQL, sql } from 'drizzle-orm';
 
 import {
   drizzleMySql,
@@ -60,7 +60,6 @@ if (false) {
     blockedUpdateKey, blockedInsertKey,
   ];
   void [validInsert, validUpdate, validTime, validUpdateTime, badInsert, badSecret, badTime, badUpdateTime, badUpdate, badLocked];
-  // @ts-expect-error getTimestamp는 필수 옵션이다.
   drizzleMySql({ url: 'mysql://localhost/example', schema: { table } });
   // @ts-expect-error 이전 timestamp 옵션은 지원하지 않는다.
   drizzleMySql({ url: 'mysql://localhost/example', schema: { table }, timestamp: () => 'now' });
@@ -112,6 +111,57 @@ test.each(['explicit', 'inherited'] as const)('컬럼 정책과 %s 시각을 등
   expect(() => query.add({ name: 'x', secret: undefined } as never)).toThrow('secret');
   expect(() => query.edit({ required: 1, created: undefined } as never, sql`1 = 1`)).toThrow('created');
   expect(() => query.editByPrimaryKey({ required: 1, locked: undefined } as never, 1)).toThrow('locked');
+});
+
+test('getTimestamp 생략 시 CURRENT_TIMESTAMP SQL 표현식을 사용한다', async () => {
+  const db = drizzleMySql({ url: 'mysql://localhost/example', schema: { table } });
+  const inserted: unknown[] = [];
+  const fake = {
+    insert: () => ({
+      values: (value: unknown) => {
+        inserted.push(value);
+        return { $returningId: async () => [{ id: 1 }] };
+      },
+    }),
+  } as unknown as MySql2Database;
+  try {
+    const query = new MySqlQuery(table, Object.assign(() => fake, { getTimestamp: db.current.getTimestamp }));
+    await query.add({ name: 'default timestamp' });
+    const created = (inserted[0] as Record<string, unknown>).created;
+    const updated = (inserted[0] as Record<string, unknown>).updated;
+    expect(created).toBeInstanceOf(SQL);
+    expect(updated).toBe(created);
+    expect((created as any).queryChunks[0].value).toBe('CURRENT_TIMESTAMP');
+  } finally {
+    await db.close();
+  }
+});
+
+test('add는 선택 빌더에서 INSERT SELECT를 실행하고 누락된 시각 컬럼을 채운다', async () => {
+  const sourceDb = drizzleMySql({ url: 'mysql://localhost/example', schema: { table }, getTimestamp: () => 'source' });
+  let insertedFields: Record<string, unknown> | undefined;
+  const fake = {
+    select: (fields: Record<string, unknown>) => ({
+      from: () => ({ getSelectedFields: () => fields }),
+    }),
+    insert: () => ({
+      select: (builder: { getSelectedFields: () => Record<string, unknown> }) => {
+        insertedFields = builder.getSelectedFields();
+        return { $returningId: async () => [{ id: 11 }, { id: 12 }] };
+      },
+    }),
+  } as unknown as MySql2Database;
+  try {
+    const target = new MySqlQuery(table, Object.assign(() => fake, { getTimestamp: () => sql`CURRENT_TIMESTAMP` }));
+    const source = sourceDb.query(table).select(['name']);
+    const ids = await target.add(source);
+    expect(ids).toEqual([11, 12]);
+    expect(insertedFields).toHaveProperty('name');
+    expect(insertedFields).toHaveProperty('created');
+    expect(insertedFields).toHaveProperty('updated');
+  } finally {
+    await sourceDb.close();
+  }
 });
 
 test('입력값 헬퍼는 쿼리 타입으로 검사하고 입력값을 그대로 반환한다', async () => {

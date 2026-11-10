@@ -19,7 +19,7 @@ import {
 export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> {
   url: string;
   schema: TSchema;
-  getTimestamp: () => unknown;
+  getTimestamp?: () => unknown;
 }
 
 type MySqlConnection<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConnection<TSchema>>;
@@ -66,7 +66,8 @@ function createConnection<TSchema extends Record<string, MySqlTable>>(options: D
   const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
   type Transaction = Parameters<Parameters<typeof raw.transaction>[0]>[0];
   const context = new AsyncLocalStorage<Transaction>();
-  const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp: options.getTimestamp });
+  const getTimestamp = options.getTimestamp ?? (() => sql`CURRENT_TIMESTAMP`);
+  const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp });
   const trans = <T>(callback: () => Promise<T>): Promise<T> => {
     const parent = context.getStore();
     const execute = (tx: Transaction) => context.run(tx, callback);

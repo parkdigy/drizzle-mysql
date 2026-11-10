@@ -18,6 +18,7 @@ import {
 import {
   MySqlTable,
   MySqlColumn,
+  MySqlSelectBase,
   getTableConfig,
   type MySqlAsyncSelectBase,
   type MySqlUpdateSetSource,
@@ -49,6 +50,7 @@ import type {
 import { createConditions } from './conditions';
 import type { MySqlInsertValue } from 'drizzle-orm/mysql-core/query-builders/insert';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
+import type { TypedQueryBuilder } from 'drizzle-orm/query-builders/query-builder';
 
 /********************************************************************************************************************
  * MySqlQuery
@@ -851,6 +853,53 @@ export class MySqlQuery<
     }
   }
 
+  private async executeInsertSelect(
+    selectQuery: TypedQueryBuilder<Record<string, unknown>>
+  ): Promise<AR[]> {
+    const selectedFields = (selectQuery as any).getSelectedFields() as Record<string, unknown>;
+    const columns = getTableColumns(this.t);
+    const policies = getColumnPolicies(this.t);
+
+    for (const name of Object.keys(selectedFields)) {
+      const column = columns[name];
+      const policy = policies[name] ?? {};
+      const autoIncrement = column && 'autoIncrement' in column && column.autoIncrement === true;
+      if (policy.insert === 'blocked' || (autoIncrement && policy.insert !== 'allowed' && policy.insert !== 'required')) {
+        throw new Error(`insert: column "${name}" is blocked.`);
+      }
+    }
+
+    const timestampColumns = Object.entries(policies).filter(
+      ([, policy]) => policy.timestamp === 'created' || policy.timestamp === 'updated'
+    );
+    const missingTimestamps = timestampColumns.filter(([name]) => !Object.hasOwn(selectedFields, name));
+
+    if (missingTimestamps.length > 0) {
+      const getTimestamp = this.getTimestamp ?? this.current.getTimestamp;
+      if (!getTimestamp) throw new Error('timestamp generator is not configured');
+
+      const source = (selectQuery as any).as('__insert_source');
+      const fields = Object.fromEntries(Object.keys(selectedFields).map((name) => [name, source[name]]));
+      const timestamp = getTimestamp();
+      for (const [name] of missingTimestamps) fields[name] = sql`${timestamp}`.as(name);
+      selectQuery = this.getTx().select(fields as any).from(source) as TypedQueryBuilder<Record<string, unknown>>;
+    }
+
+    const autoIncrementColumn = getTableConfig(this.t).columns.find(
+      (column) => 'autoIncrement' in column && column.autoIncrement === true
+    );
+    const insert = this.getTx().insert(this.t).select(selectQuery as any);
+
+    if (autoIncrementColumn) {
+      const autoIncrementKey = Object.keys(columns).find((key) => columns[key] === autoIncrementColumn);
+      const rows = await insert.$returningId();
+      return rows.map((row) => (row as Record<string, unknown>)[autoIncrementKey!] as AR);
+    }
+
+    const [result] = (await insert) as unknown as [{ affectedRows: number }, undefined];
+    return Array(result.affectedRows).fill(undefined as AR);
+  }
+
   /********************************************************************************************************************
    * addValues
    * ******************************************************************************************************************/
@@ -872,9 +921,15 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   add(value: AV[]): Promise<AR[]>;
 
+  add<TSelection extends Record<string, unknown>>(value: TypedQueryBuilder<TSelection>): Promise<AR[]>;
+
   add(value: AV): Promise<AR>;
 
-  add(value: AV | AV[]) {
+  add(value: AV | AV[] | TypedQueryBuilder<Record<string, unknown>>) {
+    if (is(value, MySqlSelectBase)) {
+      return this.executeInsertSelect(value as TypedQueryBuilder<Record<string, unknown>>);
+    }
+
     const items = Array.isArray(value) ? value : [value];
     const values = items.map((item) => this.prepareValues(item, 'insert'));
     return this.executeInsert((Array.isArray(value) ? values : values[0]) as unknown as MySqlInsertValue<TTable>);

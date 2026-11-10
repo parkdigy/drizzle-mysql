@@ -7,6 +7,7 @@ import type { MySqlColumnSelectionName, MySqlSelectedNamedColumnUnion, MySqlSele
 import { type TableMutationPolicy } from './mysqlTable.cjs';
 import type { MySqlAddValues, MySqlEditValues, MySqlCompareValues, MySqlColumnName, MySqlArrayCompareValues, MySqlRangeCompareValues, MySqlPatternCompareValues, MySqlNullConditionInput, MySqlConditions } from './@types/index.cjs';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
+import type { TypedQueryBuilder } from 'drizzle-orm/query-builders/query-builder';
 /********************************************************************************************************************
  * MySqlQuery
  * ******************************************************************************************************************/
@@ -148,6 +149,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
      * (PRIVATE) executeInsert
      * ******************************************************************************************************************/
     private executeInsert;
+    private executeInsertSelect;
     /********************************************************************************************************************
      * addValues
      * ******************************************************************************************************************/
@@ -161,6 +163,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
      * add
      * ******************************************************************************************************************/
     add(value: AV[]): Promise<AR[]>;
+    add<TSelection extends Record<string, unknown>>(value: TypedQueryBuilder<TSelection>): Promise<AR[]>;
     add(value: AV): Promise<AR>;
     /********************************************************************************************************************
      * edit
