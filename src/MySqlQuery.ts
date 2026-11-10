@@ -196,13 +196,13 @@ export class MySqlQuery<
     fields: readonly N[]
   ): SelectFrom<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>;
 
-  select<const T extends readonly FieldInput[]>(
+  select<const T extends readonly SelectFieldInput<TTable>[]>(
     fields: (query: FieldsQuery<TTable>) => T
-  ): SelectFrom<TTable, MergeFields<T>>;
+  ): SelectFrom<TTable, MergeSelectFields<TTable, T>>;
 
-  select<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(
+  select<const T extends readonly (SelectFieldInput<TTable> | MySqlColumnSelectionName<TTable>)[]>(
     fields: T
-  ): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
+  ): SelectFrom<TTable, MergeSelectFields<TTable, SelectNamedFields<TTable, T>>>;
 
   select<const TSelection extends StringColumnSelection<TTable>>(
     fields: TSelection
@@ -233,18 +233,21 @@ export class MySqlQuery<
     MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>
   >;
 
-  select<TAlias extends string, const T extends readonly FieldInput[]>(
+  select<TAlias extends string, const T extends readonly SelectFieldInput<MySqlAliasTable<TTable, TAlias>>[]>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T
-  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>;
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeSelectFields<MySqlAliasTable<TTable, TAlias>, T>>;
 
   select<
     TAlias extends string,
-    const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[],
+    const T extends readonly (SelectFieldInput<MySqlAliasTable<TTable, TAlias>> | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[],
   >(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: T
-  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
+  ): SelectFrom<
+    MySqlAliasTable<TTable, TAlias>,
+    MergeSelectFields<MySqlAliasTable<TTable, TAlias>, SelectNamedFields<MySqlAliasTable<TTable, TAlias>, T>>
+  >;
 
   select<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
@@ -277,13 +280,13 @@ export class MySqlQuery<
     fields: readonly N[]
   ): SelectFrom<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>;
 
-  selectDistinct<const T extends readonly FieldInput[]>(
+  selectDistinct<const T extends readonly SelectFieldInput<TTable>[]>(
     fields: (query: FieldsQuery<TTable>) => T
-  ): SelectFrom<TTable, MergeFields<T>>;
+  ): SelectFrom<TTable, MergeSelectFields<TTable, T>>;
 
-  selectDistinct<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(
+  selectDistinct<const T extends readonly (SelectFieldInput<TTable> | MySqlColumnSelectionName<TTable>)[]>(
     fields: T
-  ): SelectFrom<TTable, MergeFields<NamedFields<TTable, T>>>;
+  ): SelectFrom<TTable, MergeSelectFields<TTable, SelectNamedFields<TTable, T>>>;
 
   selectDistinct<const TSelection extends StringColumnSelection<TTable>>(
     fields: TSelection
@@ -314,18 +317,21 @@ export class MySqlQuery<
     MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>
   >;
 
-  selectDistinct<TAlias extends string, const T extends readonly FieldInput[]>(
+  selectDistinct<TAlias extends string, const T extends readonly SelectFieldInput<MySqlAliasTable<TTable, TAlias>>[]>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T
-  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>;
+  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeSelectFields<MySqlAliasTable<TTable, TAlias>, T>>;
 
   selectDistinct<
     TAlias extends string,
-    const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[],
+    const T extends readonly (SelectFieldInput<MySqlAliasTable<TTable, TAlias>> | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[],
   >(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: T
-  ): SelectFrom<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>;
+  ): SelectFrom<
+    MySqlAliasTable<TTable, TAlias>,
+    MergeSelectFields<MySqlAliasTable<TTable, TAlias>, SelectNamedFields<MySqlAliasTable<TTable, TAlias>, T>>
+  >;
 
   selectDistinct<TAlias extends string, const TSelection extends MixedSelection<MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
@@ -1313,10 +1319,19 @@ type ResolveMixedSelection<TTable extends MySqlTable, TSelection> = {
     ? TTable['_']['columns'][TSelection[K]]
     : TSelection[K] extends MySqlColumn
       ? TSelection[K]
+      : TSelection[K] extends { _: { result: unknown } }
+        ? SQL.Aliased<SelectBuilderFieldData<TSelection[K]>>
       : TSelection[K] extends SQLWrapper<infer TData>
         ? SQL.Aliased<TData>
         : Extract<TSelection[K], FieldSet[string]>;
 };
+type SelectBuilderFieldData<TBuilder> = TBuilder extends { _: { result: unknown } }
+  ? Awaited<TBuilder> extends readonly (infer TRow)[]
+    ? TRow extends Record<string, unknown>
+      ? TRow[keyof TRow]
+      : unknown
+    : unknown
+  : unknown;
 type StringColumnSelection<TTable extends MySqlTable> = Record<string, keyof TTable['_']['columns'] & string>;
 type StringColumnSelectionFields<TTable extends MySqlTable, TSelection extends StringColumnSelection<TTable>> = {
   [K in keyof TSelection]: TTable['_']['columns'][TSelection[K]] extends MySqlColumn<infer TConfig>
@@ -1324,6 +1339,7 @@ type StringColumnSelectionFields<TTable extends MySqlTable, TSelection extends S
     : never;
 };
 type FieldInput = FieldSet | false | undefined;
+type SelectFieldInput<TTable extends MySqlTable> = FieldInput | MixedSelection<TTable>;
 type FieldsQuery<TTable extends MySqlTable> = {
   readonly t: TTable;
   columns(): MySqlSelectedTableColumns<TTable>;
@@ -1333,17 +1349,17 @@ type FieldsQuery<TTable extends MySqlTable> = {
 };
 type Fields<TQuery, TSelection> = TSelection | ((query: TQuery) => TSelection);
 export type SelectInput<TTable extends MySqlTable> =
-  | readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]
+  | readonly (SelectFieldInput<TTable> | MySqlColumnSelectionName<TTable>)[]
   | MixedSelection<TTable>
-  | ((query: FieldsQuery<TTable>) => FieldSet | readonly FieldInput[]);
+  | ((query: FieldsQuery<TTable>) => FieldSet | readonly SelectFieldInput<TTable>[]);
 export type ResolveSelectInput<TTable extends MySqlTable, T> = T extends undefined
   ? undefined
   : T extends (...args: never[]) => infer R
-    ? R extends readonly FieldInput[]
-      ? MergeFields<R>
+    ? R extends readonly SelectFieldInput<TTable>[]
+      ? MergeSelectFields<TTable, R>
       : Extract<R, FieldSet>
-    : T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]
-      ? MergeFields<NamedFields<TTable, T>>
+    : T extends readonly (SelectFieldInput<TTable> | MySqlColumnSelectionName<TTable>)[]
+      ? MergeSelectFields<TTable, SelectNamedFields<TTable, T>>
       : T extends StringColumnSelection<TTable>
         ? StringColumnSelectionFields<TTable, T>
         : ResolveMixedSelection<TTable, T>;
@@ -1448,6 +1464,35 @@ type NamedFields<TTable extends MySqlTable, T extends readonly (FieldInput | MyS
     ? MySqlSelectedNamedColumns<TTable, readonly [T[I]]>
     : Extract<T[I], FieldInput>;
 };
+type SelectNamedFields<
+  TTable extends MySqlTable,
+  T extends readonly (SelectFieldInput<TTable> | MySqlColumnSelectionName<TTable>)[],
+> = {
+  [I in keyof T]: T[I] extends MySqlColumnSelectionName<TTable>
+    ? MySqlSelectedNamedColumns<TTable, readonly [T[I]]>
+    : T[I] extends SelectFieldInput<TTable>
+      ? T[I]
+      : never;
+};
+type ResolveSelectField<TTable extends MySqlTable, TField> = TField extends FieldSet
+  ? TField
+  : TField extends MixedSelection<TTable>
+    ? ResolveMixedSelection<TTable, TField>
+    : never;
+type MergeSelectFields<TTable extends MySqlTable, T extends readonly unknown[], Result = {}> = T extends readonly [
+  infer First,
+  ...infer Rest,
+]
+  ? MergeSelectFields<
+      TTable,
+      Rest,
+      First extends FieldSet | MixedSelection<TTable> ? Omit<Result, keyof First> & ResolveSelectField<TTable, First> : Result
+    >
+  : number extends T['length']
+    ? ResolveSelectField<TTable, Exclude<T[number], false | undefined>>
+    : Result extends unknown
+      ? { [P in keyof Result]: Result[P] }
+      : never;
 type MergeField<First, Result> = First extends FieldSet
   ? Result extends unknown
     ? Omit<Result, keyof First> & First

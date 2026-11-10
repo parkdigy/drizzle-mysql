@@ -59,6 +59,26 @@ test('혼합 선택에서 컬럼 객체의 데이터 타입과 null 허용을 �
   }
 });
 
+test('선택 배열 항목으로 혼합 선택 객체와 서브쿼리를 선택한다', () => {
+  const oneRowBuilder = db.select('users', ['id']).where((q) => q.lt({ id: 1 })).limit(1);
+  const selected = db.query(users).select([{ id: oneRowBuilder }]);
+  const distinct = db.query(users).selectDistinct([{ id: oneRowBuilder }]);
+  type Row = Awaited<typeof selected>[number];
+  const row: Row = { id: 1 };
+
+  expect(selected.toSQL().sql).toContain(
+    'select (select `id` from `users` where `users`.`id` < ? limit ?) as `id` from `users`',
+  );
+  expect(selected.toSQL().params).toEqual([1, 1]);
+  expect(distinct.toSQL().sql).toContain('select distinct (select `id`');
+  if (false) {
+    // @ts-expect-error query builder 선택 필드는 결과 데이터 타입을 유지한다.
+    const invalid: Row = { id: 'wrong' };
+    void invalid;
+  }
+  void row;
+});
+
 test('등록되지 않은 테이블명과 컬럼은 명확한 오류를 반환한다', () => {
   expect(() => db.select('missing' as 'users')).toThrow('select: unknown table "missing".');
   expect(() => db.select('users', { label: 'missing' } as unknown as { label: 'name' })).toThrow(

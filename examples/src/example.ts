@@ -165,6 +165,8 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
       notInArray: { id: multiRowBuilder },
       between: { id: [oneRowBuilder, oneRowBuilder] },
     });
+
+    const list = await this.select([{ id: oneRowBuilder }]);
   }
 
   /********************************************************************************************************************
