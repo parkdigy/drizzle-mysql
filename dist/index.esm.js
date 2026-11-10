@@ -864,6 +864,12 @@ const normalizeFields = (fields, table) => {
     for (const group of groups) {
         if (Array.isArray(fields) && (group === false || group === undefined))
             continue;
+        if (Array.isArray(fields) && typeof group === 'string') {
+            if (!table)
+                throw new Error('fields: a table is required for column-name selections.');
+            Object.assign(result, sourceColumns(table, [group]));
+            continue;
+        }
         if (typeof group !== 'object' || group === null || Array.isArray(group) || isTable(group) || is(group, SQL)) {
             throw new Error('fields: expected a selection object or an array of selection objects.');
         }

@@ -115,6 +115,18 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
       const j = builder.as('j');
       mysql.columns(j, 'id', 'name');
     }
+
+    {
+      const ac2 = mysql.a.adminUser('ac2');
+      const appInfoBuilder = this.select({
+        app_info: mysql.sqlString(''),
+      }).where((q) =>
+        q.and({
+          eq: { id: ac2.id },
+        })
+      );
+      this.select(ac2, ['id', 'name', { app_info: appInfoBuilder }]);
+    }
   }
 
   /********************************************************************************************************************
@@ -165,8 +177,6 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
       notInArray: { id: multiRowBuilder },
       between: { id: [oneRowBuilder, oneRowBuilder] },
     });
-
-    const list = await this.select([{ id: oneRowBuilder }]);
   }
 
   /********************************************************************************************************************

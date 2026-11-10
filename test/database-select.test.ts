@@ -79,6 +79,21 @@ test('선택 배열 항목으로 혼합 선택 객체와 서브쿼리를 선택�
   void row;
 });
 
+test('alias 선택 배열에서 문자열 컬럼과 query builder 선택 객체를 함께 사용한다', () => {
+  const alias = db.a.users('ac2');
+  const appInfoBuilder = db.query(users)
+    .select({ app_info: db.sql<string>`'info'` })
+    .where((q) => q.and({ eq: { id: alias.id } }));
+  const selected = db.query(users).select(alias, ['id', 'name', { app_info: appInfoBuilder }]);
+  const sql = selected.toSQL();
+
+  expect(sql.sql).toContain(
+    'select `id` as `id`, `name` as `name`, (select \'info\' as `app_info` from `users` where `users`.`id` = `ac2`.`id`) as `app_info`',
+  );
+  expect(sql.sql).toContain('from `users` `ac2`');
+  expect(sql.params).toEqual([]);
+});
+
 test('등록되지 않은 테이블명과 컬럼은 명확한 오류를 반환한다', () => {
   expect(() => db.select('missing' as 'users')).toThrow('select: unknown table "missing".');
   expect(() => db.select('users', { label: 'missing' } as unknown as { label: 'name' })).toThrow(
