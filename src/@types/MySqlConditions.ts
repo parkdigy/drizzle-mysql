@@ -7,7 +7,7 @@ import type {
   MySqlRangeCompareValues,
 } from './common';
 
-export type MySqlConditions<T extends MySqlTable> = {
+type BaseConditions<T extends MySqlTable> = {
   eq?: MySqlCompareValues<T>;
   ne?: MySqlCompareValues<T>;
   gt?: MySqlCompareValues<T>;
@@ -24,4 +24,8 @@ export type MySqlConditions<T extends MySqlTable> = {
   notIlike?: MySqlPatternCompareValues<T>;
   isNull?: MySqlNullConditionInput<T>;
   isNotNull?: MySqlNullConditionInput<T>;
+};
+
+export type MySqlConditions<T extends MySqlTable> = BaseConditions<T> & {
+  [K in keyof BaseConditions<T> as `or${Capitalize<K>}`]?: BaseConditions<T>[K];
 };

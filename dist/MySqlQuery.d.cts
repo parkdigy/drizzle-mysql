@@ -196,6 +196,22 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     eq<N extends MySqlColumnName<TTable>>(name: N, value: Required<MySqlCompareValues<TTable>>[N]): SQL;
     eq<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(table: MySqlAliasTable<TTable, TAlias>, name: N, value: Required<MySqlCompareValues<MySqlAliasTable<TTable, TAlias>>>[N]): SQL;
     eq(values: MySqlCompareValues<TTable>): SQL | undefined;
+    orEq(values: MySqlCompareValues<TTable>): SQL | undefined;
+    orNe(values: MySqlCompareValues<TTable>): SQL | undefined;
+    orGt(values: MySqlCompareValues<TTable>): SQL | undefined;
+    orGte(values: MySqlCompareValues<TTable>): SQL | undefined;
+    orLt(values: MySqlCompareValues<TTable>): SQL | undefined;
+    orLte(values: MySqlCompareValues<TTable>): SQL | undefined;
+    orInArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined;
+    orNotInArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined;
+    orBetween(values: MySqlRangeCompareValues<TTable>): SQL | undefined;
+    orNotBetween(values: MySqlRangeCompareValues<TTable>): SQL | undefined;
+    orLike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+    orNotLike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+    orIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+    orNotIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+    orIsNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
+    orIsNotNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
     /********************************************************************************************************************
      * ne
      * ******************************************************************************************************************/
@@ -306,9 +322,9 @@ export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends 
     orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
 };
 type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = Awaited<SelectFrom<TTable, TSelection>>[number] | undefined;
-type WhereQuery<TQuery> = Pick<TQuery, Extract<keyof TQuery, 't' | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull' | 'and' | 'or'>>;
+type WhereQuery<TQuery> = Pick<TQuery, Extract<keyof TQuery, 't' | 'eq' | 'ne' | 'orEq' | 'orNe' | 'orGt' | 'orGte' | 'orLt' | 'orLte' | 'orInArray' | 'orNotInArray' | 'orBetween' | 'orNotBetween' | 'orLike' | 'orNotLike' | 'orIlike' | 'orNotIlike' | 'orIsNull' | 'orIsNotNull' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull' | 'and' | 'or'>>;
 type SelectConditionQuery<TSource extends MySqlTable | Subquery> = TSource extends MySqlTable ? TableConditionQuery<TSource> : TSource extends Subquery ? SubqueryConditionQuery<TSource> : never;
-type TableConditionQuery<TTable extends MySqlTable> = {
+type BaseTableConditionQuery<TTable extends MySqlTable> = {
     readonly t: TTable;
     eq(values: MySqlCompareValues<TTable>): SQL | undefined;
     ne(values: MySqlCompareValues<TTable>): SQL | undefined;
@@ -328,6 +344,9 @@ type TableConditionQuery<TTable extends MySqlTable> = {
     isNotNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
     and(options: MySqlConditions<TTable>): SQL | undefined;
     or(options: MySqlConditions<TTable>): SQL | undefined;
+};
+type TableConditionQuery<TTable extends MySqlTable> = BaseTableConditionQuery<TTable> & {
+    [K in keyof Omit<BaseTableConditionQuery<TTable>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`]: BaseTableConditionQuery<TTable>[K];
 };
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 type FieldSet = SelectedFields<MySqlColumn, MySqlTable>;
@@ -395,7 +414,7 @@ type SubqueryRangeValues<T extends Subquery> = {
 type SubqueryPatternValues<T extends Subquery> = {
     [K in keyof T['_']['selectedFields'] as NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> extends string ? K : never]?: string;
 };
-type SubqueryConditionQuery<T extends Subquery> = {
+type BaseSubqueryConditionQuery<T extends Subquery> = {
     readonly t: T;
 } & {
     [K in 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte']: (values: SubqueryValues<T>) => SQL | undefined;
@@ -410,6 +429,9 @@ type SubqueryConditionQuery<T extends Subquery> = {
     isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
     and(values: SubqueryConditions<T>): SQL | undefined;
     or(values: SubqueryConditions<T>): SQL | undefined;
+};
+type SubqueryConditionQuery<T extends Subquery> = BaseSubqueryConditionQuery<T> & {
+    [K in keyof Omit<BaseSubqueryConditionQuery<T>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`]: BaseSubqueryConditionQuery<T>[K];
 };
 type SubqueryConditions<T extends Subquery> = {
     [K in keyof Omit<SubqueryConditionQuery<T>, 't'>]?: SubqueryConditionQuery<T>[K] extends (values: infer V) => unknown ? V : never;

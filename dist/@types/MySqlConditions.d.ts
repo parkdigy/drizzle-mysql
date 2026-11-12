@@ -1,6 +1,6 @@
 import type { MySqlTable } from 'drizzle-orm/mysql-core';
 import type { MySqlArrayCompareValues, MySqlCompareValues, MySqlNullConditionInput, MySqlPatternCompareValues, MySqlRangeCompareValues } from './common.js';
-export type MySqlConditions<T extends MySqlTable> = {
+type BaseConditions<T extends MySqlTable> = {
     eq?: MySqlCompareValues<T>;
     ne?: MySqlCompareValues<T>;
     gt?: MySqlCompareValues<T>;
@@ -18,3 +18,7 @@ export type MySqlConditions<T extends MySqlTable> = {
     isNull?: MySqlNullConditionInput<T>;
     isNotNull?: MySqlNullConditionInput<T>;
 };
+export type MySqlConditions<T extends MySqlTable> = BaseConditions<T> & {
+    [K in keyof BaseConditions<T> as `or${Capitalize<K>}`]?: BaseConditions<T>[K];
+};
+export {};

@@ -7,7 +7,7 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
   /********************************************************************************************************************
    * ValueOperators
    * ******************************************************************************************************************/
-  type ValueOperators = Exclude<keyof MySqlConditions<MySqlTable>, 'isNull' | 'isNotNull'>;
+  type ValueOperators = Exclude<keyof MySqlConditions<MySqlTable>, 'isNull' | 'isNotNull' | `or${string}`>;
   type SchemaKey = keyof TSchema & string;
   type TableInput = MySqlTable | SchemaKey;
 
@@ -109,9 +109,9 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
   }
 
   const objectOperator =
-    <TOperator extends ValueOperators>(operator: TOperator): ObjectOperator<TOperator> =>
+    <TOperator extends ValueOperators>(operator: TOperator, join: 'and' | 'or' = 'and'): ObjectOperator<TOperator> =>
     (table: TableInput, values: unknown) =>
-      native.and(...valueConditions(resolveTable(table), values, operator));
+      native[join](...valueConditions(resolveTable(table), values, operator));
 
   type NativeBinaryOperator = {
     <TColumn extends Column>(left: TColumn, right: native.GetColumnData<TColumn, 'raw'> | native.SQLWrapper): SQL;
@@ -130,7 +130,7 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     <K extends SchemaKey>(table: K, names: MySqlNullConditionInput<(typeof schema)[K]>): SQL | undefined;
   };
 
-  const nullOperator = (operator: 'isNull' | 'isNotNull'): NullOperator =>
+  const nullOperator = (operator: 'isNull' | 'isNotNull', join: 'and' | 'or' = 'and'): NullOperator =>
     ((table: TableInput, input: unknown): SQL | undefined => {
       const names = typeof input === 'string' ? [input] : input === undefined ? [] : input;
       if (!Array.isArray(names)) throw new Error(`${operator}: expected column names.`);
@@ -140,7 +140,7 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
         if (typeof name !== 'string') throw new Error(`${operator}: expected a column name.`);
         conditions.push(native[operator](getColumn(resolveTable(table), name)));
       }
-      return native.and(...conditions);
+      return native[join](...conditions);
     }) as NullOperator;
 
   type GroupOperator = {
@@ -158,13 +158,10 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
           throw new Error(`Condition: unknown operator "${name}".`);
         }
         if (values === undefined) continue;
-        if (name === 'isNull' || name === 'isNotNull') {
-          const condition = nullOperator(name)(table, values as MySqlNullConditionInput<MySqlTable>);
-          if (condition !== undefined) sqlConditions.push(condition);
-        } else {
-          const group = native.and(...valueConditions(table, values, name as ValueOperators));
-          if (group !== undefined) sqlConditions.push(group);
-        }
+        const condition = Reflect.apply(conditions[name as keyof typeof conditions], undefined, [table, values]) as
+          | SQL
+          | undefined;
+        if (condition !== undefined) sqlConditions.push(condition);
       }
       return native[operator](...sqlConditions);
     };
@@ -179,6 +176,8 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
   const conditions = {
     eq: binaryOperator('eq'),
     ne: binaryOperator('ne'),
+    orEq: objectOperator('eq', 'or'),
+    orNe: objectOperator('ne', 'or'),
     gt: binaryOperator('gt'),
     gte: binaryOperator('gte'),
     lt: binaryOperator('lt'),
@@ -193,6 +192,20 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     notIlike: extendOperator(native.notIlike, objectOperator('notIlike')),
     isNull: extendOperator(native.isNull, nullOperator('isNull')),
     isNotNull: extendOperator(native.isNotNull, nullOperator('isNotNull')),
+    orGt: objectOperator('gt', 'or'),
+    orGte: objectOperator('gte', 'or'),
+    orLt: objectOperator('lt', 'or'),
+    orLte: objectOperator('lte', 'or'),
+    orInArray: objectOperator('inArray', 'or'),
+    orNotInArray: objectOperator('notInArray', 'or'),
+    orBetween: objectOperator('between', 'or'),
+    orNotBetween: objectOperator('notBetween', 'or'),
+    orLike: objectOperator('like', 'or'),
+    orNotLike: objectOperator('notLike', 'or'),
+    orIlike: objectOperator('ilike', 'or'),
+    orNotIlike: objectOperator('notIlike', 'or'),
+    orIsNull: nullOperator('isNull', 'or'),
+    orIsNotNull: nullOperator('isNotNull', 'or'),
     and: logicalOperator('and'),
     or: logicalOperator('or'),
   };

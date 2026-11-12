@@ -19,6 +19,14 @@ export declare function createConditions<TSchema extends Record<string, MySqlTab
         <T>(left: SQL.Aliased<T>, right: T | native.SQLWrapper): SQL;
         <T extends native.SQLWrapper>(left: Exclude<T, MySqlTable>, right: unknown): SQL;
     };
+    orEq: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orNe: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
     gt: {
         <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
         <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlCompareValues<TSchema[K]> | undefined): SQL | undefined;
@@ -95,6 +103,66 @@ export declare function createConditions<TSchema extends Record<string, MySqlTab
         <K extends keyof TSchema & string>(table: K, name: MySqlColumnName<(typeof schema)[K]>): SQL;
         <K extends keyof TSchema & string>(table: K, names: MySqlNullConditionInput<(typeof schema)[K]>): SQL | undefined;
     } & typeof native.isNotNull;
+    orGt: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orGte: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orLt: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orLte: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orInArray: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlArrayCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlArrayCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orNotInArray: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlArrayCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlArrayCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orBetween: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlRangeCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlRangeCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orNotBetween: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlRangeCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlRangeCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orLike: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orNotLike: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orIlike: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orNotIlike: {
+        <T extends MySqlTable>(table: T, values: import("./index.cjs").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.cjs").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orIsNull: {
+        <T extends MySqlTable>(table: T, name: MySqlColumnName<T>): SQL;
+        <T extends MySqlTable>(table: T, names: MySqlNullConditionInput<T>): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, name: MySqlColumnName<(typeof schema)[K]>): SQL;
+        <K extends keyof TSchema & string>(table: K, names: MySqlNullConditionInput<(typeof schema)[K]>): SQL | undefined;
+    };
+    orIsNotNull: {
+        <T extends MySqlTable>(table: T, name: MySqlColumnName<T>): SQL;
+        <T extends MySqlTable>(table: T, names: MySqlNullConditionInput<T>): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, name: MySqlColumnName<(typeof schema)[K]>): SQL;
+        <K extends keyof TSchema & string>(table: K, names: MySqlNullConditionInput<(typeof schema)[K]>): SQL | undefined;
+    };
     and: {
         <T extends MySqlTable>(table: T, options: MySqlConditions<T>): SQL | undefined;
         <K extends keyof TSchema & string>(table: K, options: MySqlConditions<TSchema[K]>): SQL | undefined;

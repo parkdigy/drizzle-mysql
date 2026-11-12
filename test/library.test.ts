@@ -1,6 +1,6 @@
 import { int, mysqlTable, varchar } from 'drizzle-orm/mysql-core';
 import { asc as drizzleAsc, sql, type SQL } from 'drizzle-orm';
-import { drizzleMySql } from '../src';
+import { createConditions, drizzleMySql } from '../src';
 import * as api from '../src';
 import { TableColumns } from '../src/columns';
 
@@ -55,6 +55,129 @@ test('where 콜백은 조건 헬퍼와 테이블 객체를 제공한다', () => 
   expect(groupedCondition.params).toEqual(['Ada', 1]);
   expect(aliasCondition.sql).toMatch(/where `u`\.`display_name` = \?/i);
   expect(aliasCondition.params).toEqual(['Ada']);
+});
+
+test('orEq와 orNe는 쿼리·스키마 키·테이블 별칭에서 비교를 OR로 결합한다', () => {
+  const alias = db.a.user('u');
+  const conditions = createConditions({ user });
+  const direct = db.query(user).orEq({ id: 1, displayName: 'Ada' })!;
+  const query = db.current().select().from(user).where(direct).toSQL();
+  expect(query.sql.replace(/[()]/g, '')).toContain('`users`.`id` = ? or `users`.`display_name` = ?');
+  expect(query.params).toEqual([1, 'Ada']);
+
+  for (const operator of ['orEq', 'orNe'] as const) {
+    const comparison = operator === 'orEq' ? '=' : '<>';
+    const values = { id: 1, displayName: 'Ada' };
+    for (const condition of [conditions[operator](user, values), conditions[operator]('user', values)]) {
+      const generated = db.current().select().from(user).where(condition).toSQL();
+      expect(generated.sql.replace(/[()]/g, '')).toContain(
+        `\`users\`.\`id\` ${comparison} ? or \`users\`.\`display_name\` ${comparison} ?`,
+      );
+      expect(generated.params).toEqual([1, 'Ada']);
+    }
+    const aliased = db.current().select().from(alias).where(conditions[operator](alias, values)).toSQL();
+    expect(aliased.sql.replace(/[()]/g, '')).toContain(
+      `\`u\`.\`id\` ${comparison} ? or \`u\`.\`display_name\` ${comparison} ?`,
+    );
+    expect(aliased.params).toEqual([1, 'Ada']);
+    expect(db.query(user)[operator]({})).toBeUndefined();
+    expect(conditions[operator](user, { id: undefined })).toBeUndefined();
+  }
+
+  const optional = mysqlTable('optional_or_conditions', {
+    id: int(),
+    displayName: varchar({ length: 50 }),
+  });
+  const optionalConditions = createConditions({ optional });
+  const nullCheck = optionalConditions.orEq(optional, { id: null, displayName: undefined });
+  const nullSql = db.current().select().from(optional).where(nullCheck).toSQL();
+  expect(nullSql.sql).toContain('`optional_or_conditions`.`id` is null');
+  expect(nullSql.params).toEqual([]);
+  expect(() => conditions.orEq(user, { missing: 1 } as never)).toThrow('unknown column');
+  const grouped = conditions.and(user, { orEq: { id: 1, displayName: 'Ada' }, gt: { id: 0 } });
+  expect(db.current().select().from(user).where(grouped).toSQL().sql).toContain(' or ');
+
+  const callback = db.query(user).select().where((q) => q.orNe({ id: 1, displayName: 'Ada' })).toSQL();
+  expect(callback.sql.replace(/[()]/g, '')).toContain('`users`.`id` <> ? or `users`.`display_name` <> ?');
+  if (false) {
+    // @ts-expect-error OR 비교도 컬럼 값의 타입을 검사한다.
+    db.query(user).orNe({ id: 'invalid' });
+    // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다.
+    db.query(user).orEq({ missing: 1 });
+  }
+});
+
+test('OR 비교 연산자들은 컬럼 조건만 OR로 묶고 배열·범위 검증을 유지한다', () => {
+  const conditions = createConditions({ user });
+  const cases = {
+    gt: { id: 1, displayName: 'Ada' },
+    gte: { id: 1, displayName: 'Ada' },
+    lt: { id: 1, displayName: 'Ada' },
+    lte: { id: 1, displayName: 'Ada' },
+    inArray: { id: [1, 2], displayName: ['Ada'] },
+    notInArray: { id: [1, 2], displayName: ['Ada'] },
+    between: { id: [1, 2], displayName: ['A', 'Z'] },
+    notBetween: { id: [1, 2], displayName: ['A', 'Z'] },
+    like: { displayName: 'A%' },
+    notLike: { displayName: 'A%' },
+    ilike: { displayName: 'A%' },
+    notIlike: { displayName: 'A%' },
+    isNull: ['id', 'displayName'],
+    isNotNull: ['id', 'displayName'],
+  };
+  const call = (operator: string, ...args: unknown[]) =>
+    Reflect.apply((conditions as unknown as Record<string, (...args: unknown[]) => SQL | undefined>)[operator], undefined, args);
+
+  for (const [base, values] of Object.entries(cases)) {
+    const operator = `or${base[0].toUpperCase()}${base.slice(1)}`;
+    const ordinary = call(base, user, values);
+    const expected = call(operator, user, values);
+    const generated = db.current().select().from(user).where(expected).toSQL();
+    if (Object.keys(values).length > 1) expect(generated.sql).toContain(' or ');
+    expect(generated.params).toEqual(
+      db.current().select().from(user).where(ordinary).toSQL().params,
+    );
+    const grouped = conditions.and(user, { [operator]: values } as never);
+    expect(db.current().select().from(user).where(grouped).toSQL()).toEqual(generated);
+  }
+
+  expect(() => conditions.orBetween(user, { id: [1] } as never)).toThrow('two non-null bounds');
+  expect(() => conditions.orInArray(user, { id: '1' } as never)).toThrow('array or a SQL query');
+  expect(() => conditions.orIsNull(user, ['missing'] as never)).toThrow('unknown column');
+
+  const contacts = mysqlTable('or_contacts', {
+    first: varchar({ length: 50 }),
+    second: varchar({ length: 50 }),
+  });
+  const contactConditions = createConditions({ contacts });
+  for (const operator of ['orLike', 'orNotLike', 'orIlike', 'orNotIlike'] as const) {
+    const generated = db.current().select().from(contacts)
+      .where(contactConditions[operator](contacts, { first: 'A%', second: '%@example.com' }))
+      .toSQL();
+    expect(generated.sql).toContain(' or ');
+    expect(generated.params).toEqual(['A%', '%@example.com']);
+  }
+});
+
+test('서브쿼리 where 콜백에서도 OR 비교와 NULL 연산자를 제공한다', () => {
+  const subqueryTable = mysqlTable('or_subquery_users', {
+    id: int(),
+    name: varchar({ length: 50 }),
+  });
+  const subquery = db.query(subqueryTable).select(['id', 'name']).as('selected_user');
+  const comparison = db.query(subqueryTable)
+    .select(subquery)
+    .where((q) => q.orGt({ id: 1, name: 'A' }))
+    .toSQL();
+  expect(comparison.sql).toContain('`selected_user`.`id` > ?');
+  expect(comparison.sql).toContain(' or ');
+  expect(comparison.params).toEqual([1, 'A']);
+
+  const nullCheck = db.query(subqueryTable)
+    .select(subquery)
+    .where((q) => q.orIsNull(['id', 'name']))
+    .toSQL();
+  expect(nullCheck.sql).toContain(' or ');
 });
 
 test('join 콜백은 조인 컬럼 조건 헬퍼와 기준 테이블을 제공한다', () => {

@@ -168,6 +168,12 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
       like: { name: '%name%' },
     });
 
+    this.orEq({ id: 1, name: 'name' });
+    this.and({
+      eq: { email: 'email' },
+      orEq: { id: 1, name: 'name' },
+    });
+
     const oneRowBuilder = this.select(['id'])
       .where((q) => q.lt({ id: 1 }))
       .limit(1);

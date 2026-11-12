@@ -382,6 +382,12 @@ export class MySqlQuery<
           const conditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[
             operator
           ];
+        const orGroup = operator.startsWith('or') && operator !== 'or';
+        const baseOperator = orGroup ? operator[2].toLowerCase() + operator.slice(3) : operator;
+        const join = orGroup ? drizzleOr : drizzleAnd;
+        const baseConditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[
+          baseOperator
+        ];
           if (isTable(conditionTable)) {
             return Reflect.apply(conditionOperator, undefined, [conditionTable, input]) as SQL | undefined;
           }
@@ -397,15 +403,15 @@ export class MySqlQuery<
             return operator === 'and' ? drizzleAnd(...conditions) : drizzleOr(...conditions);
           }
 
-          if (operator === 'isNull' || operator === 'isNotNull') {
+          if (baseOperator === 'isNull' || baseOperator === 'isNotNull') {
             const names = typeof input === 'string' ? [input] : Array.isArray(input) ? input : [];
             if (names.length === 0 && input !== undefined) throw new Error(`${operator}: expected column names.`);
-            return drizzleAnd(
+            return join(
               ...names.map((name) => {
                 if (typeof name !== 'string' || columns[name] === undefined) {
                   throw new Error(`Condition: unknown column "${String(name)}".`);
                 }
-                return Reflect.apply(conditionOperator, undefined, [columns[name]]) as SQL;
+                return Reflect.apply(baseConditionOperator, undefined, [columns[name]]) as SQL;
               })
             );
           }
@@ -413,23 +419,30 @@ export class MySqlQuery<
           if (typeof input !== 'object' || input === null || Array.isArray(input)) {
             throw new Error(`${operator}: expected a column/value object.`);
           }
-          return drizzleAnd(
-            ...Object.entries(input).map(([name, value]) => {
+          const conditions = Object.entries(input)
+            .filter(([, value]) => value !== undefined)
+            .map(([name, value]) => {
               const column = columns[name];
               if (column === undefined) throw new Error(`Condition: unknown column "${name}".`);
-              if (operator === 'between' || operator === 'notBetween') {
-                if (!Array.isArray(value) || value.length !== 2) throw new Error(`${operator}: expected two bounds.`);
-                return Reflect.apply(conditionOperator, undefined, [column, value[0], value[1]]) as SQL;
+              if (value === null && (baseOperator === 'eq' || baseOperator === 'ne')) {
+                const nullOperator = this.drizzle[baseOperator === 'eq' ? 'isNull' : 'isNotNull'];
+                return Reflect.apply(nullOperator, undefined, [column]);
               }
-              return Reflect.apply(conditionOperator, undefined, [column, value]) as SQL;
-            })
-          );
+              if (baseOperator === 'between' || baseOperator === 'notBetween') {
+                if (!Array.isArray(value) || value.length !== 2) throw new Error(`${operator}: expected two bounds.`);
+                return Reflect.apply(baseConditionOperator, undefined, [column, value[0], value[1]]) as SQL;
+              }
+              return Reflect.apply(baseConditionOperator, undefined, [column, value]);
+            });
+          return join(...(conditions as SQL[]));
         };
       const conditionQuery = (conditionTable: MySqlTable | Subquery, contextTable: MySqlTable | Subquery) =>
         ({
           t: contextTable,
           eq: bindCondition('eq', conditionTable),
           ne: bindCondition('ne', conditionTable),
+          orEq: bindCondition('orEq', conditionTable),
+          orNe: bindCondition('orNe', conditionTable),
           gt: bindCondition('gt', conditionTable),
           gte: bindCondition('gte', conditionTable),
           lt: bindCondition('lt', conditionTable),
@@ -444,6 +457,20 @@ export class MySqlQuery<
           notIlike: bindCondition('notIlike', conditionTable),
           isNull: bindCondition('isNull', conditionTable),
           isNotNull: bindCondition('isNotNull', conditionTable),
+          orGt: bindCondition('orGt', conditionTable),
+          orGte: bindCondition('orGte', conditionTable),
+          orLt: bindCondition('orLt', conditionTable),
+          orLte: bindCondition('orLte', conditionTable),
+          orInArray: bindCondition('orInArray', conditionTable),
+          orNotInArray: bindCondition('orNotInArray', conditionTable),
+          orBetween: bindCondition('orBetween', conditionTable),
+          orNotBetween: bindCondition('orNotBetween', conditionTable),
+          orLike: bindCondition('orLike', conditionTable),
+          orNotLike: bindCondition('orNotLike', conditionTable),
+          orIlike: bindCondition('orIlike', conditionTable),
+          orNotIlike: bindCondition('orNotIlike', conditionTable),
+          orIsNull: bindCondition('orIsNull', conditionTable),
+          orIsNotNull: bindCondition('orIsNotNull', conditionTable),
           and: bindCondition('and', conditionTable),
           or: bindCondition('or', conditionTable),
         }) as unknown as SelectConditionQuery<MySqlTable>;
@@ -1040,6 +1067,70 @@ export class MySqlQuery<
     return this.drizzle.eq(this.t, tableOrValues);
   }
 
+  orEq(values: MySqlCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orEq(this.t, values);
+  }
+
+  orNe(values: MySqlCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orNe(this.t, values);
+  }
+
+  orGt(values: MySqlCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orGt(this.t, values);
+  }
+
+  orGte(values: MySqlCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orGte(this.t, values);
+  }
+
+  orLt(values: MySqlCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orLt(this.t, values);
+  }
+
+  orLte(values: MySqlCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orLte(this.t, values);
+  }
+
+  orInArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orInArray(this.t, values);
+  }
+
+  orNotInArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orNotInArray(this.t, values);
+  }
+
+  orBetween(values: MySqlRangeCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orBetween(this.t, values);
+  }
+
+  orNotBetween(values: MySqlRangeCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orNotBetween(this.t, values);
+  }
+
+  orLike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orLike(this.t, values);
+  }
+
+  orNotLike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orNotLike(this.t, values);
+  }
+
+  orIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orIlike(this.t, values);
+  }
+
+  orNotIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orNotIlike(this.t, values);
+  }
+
+  orIsNull(names: MySqlNullConditionInput<TTable>): SQL | undefined {
+    return this.drizzle.orIsNull(this.t, names);
+  }
+
+  orIsNotNull(names: MySqlNullConditionInput<TTable>): SQL | undefined {
+    return this.drizzle.orIsNotNull(this.t, names);
+  }
+
   /********************************************************************************************************************
    * ne
    * ******************************************************************************************************************/
@@ -1258,6 +1349,22 @@ type WhereQuery<TQuery> = Pick<
     | 't'
     | 'eq'
     | 'ne'
+    | 'orEq'
+    | 'orNe'
+    | 'orGt'
+    | 'orGte'
+    | 'orLt'
+    | 'orLte'
+    | 'orInArray'
+    | 'orNotInArray'
+    | 'orBetween'
+    | 'orNotBetween'
+    | 'orLike'
+    | 'orNotLike'
+    | 'orIlike'
+    | 'orNotIlike'
+    | 'orIsNull'
+    | 'orIsNotNull'
     | 'gt'
     | 'gte'
     | 'lt'
@@ -1281,7 +1388,7 @@ type SelectConditionQuery<TSource extends MySqlTable | Subquery> = TSource exten
   : TSource extends Subquery
     ? SubqueryConditionQuery<TSource>
     : never;
-type TableConditionQuery<TTable extends MySqlTable> = {
+type BaseTableConditionQuery<TTable extends MySqlTable> = {
   readonly t: TTable;
   eq(values: MySqlCompareValues<TTable>): SQL | undefined;
   ne(values: MySqlCompareValues<TTable>): SQL | undefined;
@@ -1301,6 +1408,10 @@ type TableConditionQuery<TTable extends MySqlTable> = {
   isNotNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
   and(options: MySqlConditions<TTable>): SQL | undefined;
   or(options: MySqlConditions<TTable>): SQL | undefined;
+};
+type TableConditionQuery<TTable extends MySqlTable> = BaseTableConditionQuery<TTable> & {
+  [K in keyof Omit<BaseTableConditionQuery<TTable>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`]:
+    BaseTableConditionQuery<TTable>[K];
 };
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 
@@ -1438,7 +1549,7 @@ type SubqueryPatternValues<T extends Subquery> = {
       : never
   ]?: string;
 };
-type SubqueryConditionQuery<T extends Subquery> = {
+type BaseSubqueryConditionQuery<T extends Subquery> = {
   readonly t: T;
 } & {
   [K in 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte']: (values: SubqueryValues<T>) => SQL | undefined;
@@ -1453,6 +1564,10 @@ type SubqueryConditionQuery<T extends Subquery> = {
   isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
   and(values: SubqueryConditions<T>): SQL | undefined;
   or(values: SubqueryConditions<T>): SQL | undefined;
+};
+type SubqueryConditionQuery<T extends Subquery> = BaseSubqueryConditionQuery<T> & {
+  [K in keyof Omit<BaseSubqueryConditionQuery<T>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`]:
+    BaseSubqueryConditionQuery<T>[K];
 };
 type SubqueryConditions<T extends Subquery> = {
   [K in keyof Omit<SubqueryConditionQuery<T>, 't'>]?: SubqueryConditionQuery<T>[K] extends (values: infer V) => unknown

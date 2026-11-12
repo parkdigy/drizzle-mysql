@@ -331,6 +331,20 @@ const groupedCondition = db.and(users, {
 const groupedUsers = await user.select().where(groupedCondition);
 ```
 
+`or` 접두사 조건은 객체 안의 컬럼 비교를 `OR`로 결합합니다. 기존 조건과 마찬가지로 `undefined` 값은 생략하고, 빈 객체나 빈 컬럼 배열은 `undefined`를 반환합니다. `orEq`와 `orNe`의 `null` 값은 각각 `IS NULL`과 `IS NOT NULL`로 변환됩니다.
+
+```ts
+user.orEq({ id: 1, name: '홍길동' });
+user.orNe({ id: 1, name: '홍길동' });
+const u = db.a.users('u');
+db.orEq(u, { id: 1, name: '홍길동' });
+db.orNe('users', { id: 1, name: '홍길동' });
+user.select().where((q) => q.orLike({ name: '%홍%', email: '%example.com' }));
+user.and({ orEq: { id: 1, name: '홍길동' }, gt: { age: 20 } });
+```
+
+지원하는 OR 조건은 `orEq`, `orNe`, `orGt`, `orGte`, `orLt`, `orLte`, `orInArray`, `orNotInArray`, `orBetween`, `orNotBetween`, `orLike`, `orNotLike`, `orIlike`, `orNotIlike`, `orIsNull`, `orIsNotNull`입니다. 각 함수는 대응하는 일반 조건과 같은 입력 및 검증 규칙을 사용하며, `orBetween`은 각 컬럼의 두 경계 비교를 `AND`로 유지한 채 컬럼 그룹 사이를 `OR`로 결합합니다. `and`와 `or` 조건 객체 안에서도 사용할 수 있습니다.
+
 #### Drizzle 컬럼 연산자와 함께 사용
 
 `db`의 조건 함수는 테이블/객체 형식 외에도 Drizzle의 컬럼 기반 연산자 오버로드를 그대로 사용할 수 있습니다. `SQL` 조건은 래퍼 조회 메서드에 전달하거나 Drizzle 조회 빌더에서 조합할 수 있습니다.
@@ -345,7 +359,7 @@ const rows = await user.select().where(columnCondition);
 const count = await user.count(columnCondition);
 ```
 
-지원하는 객체 조건 함수는 `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `inArray`, `notInArray`, `between`, `notBetween`, `like`, `notLike`, `ilike`, `notIlike`, `isNull`, `isNotNull`, `and`, `or`입니다. 존재하지 않는 스키마 키나 컬럼, 잘못된 값 형식은 조건을 조용히 생략하지 않고 오류로 처리합니다.
+지원하는 객체 조건 함수는 `eq`, `ne`, `orEq`, `orNe`, `gt`, `gte`, `lt`, `lte`, `inArray`, `notInArray`, `between`, `notBetween`, `like`, `notLike`, `ilike`, `notIlike`, `isNull`, `isNotNull`, `orGt`, `orGte`, `orLt`, `orLte`, `orInArray`, `orNotInArray`, `orBetween`, `orNotBetween`, `orLike`, `orNotLike`, `orIlike`, `orNotIlike`, `orIsNull`, `orIsNotNull`, `and`, `or`입니다. 존재하지 않는 스키마 키나 컬럼, 잘못된 값 형식은 조건을 조용히 생략하지 않고 오류로 처리합니다.
 
 ### 별칭과 조인
 

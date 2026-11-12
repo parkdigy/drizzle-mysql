@@ -94,10 +94,10 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
             return Reflect.apply(original, undefined, args);
         };
     }
-    const objectOperator = (operator) => (table, values) => native.and(...valueConditions(resolveTable(table), values, operator));
+    const objectOperator = (operator, join = 'and') => (table, values) => native[join](...valueConditions(resolveTable(table), values, operator));
     // Tables use object dispatch at runtime, not the native SQLWrapper/unknown overload.
     const binaryOperator = (operator) => extendOperator(native[operator], objectOperator(operator));
-    const nullOperator = (operator) => ((table, input) => {
+    const nullOperator = (operator, join = 'and') => ((table, input) => {
         const names = typeof input === 'string' ? [input] : input === undefined ? [] : input;
         if (!Array.isArray(names))
             throw new Error(`${operator}: expected column names.`);
@@ -109,7 +109,7 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
                 throw new Error(`${operator}: expected a column name.`);
             conditions.push(native[operator](getColumn(resolveTable(table), name)));
         }
-        return native.and(...conditions);
+        return native[join](...conditions);
     });
     const groupOperator = (operator) => (input, options) => {
         const table = resolveTable(input);
@@ -120,16 +120,9 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
             }
             if (values === undefined)
                 continue;
-            if (name === 'isNull' || name === 'isNotNull') {
-                const condition = nullOperator(name)(table, values);
-                if (condition !== undefined)
-                    sqlConditions.push(condition);
-            }
-            else {
-                const group = native.and(...valueConditions(table, values, name));
-                if (group !== undefined)
-                    sqlConditions.push(group);
-            }
+            const condition = Reflect.apply(conditions[name], undefined, [table, values]);
+            if (condition !== undefined)
+                sqlConditions.push(condition);
         }
         return native[operator](...sqlConditions);
     };
@@ -137,6 +130,8 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
     const conditions = {
         eq: binaryOperator('eq'),
         ne: binaryOperator('ne'),
+        orEq: objectOperator('eq', 'or'),
+        orNe: objectOperator('ne', 'or'),
         gt: binaryOperator('gt'),
         gte: binaryOperator('gte'),
         lt: binaryOperator('lt'),
@@ -151,6 +146,20 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
         notIlike: extendOperator(native.notIlike, objectOperator('notIlike')),
         isNull: extendOperator(native.isNull, nullOperator('isNull')),
         isNotNull: extendOperator(native.isNotNull, nullOperator('isNotNull')),
+        orGt: objectOperator('gt', 'or'),
+        orGte: objectOperator('gte', 'or'),
+        orLt: objectOperator('lt', 'or'),
+        orLte: objectOperator('lte', 'or'),
+        orInArray: objectOperator('inArray', 'or'),
+        orNotInArray: objectOperator('notInArray', 'or'),
+        orBetween: objectOperator('between', 'or'),
+        orNotBetween: objectOperator('notBetween', 'or'),
+        orLike: objectOperator('like', 'or'),
+        orNotLike: objectOperator('notLike', 'or'),
+        orIlike: objectOperator('ilike', 'or'),
+        orNotIlike: objectOperator('notIlike', 'or'),
+        orIsNull: nullOperator('isNull', 'or'),
+        orIsNotNull: nullOperator('isNotNull', 'or'),
         and: logicalOperator('and'),
         or: logicalOperator('or'),
     };
@@ -363,6 +372,10 @@ class MySqlQuery {
             const originalOrderBy = typeof orderBy === 'function' ? orderBy.bind(query) : undefined;
             const bindCondition = (operator, conditionTable = table) => (input) => {
                 const conditionOperator = this.drizzle[operator];
+                const orGroup = operator.startsWith('or') && operator !== 'or';
+                const baseOperator = orGroup ? operator[2].toLowerCase() + operator.slice(3) : operator;
+                const join = orGroup ? or : and;
+                const baseConditionOperator = this.drizzle[baseOperator];
                 if (isTable(conditionTable)) {
                     return Reflect.apply(conditionOperator, undefined, [conditionTable, input]);
                 }
@@ -374,36 +387,45 @@ class MySqlQuery {
                     const conditions = Object.entries(input).map(([nestedOperator, values]) => bindCondition(nestedOperator, conditionTable)(values));
                     return operator === 'and' ? and(...conditions) : or(...conditions);
                 }
-                if (operator === 'isNull' || operator === 'isNotNull') {
+                if (baseOperator === 'isNull' || baseOperator === 'isNotNull') {
                     const names = typeof input === 'string' ? [input] : Array.isArray(input) ? input : [];
                     if (names.length === 0 && input !== undefined)
                         throw new Error(`${operator}: expected column names.`);
-                    return and(...names.map((name) => {
+                    return join(...names.map((name) => {
                         if (typeof name !== 'string' || columns[name] === undefined) {
                             throw new Error(`Condition: unknown column "${String(name)}".`);
                         }
-                        return Reflect.apply(conditionOperator, undefined, [columns[name]]);
+                        return Reflect.apply(baseConditionOperator, undefined, [columns[name]]);
                     }));
                 }
                 if (typeof input !== 'object' || input === null || Array.isArray(input)) {
                     throw new Error(`${operator}: expected a column/value object.`);
                 }
-                return and(...Object.entries(input).map(([name, value]) => {
+                const conditions = Object.entries(input)
+                    .filter(([, value]) => value !== undefined)
+                    .map(([name, value]) => {
                     const column = columns[name];
                     if (column === undefined)
                         throw new Error(`Condition: unknown column "${name}".`);
-                    if (operator === 'between' || operator === 'notBetween') {
+                    if (value === null && (baseOperator === 'eq' || baseOperator === 'ne')) {
+                        const nullOperator = this.drizzle[baseOperator === 'eq' ? 'isNull' : 'isNotNull'];
+                        return Reflect.apply(nullOperator, undefined, [column]);
+                    }
+                    if (baseOperator === 'between' || baseOperator === 'notBetween') {
                         if (!Array.isArray(value) || value.length !== 2)
                             throw new Error(`${operator}: expected two bounds.`);
-                        return Reflect.apply(conditionOperator, undefined, [column, value[0], value[1]]);
+                        return Reflect.apply(baseConditionOperator, undefined, [column, value[0], value[1]]);
                     }
-                    return Reflect.apply(conditionOperator, undefined, [column, value]);
-                }));
+                    return Reflect.apply(baseConditionOperator, undefined, [column, value]);
+                });
+                return join(...conditions);
             };
             const conditionQuery = (conditionTable, contextTable) => ({
                 t: contextTable,
                 eq: bindCondition('eq', conditionTable),
                 ne: bindCondition('ne', conditionTable),
+                orEq: bindCondition('orEq', conditionTable),
+                orNe: bindCondition('orNe', conditionTable),
                 gt: bindCondition('gt', conditionTable),
                 gte: bindCondition('gte', conditionTable),
                 lt: bindCondition('lt', conditionTable),
@@ -418,6 +440,20 @@ class MySqlQuery {
                 notIlike: bindCondition('notIlike', conditionTable),
                 isNull: bindCondition('isNull', conditionTable),
                 isNotNull: bindCondition('isNotNull', conditionTable),
+                orGt: bindCondition('orGt', conditionTable),
+                orGte: bindCondition('orGte', conditionTable),
+                orLt: bindCondition('orLt', conditionTable),
+                orLte: bindCondition('orLte', conditionTable),
+                orInArray: bindCondition('orInArray', conditionTable),
+                orNotInArray: bindCondition('orNotInArray', conditionTable),
+                orBetween: bindCondition('orBetween', conditionTable),
+                orNotBetween: bindCondition('orNotBetween', conditionTable),
+                orLike: bindCondition('orLike', conditionTable),
+                orNotLike: bindCondition('orNotLike', conditionTable),
+                orIlike: bindCondition('orIlike', conditionTable),
+                orNotIlike: bindCondition('orNotIlike', conditionTable),
+                orIsNull: bindCondition('orIsNull', conditionTable),
+                orIsNotNull: bindCondition('orIsNotNull', conditionTable),
                 and: bindCondition('and', conditionTable),
                 or: bindCondition('or', conditionTable),
             });
@@ -758,6 +794,54 @@ class MySqlQuery {
             return eq(this.resolveConditionColumn(nameOrValue, tableOrValues), value);
         }
         return this.drizzle.eq(this.t, tableOrValues);
+    }
+    orEq(values) {
+        return this.drizzle.orEq(this.t, values);
+    }
+    orNe(values) {
+        return this.drizzle.orNe(this.t, values);
+    }
+    orGt(values) {
+        return this.drizzle.orGt(this.t, values);
+    }
+    orGte(values) {
+        return this.drizzle.orGte(this.t, values);
+    }
+    orLt(values) {
+        return this.drizzle.orLt(this.t, values);
+    }
+    orLte(values) {
+        return this.drizzle.orLte(this.t, values);
+    }
+    orInArray(values) {
+        return this.drizzle.orInArray(this.t, values);
+    }
+    orNotInArray(values) {
+        return this.drizzle.orNotInArray(this.t, values);
+    }
+    orBetween(values) {
+        return this.drizzle.orBetween(this.t, values);
+    }
+    orNotBetween(values) {
+        return this.drizzle.orNotBetween(this.t, values);
+    }
+    orLike(values) {
+        return this.drizzle.orLike(this.t, values);
+    }
+    orNotLike(values) {
+        return this.drizzle.orNotLike(this.t, values);
+    }
+    orIlike(values) {
+        return this.drizzle.orIlike(this.t, values);
+    }
+    orNotIlike(values) {
+        return this.drizzle.orNotIlike(this.t, values);
+    }
+    orIsNull(names) {
+        return this.drizzle.orIsNull(this.t, names);
+    }
+    orIsNotNull(names) {
+        return this.drizzle.orIsNotNull(this.t, names);
     }
     /********************************************************************************************************************
      * ne
