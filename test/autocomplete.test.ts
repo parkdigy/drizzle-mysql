@@ -86,6 +86,8 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     // @ts-expect-error 자동완성용 미완성 조건 키
     query.find({ idLabel: 'id', nameLabel: 'name' }, q => q.eq({ i/*findCondition*/ }));
     query.find({ idLabel: 'id' }, q => q.eq('id', 1));
+    // @ts-expect-error edit의 자동완성용 미완성 조건 키
+    query.edit({ name: 'Ada' }, q => q.eq({ i/*editCondition*/ }));
     const foundByKey = query.findByPrimaryKey({ renamed: 'id' }, 1);
     type Row = Awaited<typeof selected>[number];
     const row: Row = { renamed: 1 };
@@ -150,6 +152,7 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
       queryEq: ['id'],
       namedCondition: ['id', 'name'],
       findCondition: ['id'],
+      editCondition: ['id'],
     })) {
       const entries = service.getCompletionsAtPosition(file, positions[name], {})?.entries.map((entry) => entry.name);
       expect({ name, entries }).toEqual({ name, entries: expect.arrayContaining(expected) });

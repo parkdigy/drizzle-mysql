@@ -107,21 +107,21 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     /********************************************************************************************************************
      * find
      * ******************************************************************************************************************/
-    find(where: BaseWhere<this>): Promise<FindResult<TTable, undefined>>;
-    find(fields: readonly [], where?: BaseWhere<this>): Promise<FindResult<TTable, {}>>;
-    find<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[], where?: BaseWhere<this>): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
-    find<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T, where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<T>>>;
-    find<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(fields: T, where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
+    find(where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, undefined>>;
+    find(fields: readonly [], where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, {}>>;
+    find<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[], where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
+    find<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T, where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, MergeFields<T>>>;
+    find<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(fields: T, where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
     find<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, where: (query: WhereQuery<MySqlQuery<TTable, AV, EV, AR>>) => SQL | undefined): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
-    find<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, where?: BaseWhere<this>): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
+    find<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
     find<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, where: (query: WhereQuery<MySqlQuery<TTable, AV, EV, AR>>) => SQL | undefined): Promise<FindResult<TTable, TSelection>>;
-    find<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, where?: BaseWhere<this>): Promise<FindResult<TTable, TSelection>>;
-    find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, undefined>>;
-    find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly [], where?: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, {}>>;
-    find<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly N[], where?: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>>>;
-    find<TAlias extends string, const T extends readonly FieldInput[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>>;
-    find<TAlias extends string, const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>>;
-    find<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, TSelection>>;
+    find<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, TSelection>>;
+    find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, undefined>>;
+    find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly [], where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, {}>>;
+    find<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly N[], where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MySqlSelectedNamedColumns<MySqlAliasTable<TTable, TAlias>, readonly N[]>>>;
+    find<TAlias extends string, const T extends readonly FieldInput[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T, where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>>;
+    find<TAlias extends string, const T extends readonly (FieldInput | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[]>(alias: MySqlAliasTable<TTable, TAlias>, fields: T, where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>>;
+    find<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(alias: MySqlAliasTable<TTable, TAlias>, fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>, where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, TSelection>>;
     /********************************************************************************************************************
      * findByPrimaryKey
      * ******************************************************************************************************************/
@@ -139,7 +139,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     /********************************************************************************************************************
      * exists
      * ******************************************************************************************************************/
-    exists(where?: BaseWhere<this>): Promise<boolean>;
+    exists(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<boolean>;
     /********************************************************************************************************************
      * existsByPrimarykey
      * ******************************************************************************************************************/
@@ -147,7 +147,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     /********************************************************************************************************************
      * notExists
      * ******************************************************************************************************************/
-    notExists(where?: BaseWhere<this>): Promise<boolean>;
+    notExists(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<boolean>;
     /********************************************************************************************************************
      * notExistsByPrimaryKey
      * ******************************************************************************************************************/
@@ -155,7 +155,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     /********************************************************************************************************************
      * count
      * ******************************************************************************************************************/
-    count(where?: BaseWhere<this>): Promise<number>;
+    count(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<number>;
     private prepareValues;
     /********************************************************************************************************************
      * (PRIVATE) executeInsert
@@ -182,7 +182,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
      * ******************************************************************************************************************/
     edit(this: this & (TableMutationPolicy<TTable> extends {
         updateBlocked: true;
-    } ? never : unknown), set: EV, where: BaseWhere<this>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
+    } ? never : unknown), set: EV, where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncUpdateBase<import("drizzle-orm").Assume<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
     /********************************************************************************************************************
      * editByPrimaryKey
      * ******************************************************************************************************************/
@@ -194,7 +194,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
      * ******************************************************************************************************************/
     remove(this: this & (TableMutationPolicy<TTable> extends {
         deleteBlocked: true;
-    } ? never : unknown), where: BaseWhere<this>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncDeleteBase<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
+    } ? never : unknown), where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncDeleteBase<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
     /********************************************************************************************************************
      * removeByPrimaryKey
      * ******************************************************************************************************************/

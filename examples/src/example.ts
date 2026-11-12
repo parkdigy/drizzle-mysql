@@ -355,6 +355,8 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
    * ******************************************************************************************************************/
   async editTest() {
     await this.edit({ is_lock: true }, this.eq({ id: 1 }));
+
+    console.log(await this.edit({ is_lock: true }, (q) => q.eq({ id: 1 })));
   }
 
   /********************************************************************************************************************

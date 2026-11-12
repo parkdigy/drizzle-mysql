@@ -607,23 +607,23 @@ export class MySqlQuery<
    * find
    * ******************************************************************************************************************/
 
-  async find(where: BaseWhere<this>): Promise<FindResult<TTable, undefined>>;
+  async find(where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, undefined>>;
 
-  async find(fields: readonly [], where?: BaseWhere<this>): Promise<FindResult<TTable, {}>>;
+  async find(fields: readonly [], where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, {}>>;
 
   async find<N extends MySqlColumnSelectionName<TTable>>(
     fields: readonly N[],
-    where?: BaseWhere<this>
+    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
 
   async find<const T extends readonly FieldInput[]>(
     fields: (query: FieldsQuery<TTable>) => T,
-    where: BaseWhere<this>
+    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<TTable, MergeFields<T>>>;
 
   async find<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(
     fields: T,
-    where: BaseWhere<this>
+    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
 
   async find<const TSelection extends StringColumnSelection<TTable>>(
@@ -633,7 +633,7 @@ export class MySqlQuery<
 
   async find<const TSelection extends StringColumnSelection<TTable>>(
     fields: TSelection,
-    where?: BaseWhere<this>
+    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
 
   async find<TSelection extends SelectedFields<MySqlColumn, TTable>>(
@@ -643,24 +643,24 @@ export class MySqlQuery<
 
   async find<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields: Fields<FieldsQuery<TTable>, TSelection>,
-    where?: BaseWhere<this>
+    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<TTable, TSelection>>;
 
   async find<TAlias extends string>(
     alias: MySqlAliasTable<TTable, TAlias>,
-    where: BaseWhere<this>
+    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, undefined>>;
 
   async find<TAlias extends string>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: readonly [],
-    where?: BaseWhere<this>
+    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, {}>>;
 
   async find<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: readonly N[],
-    where?: BaseWhere<this>
+    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<
     FindResult<
       MySqlAliasTable<TTable, TAlias>,
@@ -671,7 +671,7 @@ export class MySqlQuery<
   async find<TAlias extends string, const T extends readonly FieldInput[]>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T,
-    where: BaseWhere<this>
+    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>>;
 
   async find<
@@ -680,21 +680,21 @@ export class MySqlQuery<
   >(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: T,
-    where: BaseWhere<this>
+    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>>;
 
   async find<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>,
-    where: BaseWhere<this>
+    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, TSelection>>;
 
-  async find(aliasOrFieldsOrWhere: unknown, fieldsOrWhere?: unknown, where?: BaseWhere<this>): Promise<unknown> {
+  async find(aliasOrFieldsOrWhere: unknown, fieldsOrWhere?: unknown, where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<unknown> {
     const hasAlias = isTable(aliasOrFieldsOrWhere);
     const fieldsOrCondition = hasAlias ? fieldsOrWhere : aliasOrFieldsOrWhere;
     const hasFields = arguments.length === (hasAlias ? 3 : 2);
 
-    const isCondition = (value: unknown): value is BaseWhere<this> => is(value, SQL) || typeof value === 'function';
+    const isCondition = (value: unknown): value is BaseWhere<MySqlQuery<TTable, AV, EV, AR>> => is(value, SQL) || typeof value === 'function';
 
     const table = hasAlias ? (aliasOrFieldsOrWhere as MySqlTable) : this.t;
     const selectedFields = this.resolveFields(
@@ -850,7 +850,7 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * exists
    * ******************************************************************************************************************/
-  async exists(where?: BaseWhere<this>): Promise<boolean> {
+  async exists(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<boolean> {
     const condition = typeof where === 'function' ? where(this) : where;
 
     if (condition !== undefined && !is(condition, SQL)) {
@@ -876,7 +876,7 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * notExists
    * ******************************************************************************************************************/
-  async notExists(where?: BaseWhere<this>): Promise<boolean> {
+  async notExists(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<boolean> {
     return !(await this.exists(where));
   }
 
@@ -890,7 +890,7 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * count
    * ******************************************************************************************************************/
-  async count(where?: BaseWhere<this>): Promise<number> {
+  async count(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<number> {
     const condition = typeof where === 'function' ? where(this) : where;
 
     if (condition !== undefined && !is(condition, SQL)) {
@@ -1062,7 +1062,7 @@ export class MySqlQuery<
   edit(
     this: this & (TableMutationPolicy<TTable> extends { updateBlocked: true } ? never : unknown),
     set: EV,
-    where: BaseWhere<this>
+    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ) {
     this.assertMutationAllowed('update', 'edit');
     const condition = typeof where === 'function' ? where(this) : where;
@@ -1096,7 +1096,7 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   remove(
     this: this & (TableMutationPolicy<TTable> extends { deleteBlocked: true } ? never : unknown),
-    where: BaseWhere<this>
+    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
   ) {
     this.assertMutationAllowed('delete', 'remove');
     const condition = typeof where === 'function' ? where(this) : where;
