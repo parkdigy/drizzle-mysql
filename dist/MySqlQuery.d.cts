@@ -22,6 +22,10 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     constructor(table: TTable, current: (() => MySql2Database) & {
         getTimestamp?: () => unknown;
     }, getTimestamp?: (() => unknown) | undefined);
+    /********************************************************************************************************************
+     * alias
+     * ******************************************************************************************************************/
+    alias<TAlias extends string>(name: TAlias): MySqlAliasTable<TTable, TAlias>;
     private readonly drizzle;
     /********************************************************************************************************************
      * (PROTECTED) getTx
@@ -45,13 +49,18 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     /********************************************************************************************************************
      * asc
      * ******************************************************************************************************************/
-    asc(name: MySqlColumnName<TTable>): SQL;
-    asc<TAlias extends string>(table: MySqlAliasTable<TTable, TAlias>, name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>): SQL;
+    asc<N extends MySqlColumnName<TTable>>(name: N): SQL;
+    asc<N extends MySqlColumnName<TTable>>(first: N, second: N, ...names: N[]): SQL[];
+    asc<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(table: MySqlAliasTable<TTable, TAlias>, name: N): SQL;
+    asc<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(table: MySqlAliasTable<TTable, TAlias>, first: N, second: N, ...names: N[]): SQL[];
     /********************************************************************************************************************
      * desc
      * ******************************************************************************************************************/
-    desc(name: MySqlColumnName<TTable>): SQL;
-    desc<TAlias extends string>(table: MySqlAliasTable<TTable, TAlias>, name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>): SQL;
+    desc<N extends MySqlColumnName<TTable>>(name: N): SQL;
+    desc<N extends MySqlColumnName<TTable>>(first: N, second: N, ...names: N[]): SQL[];
+    desc<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(table: MySqlAliasTable<TTable, TAlias>, name: N): SQL;
+    desc<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(table: MySqlAliasTable<TTable, TAlias>, first: N, second: N, ...names: N[]): SQL[];
+    private orderByColumns;
     private resolveFields;
     /********************************************************************************************************************
      * select
@@ -290,17 +299,18 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
 type SelectQueryBase<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<GetSelectTableName<TTable>, TSelection extends undefined ? SourceSelection<TTable> : AliasedSelection<NonNullable<TSelection>>, 'partial'>;
 type TableWhere<TTable extends MySqlTable | Subquery> = SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
 type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
+type OrderByInput = OrderByValue | readonly OrderByValue[];
 type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
     readonly t: TTable;
-    asc(name: SourceColumnName<TTable>): SQL;
-    desc(name: SourceColumnName<TTable>): SQL;
+    asc(name: SourceColumnName<TTable>, ...names: SourceColumnName<TTable>[]): SQL | SQL[];
+    desc(name: SourceColumnName<TTable>, ...names: SourceColumnName<TTable>[]): SQL | SQL[];
 };
-type OrderByCallback<TTable extends MySqlTable | Subquery> = (query: SelectOrderByQuery<TTable>) => OrderByValue | OrderByValue[];
+type OrderByCallback<TTable extends MySqlTable | Subquery> = (query: SelectOrderByQuery<TTable>) => OrderByInput | OrderByInput[];
 type GroupByCallback<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = (aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => OrderByValue | OrderByValue[];
 type HavingCondition<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
 type OrderByPreserved<TQuery, TTable extends MySqlTable | Subquery> = Omit<TQuery, 'orderBy'> & {
     orderBy(builder: OrderByCallback<TTable>): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
-    orderBy(...columns: OrderByValue[]): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
+    orderBy(...columns: OrderByInput[]): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
 };
 type SelectSetOperatorMethod<TQuery extends {
     readonly _: {
@@ -317,7 +327,7 @@ type DynamicSelect<TQuery extends {
     groupBy(builder: (aliases: TQuery['_']['selection']) => OrderByValue | OrderByValue[]): DynamicSelect<TQuery, TTable>;
     groupBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
     orderBy(builder: OrderByCallback<TTable>): DynamicSelect<TQuery, TTable>;
-    orderBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
+    orderBy(...columns: OrderByInput[]): DynamicSelect<TQuery, TTable>;
     having(condition: SQL | undefined | ((aliases: TQuery['_']['selection']) => SQL | undefined)): DynamicSelect<TQuery, TTable>;
     limit(value: number | Placeholder): DynamicSelect<TQuery, TTable>;
     offset(value: number | Placeholder): DynamicSelect<TQuery, TTable>;
@@ -340,7 +350,7 @@ type JoinedSelect<TTable extends MySqlTable | Subquery, TSelection extends Field
     groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
     groupBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
     orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
-    orderBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+    orderBy(...columns: OrderByInput[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
     limit(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'limit'>;
     offset(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'offset'>;
 };
@@ -361,7 +371,7 @@ export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends 
     groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<SelectFrom<TTable, TSelection>, 'groupBy'>;
     groupBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'groupBy'>;
     orderBy(builder: OrderByCallback<TTable>): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
-    orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+    orderBy(...columns: OrderByInput[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
     limit(value: number | Placeholder): Omit<SelectFrom<TTable, TSelection>, 'limit'>;
     offset(value: number | Placeholder): Omit<SelectFrom<TTable, TSelection>, 'offset'>;
 };

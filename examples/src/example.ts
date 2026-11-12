@@ -66,8 +66,6 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
     console.log(
       await this.select(['id'])
         .orderBy((q) => q.desc('id'))
-        .offset(0)
-        .fetch(10)
         .groupBy((t) => [t.id])
         .orderBy((q) => q.desc('id'))
     );

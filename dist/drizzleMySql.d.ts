@@ -5,6 +5,7 @@ import * as native from 'drizzle-orm';
 import { type MySqlAliases } from './alias.js';
 import { type MySqlSchemaConditions } from './conditions.js';
 import { TableColumns } from './columns.js';
+import type { MySqlColumnName } from './@types/index.js';
 import { MySqlQuery, type SelectFrom, type SelectInput, type ResolveSelectInput, type SubquerySelectInput, type ResolveSubquerySelectInput } from './MySqlQuery.js';
 export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> {
     url: string;
@@ -30,7 +31,19 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
     select<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(source: TSource, ...args: TArgs): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
     query<TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable>;
 }
-type MySqlNativeHelpers = Pick<typeof native, 'asc' | 'desc' | 'count' | 'countDistinct' | 'avg' | 'avgDistinct' | 'sum' | 'sumDistinct' | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'>;
+type OrderByColumn = Parameters<typeof native.asc>[0];
+type AliasOrderByHelper = {
+    <TTable extends MySqlTable>(table: TTable, name: MySqlColumnName<TTable>): SQL;
+    <TTable extends MySqlTable>(table: TTable, first: MySqlColumnName<TTable>, second: MySqlColumnName<TTable>, ...rest: MySqlColumnName<TTable>[]): SQL[];
+};
+type MultiColumnOrderHelper = {
+    (column: OrderByColumn): SQL;
+    (first: OrderByColumn, second: OrderByColumn, ...rest: OrderByColumn[]): SQL[];
+} & AliasOrderByHelper;
+type MySqlNativeHelpers = Omit<Pick<typeof native, 'count' | 'countDistinct' | 'avg' | 'avgDistinct' | 'sum' | 'sumDistinct' | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'>, 'asc' | 'desc'> & {
+    asc: MultiColumnOrderHelper;
+    desc: MultiColumnOrderHelper;
+};
 export type DrizzleMySql<TSchema extends Record<string, MySqlTable>> = MySqlDatabaseHelpers<TSchema> & MySqlSchemaConditions<TSchema>;
 declare function createConnection<TSchema extends Record<string, MySqlTable>>(options: DrizzleMySqlOptions<TSchema>): {
     current: (() => (import("drizzle-orm/mysql2").MySql2Database<native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>> & {

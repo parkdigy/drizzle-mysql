@@ -243,6 +243,7 @@ test('서브쿼리 별칭의 컬럼을 columns 선택자로 고른다', () => {
 test('컬럼명과 별칭 테이블로 오름차순과 내림차순을 지정한다', () => {
   const query = db.query(user);
   const alias = db.a.user('u');
+  const queryAlias = query.alias('query_alias');
   const descending = query.select().orderBy(query.desc('id')).toSQL();
   const ascending = query.select().orderBy(query.asc('id')).toSQL();
   const callbackDescending = query.select(['id']).orderBy((q) => q.desc('id')).toSQL();
@@ -251,6 +252,13 @@ test('컬럼명과 별칭 테이블로 오름차순과 내림차순을 지정한
   const aliasDescending = query.select(alias).orderBy(query.desc(alias, 'id')).toSQL();
   const aliasAscending = query.select(alias).orderBy(query.asc(alias, 'id')).toSQL();
   const aliasCallback = query.select(alias, ['id']).orderBy((q) => q.desc('id')).toSQL();
+  const multiCallback = query.select(['id']).orderBy((q) => q.desc('id', 'displayName')).toSQL();
+  const multiArrayCallback = query.select(['id']).orderBy((q) => [q.asc('id', 'displayName'), q.desc('displayName')]).toSQL();
+  const multiQueryMethod = query.select().orderBy(...query.asc('id', 'displayName')).toSQL();
+  const multiDatabaseMethod = query.select().orderBy(db.asc(user.id, user.displayName)).toSQL();
+  const multiDatabaseAlias = query.select().orderBy(db.desc(alias, 'id', 'displayName')).toSQL();
+  const nestedOrderArray = query.select().orderBy([db.asc(user.id), db.desc(user.displayName)]).toSQL();
+  const queryAliasOrder = query.select(queryAlias).orderBy((q) => q.asc('id', 'displayName')).toSQL();
 
   expect(descending.sql).toMatch(/order by `users`\.`id` desc/i);
   expect(ascending.sql).toMatch(/order by `users`\.`id` asc/i);
@@ -260,7 +268,13 @@ test('컬럼명과 별칭 테이블로 오름차순과 내림차순을 지정한
   expect(aliasDescending.sql).toMatch(/order by `u`\.`id` desc/i);
   expect(aliasAscending.sql).toMatch(/order by `u`\.`id` asc/i);
   expect(aliasCallback.sql).toMatch(/order by `u`\.`id` desc/i);
+  for (const generated of [multiCallback, multiArrayCallback, multiQueryMethod, multiDatabaseMethod, multiDatabaseAlias, nestedOrderArray]) {
+    expect(generated.sql).toContain('order by');
+    expect(generated.sql).toContain('`display_name`');
+  }
+  expect(queryAliasOrder.sql).toContain('`query_alias`.`display_name` asc');
   expect(() => query.desc('missing' as never)).toThrow('orderBy: unknown column "missing".');
+  expect(() => db.asc(user, 'missing' as never)).toThrow('orderBy: unknown column "missing".');
 });
 
 test('select 빌더를 조건과 선택 필드의 서브쿼리로 사용한다', () => {

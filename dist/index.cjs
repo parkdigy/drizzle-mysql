@@ -282,6 +282,12 @@ class MySqlQuery {
         this.getTimestamp = getTimestamp;
         this.t = table;
     }
+    /********************************************************************************************************************
+     * alias
+     * ******************************************************************************************************************/
+    alias(name) {
+        return mysqlCore.alias(this.t, name);
+    }
     drizzle = { ...createConditions({}), sqlNumber: (value) => native.sql `${value}`.mapWith(Number) };
     /********************************************************************************************************************
      * (PROTECTED) getTx
@@ -322,15 +328,19 @@ class MySqlQuery {
             throw new Error(`Condition: unknown column "${name}".`);
         return columns[name];
     }
-    asc(tableOrName, name) {
-        const table = typeof tableOrName === 'string' ? this.t : tableOrName;
-        const columnName = typeof tableOrName === 'string' ? tableOrName : name;
-        return native.asc(this.resolveOrderColumn(columnName, table));
+    asc(tableOrName, name, ...names) {
+        const table = native.isTable(tableOrName) ? tableOrName : this.t;
+        const columns = native.isTable(tableOrName) ? [name, ...names] : [tableOrName, ...(name ? [name] : []), ...names];
+        return this.orderByColumns(native.asc, table, columns);
     }
-    desc(tableOrName, name) {
-        const table = typeof tableOrName === 'string' ? this.t : tableOrName;
-        const columnName = typeof tableOrName === 'string' ? tableOrName : name;
-        return native.desc(this.resolveOrderColumn(columnName, table));
+    desc(tableOrName, name, ...names) {
+        const table = native.isTable(tableOrName) ? tableOrName : this.t;
+        const columns = native.isTable(tableOrName) ? [name, ...names] : [tableOrName, ...(name ? [name] : []), ...names];
+        return this.orderByColumns(native.desc, table, columns);
+    }
+    orderByColumns(direction, table, names) {
+        const orders = names.map((name) => direction(this.resolveOrderColumn(name, table)));
+        return orders.length === 1 ? orders[0] : orders;
     }
     resolveFields(fields, table = this.t) {
         if (Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === 'string')) {
@@ -458,10 +468,11 @@ class MySqlQuery {
                 or: bindCondition('or', conditionTable),
             });
             const whereQuery = conditionQuery(table, table);
+            const orderByColumns = (direction, name, ...names) => this.orderByColumns(direction, table, [name, ...names]);
             const orderByQuery = {
                 t: table,
-                asc: (name) => native.asc(this.resolveOrderColumn(name, table)),
-                desc: (name) => native.desc(this.resolveOrderColumn(name, table)),
+                asc: (name, ...names) => orderByColumns(native.asc, name, ...names),
+                desc: (name, ...names) => orderByColumns(native.desc, name, ...names),
             };
             const enhancements = {
                 where: (condition) => enhance(originalWhere(typeof condition === 'function'
@@ -469,9 +480,27 @@ class MySqlQuery {
                     : condition)),
             };
             if (originalOrderBy) {
-                enhancements.orderBy = (...args) => enhance(typeof args[0] === 'function'
-                    ? originalOrderBy(() => args[0](orderByQuery))
-                    : originalOrderBy(...args));
+                enhancements.orderBy = (...args) => {
+                    if (typeof args[0] === 'function') {
+                        const result = args[0](orderByQuery);
+                        const columns = Array.isArray(result) ? result.flat(Infinity) : [result];
+                        return enhance(originalOrderBy(...columns));
+                    }
+                    return enhance(originalOrderBy(...args.flat(Infinity)));
+                };
+            }
+            for (const setOperator of ['union', 'unionAll', 'intersect', 'except']) {
+                const operation = query[setOperator];
+                if (typeof operation !== 'function')
+                    continue;
+                enhancements[setOperator] = (...args) => {
+                    const result = Reflect.apply(operation, query, args);
+                    return result === query ? query : enhance(result);
+                };
+            }
+            const crossJoin = query.crossJoin;
+            if (typeof crossJoin === 'function') {
+                enhancements.crossJoin = (joinedTable) => enhance(Reflect.apply(crossJoin, query, [joinedTable]));
             }
             for (const joinMethod of ['innerJoin', 'leftJoin', 'rightJoin']) {
                 const join = query[joinMethod];
@@ -992,7 +1021,30 @@ function sourceColumns(source, names = []) {
     return native.is(source, native.Subquery)
         ? TableColumns(source, ...names)
         : TableColumns(source, ...names);
-}function createConnection(options) {
+}const createOrderByHelper = (direction) => {
+    const implementation = (...args) => {
+        let columns;
+        if (native.isTable(args[0])) {
+            const [table, ...names] = args;
+            const tableColumns = native.getTableColumns(table);
+            columns = names.map((name) => {
+                const column = tableColumns[name];
+                if (!column)
+                    throw new Error(`orderBy: unknown column "${name}".`);
+                return column;
+            });
+        }
+        else {
+            columns = args;
+        }
+        const orders = columns.map(direction);
+        return orders.length === 1 ? orders[0] : orders;
+    };
+    return implementation;
+};
+const asc = createOrderByHelper(native__namespace.asc);
+const desc = createOrderByHelper(native__namespace.desc);
+function createConnection(options) {
     const pool = mysql.createPool({ uri: options.url });
     const raw = mysql2.drizzle({ client: pool, relations: native.defineRelations(options.schema) });
     const context = new node_async_hooks.AsyncLocalStorage();
@@ -1044,8 +1096,8 @@ function drizzleMySql(options) {
     }
     return {
         select: select,
-        asc: native__namespace.asc,
-        desc: native__namespace.desc,
+        asc,
+        desc,
         count: native__namespace.count,
         countDistinct: native__namespace.countDistinct,
         avg: native__namespace.avg,

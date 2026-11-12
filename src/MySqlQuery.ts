@@ -20,6 +20,7 @@ import {
   MySqlTable,
   MySqlColumn,
   MySqlSelectBase,
+  alias as drizzleAlias,
   getTableConfig,
   type MySqlAsyncSelectBase,
   type MySqlUpdateSetSource,
@@ -79,6 +80,13 @@ export class MySqlQuery<
     private readonly getTimestamp?: () => unknown
   ) {
     this.t = table;
+  }
+
+  /********************************************************************************************************************
+   * alias
+   * ******************************************************************************************************************/
+  alias<TAlias extends string>(name: TAlias): MySqlAliasTable<TTable, TAlias> {
+    return drizzleAlias(this.t, name) as MySqlAliasTable<TTable, TAlias>;
   }
 
   private readonly drizzle = { ...createConditions({}), sqlNumber: (value: number) => sql`${value}`.mapWith(Number) };
@@ -149,31 +157,56 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * asc
    * ******************************************************************************************************************/
-  asc(name: MySqlColumnName<TTable>): SQL;
-  asc<TAlias extends string>(
+  asc<N extends MySqlColumnName<TTable>>(name: N): SQL;
+  asc<N extends MySqlColumnName<TTable>>(first: N, second: N, ...names: N[]): SQL[];
+  asc<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(
     table: MySqlAliasTable<TTable, TAlias>,
-    name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>
+    name: N
   ): SQL;
 
-  asc(tableOrName: MySqlTable | string, name?: string): SQL {
-    const table = typeof tableOrName === 'string' ? this.t : tableOrName;
-    const columnName = typeof tableOrName === 'string' ? tableOrName : name;
-    return drizzleAsc(this.resolveOrderColumn(columnName, table));
+  asc<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(
+    table: MySqlAliasTable<TTable, TAlias>,
+    first: N,
+    second: N,
+    ...names: N[]
+  ): SQL[];
+
+  asc(tableOrName: MySqlTable | string, name?: string, ...names: string[]): SQL | SQL[] {
+    const table = isTable(tableOrName) ? tableOrName : this.t;
+    const columns = isTable(tableOrName) ? [name, ...names] : [tableOrName, ...(name ? [name] : []), ...names];
+    return this.orderByColumns(drizzleAsc, table, columns);
   }
 
   /********************************************************************************************************************
    * desc
    * ******************************************************************************************************************/
-  desc(name: MySqlColumnName<TTable>): SQL;
-  desc<TAlias extends string>(
+  desc<N extends MySqlColumnName<TTable>>(name: N): SQL;
+  desc<N extends MySqlColumnName<TTable>>(first: N, second: N, ...names: N[]): SQL[];
+  desc<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(
     table: MySqlAliasTable<TTable, TAlias>,
-    name: MySqlColumnName<MySqlAliasTable<TTable, TAlias>>
+    name: N
   ): SQL;
 
-  desc(tableOrName: MySqlTable | string, name?: string): SQL {
-    const table = typeof tableOrName === 'string' ? this.t : tableOrName;
-    const columnName = typeof tableOrName === 'string' ? tableOrName : name;
-    return drizzleDesc(this.resolveOrderColumn(columnName, table));
+  desc<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(
+    table: MySqlAliasTable<TTable, TAlias>,
+    first: N,
+    second: N,
+    ...names: N[]
+  ): SQL[];
+
+  desc(tableOrName: MySqlTable | string, name?: string, ...names: string[]): SQL | SQL[] {
+    const table = isTable(tableOrName) ? tableOrName : this.t;
+    const columns = isTable(tableOrName) ? [name, ...names] : [tableOrName, ...(name ? [name] : []), ...names];
+    return this.orderByColumns(drizzleDesc, table, columns);
+  }
+
+  private orderByColumns(
+    direction: typeof drizzleAsc | typeof drizzleDesc,
+    table: MySqlTable | Subquery,
+    names: (string | undefined)[],
+  ): SQL | SQL[] {
+    const orders = names.map((name) => direction(this.resolveOrderColumn(name, table)));
+    return orders.length === 1 ? orders[0] : orders;
   }
 
   private resolveFields(fields: unknown, table: MySqlTable | Subquery = this.t): FieldSet | undefined {
@@ -481,10 +514,12 @@ export class MySqlQuery<
           or: bindCondition('or', conditionTable),
         }) as unknown as SelectConditionQuery<MySqlTable>;
       const whereQuery = conditionQuery(table, table);
+      const orderByColumns = (direction: typeof drizzleAsc | typeof drizzleDesc, name: string, ...names: string[]) =>
+        this.orderByColumns(direction, table, [name, ...names]);
       const orderByQuery: SelectOrderByQuery<MySqlTable | Subquery> = {
         t: table,
-        asc: (name) => drizzleAsc(this.resolveOrderColumn(name, table)),
-        desc: (name) => drizzleDesc(this.resolveOrderColumn(name, table)),
+        asc: (name, ...names) => orderByColumns(drizzleAsc, name, ...names),
+        desc: (name, ...names) => orderByColumns(drizzleDesc, name, ...names),
       };
       const enhancements: Record<string, unknown> = {
         where: (condition: unknown) =>
@@ -497,14 +532,26 @@ export class MySqlQuery<
           ),
       };
       if (originalOrderBy) {
-        enhancements.orderBy = (...args: unknown[]) =>
-          enhance(
-            typeof args[0] === 'function'
-              ? originalOrderBy(() =>
-                  (args[0] as (query: SelectOrderByQuery<MySqlTable | Subquery>) => unknown)(orderByQuery)
-                )
-              : originalOrderBy(...args)
-          );
+        enhancements.orderBy = (...args: unknown[]) => {
+          if (typeof args[0] === 'function') {
+            const result = (args[0] as (query: SelectOrderByQuery<MySqlTable | Subquery>) => unknown)(orderByQuery);
+            const columns = Array.isArray(result) ? result.flat(Infinity) : [result];
+            return enhance(originalOrderBy(...columns));
+          }
+          return enhance(originalOrderBy(...args.flat(Infinity)));
+        };
+      }
+      for (const setOperator of ['union', 'unionAll', 'intersect', 'except']) {
+        const operation = query[setOperator];
+        if (typeof operation !== 'function') continue;
+        enhancements[setOperator] = (...args: unknown[]) => {
+          const result = Reflect.apply(operation, query, args);
+          return result === query ? query : enhance(result);
+        };
+      }
+      const crossJoin = query.crossJoin;
+      if (typeof crossJoin === 'function') {
+        enhancements.crossJoin = (joinedTable: unknown) => enhance(Reflect.apply(crossJoin, query, [joinedTable]));
       }
       for (const joinMethod of ['innerJoin', 'leftJoin', 'rightJoin']) {
         const join = query[joinMethod];
@@ -1278,14 +1325,15 @@ type TableWhere<TTable extends MySqlTable | Subquery> =
   SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
 
 type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
+type OrderByInput = OrderByValue | readonly OrderByValue[];
 type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
   readonly t: TTable;
-  asc(name: SourceColumnName<TTable>): SQL;
-  desc(name: SourceColumnName<TTable>): SQL;
+  asc(name: SourceColumnName<TTable>, ...names: SourceColumnName<TTable>[]): SQL | SQL[];
+  desc(name: SourceColumnName<TTable>, ...names: SourceColumnName<TTable>[]): SQL | SQL[];
 };
 type OrderByCallback<TTable extends MySqlTable | Subquery> = (
   query: SelectOrderByQuery<TTable>
-) => OrderByValue | OrderByValue[];
+) => OrderByInput | OrderByInput[];
 type GroupByCallback<
   TTable extends MySqlTable | Subquery,
   TSelection extends FieldSet | undefined,
@@ -1296,7 +1344,7 @@ type HavingCondition<
 > = SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
 type OrderByPreserved<TQuery, TTable extends MySqlTable | Subquery> = Omit<TQuery, 'orderBy'> & {
   orderBy(builder: OrderByCallback<TTable>): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
-  orderBy(...columns: OrderByValue[]): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
+  orderBy(...columns: OrderByInput[]): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
 };
 type SelectSetOperatorMethod<
   TQuery extends { readonly _: { readonly result: any[] }; union: (...args: any[]) => any },
@@ -1316,7 +1364,7 @@ type DynamicSelect<
   groupBy(builder: (aliases: TQuery['_']['selection']) => OrderByValue | OrderByValue[]): DynamicSelect<TQuery, TTable>;
   groupBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
   orderBy(builder: OrderByCallback<TTable>): DynamicSelect<TQuery, TTable>;
-  orderBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
+  orderBy(...columns: OrderByInput[]): DynamicSelect<TQuery, TTable>;
   having(condition: SQL | undefined | ((aliases: TQuery['_']['selection']) => SQL | undefined)): DynamicSelect<TQuery, TTable>;
   limit(value: number | Placeholder): DynamicSelect<TQuery, TTable>;
   offset(value: number | Placeholder): DynamicSelect<TQuery, TTable>;
@@ -1358,7 +1406,7 @@ type JoinedSelect<
     groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
     groupBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
     orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
-    orderBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+    orderBy(...columns: OrderByInput[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
     limit(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'limit'>;
     offset(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'offset'>;
   };
@@ -1395,7 +1443,7 @@ export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends 
     groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<SelectFrom<TTable, TSelection>, 'groupBy'>;
     groupBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'groupBy'>;
     orderBy(builder: OrderByCallback<TTable>): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
-    orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+    orderBy(...columns: OrderByInput[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
     limit(value: number | Placeholder): Omit<SelectFrom<TTable, TSelection>, 'limit'>;
     offset(value: number | Placeholder): Omit<SelectFrom<TTable, TSelection>, 'offset'>;
   };

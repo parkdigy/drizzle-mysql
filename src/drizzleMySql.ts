@@ -1,12 +1,13 @@
 import mysql from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
-import { count, defineRelations, is, SQL, sql, Subquery } from 'drizzle-orm';
+import { count, defineRelations, getTableColumns, is, isTable, SQL, sql, Subquery } from 'drizzle-orm';
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as native from 'drizzle-orm';
 import { createAlias, type MySqlAliases } from './alias';
 import { createConditions, type MySqlSchemaConditions } from './conditions';
 import { TableColumns } from './columns';
+import type { MySqlColumnName } from './@types';
 import {
   MySqlQuery,
   type SelectFrom,
@@ -57,11 +58,52 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
   query<TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable>;
 }
 
-type MySqlNativeHelpers = Pick<
+type OrderByColumn = Parameters<typeof native.asc>[0];
+type AliasOrderByHelper = {
+  <TTable extends MySqlTable>(table: TTable, name: MySqlColumnName<TTable>): SQL;
+  <TTable extends MySqlTable>(
+    table: TTable,
+    first: MySqlColumnName<TTable>,
+    second: MySqlColumnName<TTable>,
+    ...rest: MySqlColumnName<TTable>[]
+  ): SQL[];
+};
+type MultiColumnOrderHelper = {
+  (column: OrderByColumn): SQL;
+  (first: OrderByColumn, second: OrderByColumn, ...rest: OrderByColumn[]): SQL[];
+} & AliasOrderByHelper;
+
+type MySqlNativeHelpers = Omit<Pick<
   typeof native,
-  | 'asc' | 'desc' | 'count' | 'countDistinct' | 'avg' | 'avgDistinct' | 'sum' | 'sumDistinct'
+  | 'count' | 'countDistinct' | 'avg' | 'avgDistinct' | 'sum' | 'sumDistinct'
   | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'
->;
+>, 'asc' | 'desc'> & {
+  asc: MultiColumnOrderHelper;
+  desc: MultiColumnOrderHelper;
+};
+
+const createOrderByHelper = (direction: (column: OrderByColumn) => SQL): MultiColumnOrderHelper => {
+  const implementation = (...args: [OrderByColumn | MySqlTable, ...(OrderByColumn | string)[]]) => {
+    let columns: OrderByColumn[];
+    if (isTable(args[0])) {
+      const [table, ...names] = args;
+      const tableColumns = getTableColumns(table);
+      columns = (names as string[]).map((name) => {
+        const column = tableColumns[name];
+        if (!column) throw new Error(`orderBy: unknown column "${name}".`);
+        return column;
+      });
+    } else {
+      columns = args as OrderByColumn[];
+    }
+    const orders = columns.map(direction);
+    return orders.length === 1 ? orders[0] : orders;
+  };
+  return implementation as MultiColumnOrderHelper;
+};
+
+const asc = createOrderByHelper(native.asc);
+const desc = createOrderByHelper(native.desc);
 
 export type DrizzleMySql<TSchema extends Record<string, MySqlTable>> = MySqlDatabaseHelpers<TSchema> &
   MySqlSchemaConditions<TSchema>;
@@ -131,8 +173,8 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
   }
   return {
     select: select as MySqlDatabaseHelpers<TSchema>['select'],
-    asc: native.asc,
-    desc: native.desc,
+    asc,
+    desc,
     count: native.count,
     countDistinct: native.countDistinct,
     avg: native.avg,
