@@ -24,6 +24,16 @@ test('스키마에 맞는 컬럼, 별칭, 조건과 CRUD 쿼리를 생성한다'
   expect(() => q.edit({ displayName: 'x' }, undefined)).toThrow('where condition');
 });
 
+test('remove 인자를 생략하면 조건 없는 DELETE 빌더를 반환한다', () => {
+  const query = db.query(user);
+  const generated = query.remove().toSQL();
+
+  expect(generated.sql).toMatch(/^delete from `users`$/i);
+  expect(generated.sql).not.toMatch(/where/i);
+  expect(generated.params).toEqual([]);
+  expect(() => query.remove(undefined as never)).toThrow('remove: a SQL where condition is required.');
+});
+
 test('select 문자열 매핑 객체의 키를 결과 별칭으로 사용한다', () => {
   const selected = db.query(user).select({ id_2: 'id', display_name_2: 'displayName' });
   type Row = Awaited<typeof selected>[number];

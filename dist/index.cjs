@@ -821,11 +821,14 @@ class MySqlQuery {
      * ******************************************************************************************************************/
     remove(where) {
         this.assertMutationAllowed('delete', 'remove');
+        const tx = this.getTx();
+        if (arguments.length === 0) {
+            return tx.delete(this.t);
+        }
         const condition = typeof where === 'function' ? where(this) : where;
         if (!native.is(condition, native.SQL)) {
             throw new Error('remove: a SQL where condition is required.');
         }
-        const tx = this.getTx();
         return tx.delete(this.t).where(condition);
     }
     /********************************************************************************************************************

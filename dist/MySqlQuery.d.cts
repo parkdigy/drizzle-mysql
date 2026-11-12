@@ -194,13 +194,13 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
      * ******************************************************************************************************************/
     remove(this: this & (TableMutationPolicy<TTable> extends {
         deleteBlocked: true;
-    } ? never : unknown), where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncDeleteBase<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
+    } ? never : unknown), where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): import("drizzle-orm/mysql-core").MySqlAsyncDeleteBase<TTable, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, never> | Omit<import("drizzle-orm/mysql-core").MySqlAsyncDeleteBase<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
     /********************************************************************************************************************
      * removeByPrimaryKey
      * ******************************************************************************************************************/
     removeByPrimaryKey(this: this & (TableMutationPolicy<TTable> extends {
         deleteBlocked: true;
-    } ? never : unknown), key: PrimaryKeyInput<TTable>): Omit<import("drizzle-orm/mysql-core").MySqlAsyncDeleteBase<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
+    } ? never : unknown), key: PrimaryKeyInput<TTable>): import("drizzle-orm/mysql-core").MySqlAsyncDeleteBase<TTable, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, never> | Omit<import("drizzle-orm/mysql-core").MySqlAsyncDeleteBase<import("drizzle-orm").Assume<TTable, MySqlTable<import("drizzle-orm/mysql-core").TableConfig>>, import("drizzle-orm/mysql2").MySql2QueryResultHKT, false, "where">, "where">;
     private assertMutationAllowed;
     /********************************************************************************************************************
      * eq

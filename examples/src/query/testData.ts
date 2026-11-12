@@ -440,8 +440,7 @@ export class TestData extends MySqlQuery<'testData'> {
    * otherTest
    * ******************************************************************************************************************/
   async otherTest() {
-    await this.add({ name: 'name', email: 'email' });
-    console.log(await this.select());
+    //
   }
 }
 
