@@ -47,6 +47,74 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
 
     console.log(await this.select().orderBy(this.asc('id')));
 
+    const td1 = mysql.a.adminUser('td1');
+    const td2 = mysql.a.adminUser('td2');
+    console.log(
+      await this.select(td1, ['id'])
+        .crossJoin(td2)
+        .orderBy((q) => q.desc('id'))
+        .groupBy((t) => [t.id])
+    );
+
+    console.log(
+      await this.select(['id'])
+        .having(this.eq('id', 1))
+        .orderBy((q) => q.desc('id'))
+        .groupBy((t) => [t.id])
+    );
+
+    console.log(
+      await this.select(['id'])
+        .orderBy((q) => q.desc('id'))
+        .offset(0)
+        .fetch(10)
+        .groupBy((t) => [t.id])
+        .orderBy((q) => q.desc('id'))
+    );
+
+    console.log(
+      await this.select(['id'])
+        .groupBy((t) => [t.id])
+        .orderBy((q) => q.desc('id'))
+    );
+
+    console.log(
+      await this.select(['id'])
+        .$dynamic()
+        .orderBy((q) => q.desc('id'))
+        .groupBy((t) => [t.id])
+    );
+
+    console.log(
+      await this.select(['id'])
+        .union(this.select(['id']))
+        .orderBy((q) => q.desc('id'))
+    );
+
+    console.log(
+      await this.select(['id'])
+        .unionAll(this.select(['id']))
+        .orderBy((q) => q.desc('id'))
+    );
+
+    console.log(
+      await this.select(['id'])
+        .intersect(this.select(['id']))
+        .orderBy((q) => q.desc('id'))
+    );
+
+    console.log(
+      await this.select(['id'])
+        .except(this.select(['id']))
+        .orderBy((q) => q.desc('id'))
+    );
+
+    console.log(
+      await this.select(['id'])
+        .groupBy((t) => [t.id])
+        .orderBy((q) => q.desc('id'))
+    );
+
     console.log(await this.select(['id']).orderBy((q) => q.desc('id')));
 
     console.log(await this.select(['id']).orderBy((q) => q.asc('id')));

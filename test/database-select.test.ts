@@ -94,6 +94,44 @@ test('alias 선택 배열에서 문자열 컬럼과 query builder 선택 객체�
   expect(sql.params).toEqual([]);
 });
 
+test('groupBy·having·join·페이지·set operator 체인에서 후속 메서드 타입을 유지한다', () => {
+  const td1 = db.a.users('td1');
+  const td2 = db.a.users('td2');
+  const crossJoin = db.query(users)
+    .select(td1, ['id'])
+    .crossJoin(td2)
+    .orderBy((q) => q.desc('id'))
+    .groupBy((selection) => [selection.id]);
+  const having = db.query(users)
+    .select(['id'])
+    .having((selection) => db.eq(selection.id, 1))
+    .orderBy((q) => q.desc('id'))
+    .groupBy((selection) => [selection.id]);
+  const paging = db.query(users)
+    .select(['id'])
+    .orderBy((q) => q.desc('id'))
+    .offset(2)
+    .limit(10)
+    .groupBy((selection) => [selection.id]);
+  const dynamic = db.query(users)
+    .select(['id'])
+    .$dynamic()
+    .orderBy((q) => q.desc('id'))
+    .groupBy((selection) => [selection.id]);
+  const unions = [
+    db.query(users).select(['id']).union(db.query(users).select(['id'])).orderBy((q) => q.desc('id')),
+    db.query(users).select(['id']).unionAll(db.query(users).select(['id'])).orderBy((q) => q.desc('id')),
+    db.query(users).select(['id']).intersect(db.query(users).select(['id'])).orderBy((q) => q.desc('id')),
+    db.query(users).select(['id']).except(db.query(users).select(['id'])).orderBy((q) => q.desc('id')),
+  ];
+
+  expect(crossJoin.toSQL().sql).toContain('cross join `users` `td2`');
+  expect(having.toSQL().sql).toContain('having');
+  expect(paging.toSQL().sql).toContain('limit ? offset ?');
+  expect(dynamic.toSQL().sql).toContain('group by');
+  expect(unions.every((query) => query.toSQL().sql.includes('order by `id` desc'))).toBe(true);
+});
+
 test('등록되지 않은 테이블명과 컬럼은 명확한 오류를 반환한다', () => {
   expect(() => db.select('missing' as 'users')).toThrow('select: unknown table "missing".');
   expect(() => db.select('users', { label: 'missing' } as unknown as { label: 'name' })).toThrow(

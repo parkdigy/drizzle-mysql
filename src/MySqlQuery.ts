@@ -13,6 +13,7 @@ import {
   desc as drizzleDesc,
   max as drizzleMax,
   min as drizzleMin,
+  type Placeholder,
   type SQLWrapper,
 } from 'drizzle-orm';
 import {
@@ -27,6 +28,11 @@ import {
 import type { MySqlViewBase } from 'drizzle-orm/mysql-core/view-base';
 import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
+import type {
+  GetMySqlSetOperators,
+  MySqlSetOperatorWithResult,
+  SetOperatorRightSelect,
+} from 'drizzle-orm/mysql-core/query-builders/select.types';
 import type {
   MySqlColumnSelectionName,
   MySqlSelectedNamedColumnUnion,
@@ -1280,6 +1286,42 @@ type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
 type OrderByCallback<TTable extends MySqlTable | Subquery> = (
   query: SelectOrderByQuery<TTable>
 ) => OrderByValue | OrderByValue[];
+type GroupByCallback<
+  TTable extends MySqlTable | Subquery,
+  TSelection extends FieldSet | undefined,
+> = (aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => OrderByValue | OrderByValue[];
+type HavingCondition<
+  TTable extends MySqlTable | Subquery,
+  TSelection extends FieldSet | undefined,
+> = SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
+type OrderByPreserved<TQuery, TTable extends MySqlTable | Subquery> = Omit<TQuery, 'orderBy'> & {
+  orderBy(builder: OrderByCallback<TTable>): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
+  orderBy(...columns: OrderByValue[]): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
+};
+type SelectSetOperatorMethod<
+  TQuery extends { readonly _: { readonly result: any[] }; union: (...args: any[]) => any },
+  TTable extends MySqlTable | Subquery,
+> = <TValue extends MySqlSetOperatorWithResult<TQuery['_']['result']>>(
+  rightSelection:
+    | ((setOperators: GetMySqlSetOperators) => SetOperatorRightSelect<TValue, TQuery['_']['result']>)
+    | SetOperatorRightSelect<TValue, TQuery['_']['result']>
+) => OrderByPreserved<ReturnType<TQuery['union']>, TTable>;
+type DynamicSelect<
+  TQuery extends { readonly _: { readonly selection: unknown }; $dynamic: (...args: any[]) => any },
+  TTable extends MySqlTable | Subquery,
+> = Omit<
+  ReturnType<TQuery['$dynamic']>,
+  'groupBy' | 'orderBy' | 'having' | 'limit' | 'offset' | '$dynamic'
+> & {
+  groupBy(builder: (aliases: TQuery['_']['selection']) => OrderByValue | OrderByValue[]): DynamicSelect<TQuery, TTable>;
+  groupBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
+  orderBy(builder: OrderByCallback<TTable>): DynamicSelect<TQuery, TTable>;
+  orderBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
+  having(condition: SQL | undefined | ((aliases: TQuery['_']['selection']) => SQL | undefined)): DynamicSelect<TQuery, TTable>;
+  limit(value: number | Placeholder): DynamicSelect<TQuery, TTable>;
+  offset(value: number | Placeholder): DynamicSelect<TQuery, TTable>;
+  $dynamic(): DynamicSelect<TQuery, TTable>;
+};
 
 type Joinable = MySqlTable | Subquery | MySqlViewBase | SQL;
 type JoinConditionValues<TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable
@@ -1304,15 +1346,21 @@ type JoinedSelect<
   TTable extends MySqlTable | Subquery,
   TSelection extends FieldSet | undefined,
   TJoinedTable extends Joinable,
-  TKind extends 'inner' | 'left' | 'right',
+  TKind extends 'inner' | 'left' | 'right' | 'cross',
 > = Omit<
   MySqlJoin<SelectQueryBase<TTable, TSelection>, false, TKind, TJoinedTable>,
-  'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>
+  | 'where' | 'having' | 'groupBy' | 'orderBy' | 'limit' | 'offset'
+  | keyof SelectJoinMethods<TTable, TSelection>
 > &
   SelectJoinMethods<TTable, TSelection> & {
     where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'where'>;
+    having(condition: HavingCondition<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'having'>;
+    groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
+    groupBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
     orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
     orderBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
+    limit(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'limit'>;
+    offset(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'offset'>;
   };
 type SelectJoinMethods<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = {
   innerJoin<TJoinedTable extends Joinable>(
@@ -1327,16 +1375,29 @@ type SelectJoinMethods<TTable extends MySqlTable | Subquery, TSelection extends 
     table: TJoinedTable,
     on: JoinCondition<TTable, TSelection, TJoinedTable>
   ): JoinedSelect<TTable, TSelection, TJoinedTable, 'right'>;
+  crossJoin<TJoinedTable extends Joinable>(table: TJoinedTable): JoinedSelect<TTable, TSelection, TJoinedTable, 'cross'>;
 };
 
 export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = Omit<
   SelectQueryBase<TTable, TSelection>,
-  'where' | 'orderBy' | keyof SelectJoinMethods<TTable, TSelection>
+  | 'where' | 'having' | 'groupBy' | 'orderBy' | 'limit' | 'offset' | '$dynamic'
+  | 'union' | 'unionAll' | 'intersect' | 'except'
+  | keyof SelectJoinMethods<TTable, TSelection>
 > &
   SelectJoinMethods<TTable, TSelection> & {
+    $dynamic(): DynamicSelect<SelectQueryBase<TTable, TSelection>, TTable>;
+    union: SelectSetOperatorMethod<SelectQueryBase<TTable, TSelection>, TTable>;
+    unionAll: SelectSetOperatorMethod<SelectQueryBase<TTable, TSelection>, TTable>;
+    intersect: SelectSetOperatorMethod<SelectQueryBase<TTable, TSelection>, TTable>;
+    except: SelectSetOperatorMethod<SelectQueryBase<TTable, TSelection>, TTable>;
     where(condition: TableWhere<TTable>): Omit<SelectFrom<TTable, TSelection>, 'where'>;
+    having(condition: HavingCondition<TTable, TSelection>): Omit<SelectFrom<TTable, TSelection>, 'having'>;
+    groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<SelectFrom<TTable, TSelection>, 'groupBy'>;
+    groupBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'groupBy'>;
     orderBy(builder: OrderByCallback<TTable>): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
     orderBy(...columns: OrderByValue[]): Omit<SelectFrom<TTable, TSelection>, 'orderBy'>;
+    limit(value: number | Placeholder): Omit<SelectFrom<TTable, TSelection>, 'limit'>;
+    offset(value: number | Placeholder): Omit<SelectFrom<TTable, TSelection>, 'offset'>;
   };
 
 type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefined> =
