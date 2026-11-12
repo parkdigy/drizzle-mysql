@@ -24,6 +24,12 @@ export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>>
 
 type MySqlConnection<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConnection<TSchema>>;
 
+type SelectTable<TSchema, TSource> = TSource extends MySqlTable
+  ? TSource
+  : TSource extends keyof TSchema
+    ? Extract<TSchema[TSource], MySqlTable>
+    : never;
+
 interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> extends MySqlNativeHelpers {
   s: TSchema;
   a: MySqlAliases<TSchema>;
@@ -37,14 +43,13 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
   trans: MySqlConnection<TSchema>['trans'];
   paginate: MySqlConnection<TSchema>['paginate'];
   close: MySqlConnection<TSchema>['close'];
-  select<K extends keyof TSchema & string, const TArgs extends readonly [fields?: SelectInput<TSchema[K]>]>(
-    table: K,
+  select<
+    TSource extends (keyof TSchema & string) | MySqlTable,
+    const TArgs extends readonly [fields?: SelectInput<SelectTable<TSchema, TSource>>],
+  >(
+    table: TSource,
     ...args: TArgs
-  ): SelectFrom<TSchema[K], ResolveSelectInput<TSchema[K], TArgs[0]>>;
-  select<TTable extends MySqlTable, const TArgs extends readonly [fields?: SelectInput<TTable>]>(
-    table: TTable,
-    ...args: TArgs
-  ): SelectFrom<TTable, ResolveSelectInput<TTable, TArgs[0]>>;
+  ): SelectFrom<SelectTable<TSchema, TSource>, ResolveSelectInput<SelectTable<TSchema, TSource>, TArgs[0]>>;
   select<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(
     source: TSource,
     ...args: TArgs

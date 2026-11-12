@@ -24,6 +24,22 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     db.query(a).columns('/*query*/');
     db.eq(a, { /*condition*/ });
     db.eq('table199', { /*namedCondition*/ });
+    // @ts-expect-error 연결 별칭 선택의 자동완성용 미완성 컬럼명
+    db.select(a, ['/*directFirst*/']);
+    // @ts-expect-error 연결 별칭 선택의 자동완성용 미완성 컬럼명
+    db.select(a, ['id', '/*directNext*/']);
+    // @ts-expect-error 테이블 이름 선택의 자동완성용 미완성 컬럼명
+    db.select('table199', ['/*directNamedFirst*/']);
+    // @ts-expect-error 테이블 이름 선택의 자동완성용 미완성 컬럼명
+    db.select('table199', ['id', '/*directNamedNext*/']);
+    const directAliasArray = db.select(a, ['id', 'extra199']);
+    type DirectAliasRow = Awaited<typeof directAliasArray>[number];
+    const validDirectAliasRow: DirectAliasRow = { id: 1, extra199: null };
+    // @ts-expect-error 선택하지 않은 컬럼은 포함하지 않는다
+    const invalidDirectAliasRow: DirectAliasRow = { id: 1, extra199: null, name: 'Ada' };
+    // @ts-expect-error 선택한 컬럼의 타입을 유지한다
+    const invalidDirectAliasValue: DirectAliasRow = { id: 'wrong', extra199: null };
+    void [validDirectAliasRow, invalidDirectAliasRow, invalidDirectAliasValue];
     const directSelected = db.select('table199', ['id', 'name']);
     const directAlias = db.select(a, (q) => q.columns('id', 'name'));
     const directRow: { id: number; name: string | null } = {} as Awaited<typeof directSelected>[number];
@@ -101,6 +117,10 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
   const service = ts.createLanguageService(host);
   try {
     for (const [name, expected] of Object.entries({
+      directNamedFirst: ['id', 'name', 'extra0', 'extra199'],
+      directNamedNext: ['id', 'name', 'extra0', 'extra199'],
+      directFirst: ['id', 'name', 'extra0', 'extra199'],
+      directNext: ['id', 'name', 'extra0', 'extra199'],
       members: ['columns', 'query', 'current', 'eq'],
       aliases: ['table0', 'table199'],
       columns: ['id', 'name'],
