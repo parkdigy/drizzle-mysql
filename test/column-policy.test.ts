@@ -56,10 +56,27 @@ if (false) {
   // @ts-expect-error 등록 금지 컬럼은 keyof에도 포함되지 않는다.
   const blockedInsertKey: keyof MySqlAddValues<typeof table> = 'secret';
   void [
-    undefinedCreated, undefinedLocked, undefinedSecret, undefinedId, undefinedCustom, undefinedCustomInsert,
-    blockedUpdateKey, blockedInsertKey,
+    undefinedCreated,
+    undefinedLocked,
+    undefinedSecret,
+    undefinedId,
+    undefinedCustom,
+    undefinedCustomInsert,
+    blockedUpdateKey,
+    blockedInsertKey,
   ];
-  void [validInsert, validUpdate, validTime, validUpdateTime, badInsert, badSecret, badTime, badUpdateTime, badUpdate, badLocked];
+  void [
+    validInsert,
+    validUpdate,
+    validTime,
+    validUpdateTime,
+    badInsert,
+    badSecret,
+    badTime,
+    badUpdateTime,
+    badUpdate,
+    badLocked,
+  ];
   drizzleMySql({ url: 'mysql://localhost/example', schema: { table } });
   // @ts-expect-error 이전 timestamp 옵션은 지원하지 않는다.
   drizzleMySql({ url: 'mysql://localhost/example', schema: { table }, timestamp: () => 'now' });
@@ -113,7 +130,7 @@ test.each(['explicit', 'inherited'] as const)('컬럼 정책과 %s 시각을 등
   expect(() => query.editByPrimaryKey({ required: 1, locked: undefined } as never, 1)).toThrow('locked');
 });
 
-test('getTimestamp 생략 시 CURRENT_TIMESTAMP SQL 표현식을 사용한다', async () => {
+test('getTimestamp 생략 시 Date를 기본 시각으로 사용한다', async () => {
   const db = drizzleMySql({ url: 'mysql://localhost/example', schema: { table } });
   const inserted: unknown[] = [];
   const fake = {
@@ -125,17 +142,79 @@ test('getTimestamp 생략 시 CURRENT_TIMESTAMP SQL 표현식을 사용한다', 
     }),
   } as unknown as MySql2Database;
   try {
-    const query = new MySqlQuery(table, Object.assign(() => fake, { getTimestamp: db.current.getTimestamp }));
+    const query = new MySqlQuery(
+      table,
+      Object.assign(() => fake, { getTimestamp: db.current.getTimestamp })
+    );
     await query.add({ name: 'default timestamp' });
     const created = (inserted[0] as Record<string, unknown>).created;
     const updated = (inserted[0] as Record<string, unknown>).updated;
-    expect(created).toBeInstanceOf(SQL);
+    expect(created).toBeInstanceOf(Date);
     expect(updated).toBe(created);
-    expect((created as any).queryChunks[0].value).toBe('CURRENT_TIMESTAMP');
   } finally {
     await db.close();
   }
 });
+
+test.each(['option', 'url', 'custom-date', 'custom-string', 'custom-sql'] as const)(
+  'timezone local은 자동 등록·수정 시 PC의 현지 시간을 사용한다 (%s)',
+  async (mode) => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-01-01T23:04:05.678Z'));
+    const dates = mysqlTable('local_dates', {
+      id: int().autoincrement().primaryKey(),
+      created: datetime({ fsp: 3 }).notNull().createdAt(),
+      updated: datetime({ mode: 'string', fsp: 3 }).notNull().updatedAt(),
+    });
+    const db = drizzleMySql({
+      url: mode === 'url' ? 'mysql://localhost/example?timezone=local' : 'mysql://localhost/example',
+      schema: { dates },
+      ...(mode !== 'url' ? { timezone: 'local' } : {}),
+      ...(mode === 'custom-date' ? { getTimestamp: () => new Date() } : {}),
+      ...(mode === 'custom-string' ? { getTimestamp: () => 'custom' } : {}),
+      ...(mode === 'custom-sql' ? { getTimestamp: () => sql`${'custom'}` } : {}),
+    });
+    try {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const expected =
+        mode === 'custom-string' || mode === 'custom-sql'
+          ? 'custom'
+          : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:04:05.678`;
+      const inserts: unknown[] = [];
+      const fake = {
+        insert: () => ({
+          values: (values: never) => {
+            inserts.push(db.current().insert(dates).values(values).toSQL().params);
+            return { $returningId: async () => [{ id: 1 }] };
+          },
+        }),
+      } as unknown as MySql2Database;
+      const query = new MySqlQuery(
+        dates,
+        Object.assign(() => fake, { getTimestamp: db.current.getTimestamp })
+      );
+      await query.add({});
+      expect(inserts).toEqual([[expected, expected]]);
+      expect(
+        db
+          .query(dates)
+          .edit({}, sql`1 = 1`)
+          .toSQL().params
+      ).toEqual([expected]);
+      expect(
+        db
+          .query(dates)
+          .edit({ updated: 'manual' }, sql`1 = 1`)
+          .toSQL().params
+      ).toEqual(['manual']);
+      const override = new MySqlQuery(dates, db.current, () => 'override');
+      expect(override.edit({}, sql`1 = 1`).toSQL().params).toEqual(['override']);
+    } finally {
+      jest.useRealTimers();
+      await db.close();
+    }
+  }
+);
 
 test('add는 선택 빌더에서 INSERT SELECT를 실행하고 누락된 시각 컬럼을 채운다', async () => {
   const sourceDb = drizzleMySql({ url: 'mysql://localhost/example', schema: { table }, getTimestamp: () => 'source' });
@@ -152,7 +231,10 @@ test('add는 선택 빌더에서 INSERT SELECT를 실행하고 누락된 시각 
     }),
   } as unknown as MySql2Database;
   try {
-    const target = new MySqlQuery(table, Object.assign(() => fake, { getTimestamp: () => sql`CURRENT_TIMESTAMP` }));
+    const target = new MySqlQuery(
+      table,
+      Object.assign(() => fake, { getTimestamp: () => sql`CURRENT_TIMESTAMP` })
+    );
     const source = sourceDb.query(table).select(['name']);
     const ids = await target.add(source);
     expect(ids).toEqual([11, 12]);
@@ -287,7 +369,11 @@ test('시각 컬럼은 원래 입력 타입과 명시적인 등록 금지 정책
     }),
   } as unknown as MySql2Database;
   const expression = sql`CURRENT_TIMESTAMP`;
-  const query = new MySqlQuery(dates, () => fake, () => 'now');
+  const query = new MySqlQuery(
+    dates,
+    () => fake,
+    () => 'now'
+  );
   await query.add({ create_date: 'manual', update_date: expression, nullable: null });
   expect(inserted[0]).toEqual({
     create_date: 'manual',
@@ -365,7 +451,12 @@ test('팩토리와 상속한 쿼리는 연결별 시각을 사용하고 명시�
     const override = new MySqlQuery(table, first.current, () => 'override');
     expect(factory.edit({ required: 1 }, sql`1 = 1`).toSQL().params).toEqual([1, 'first']);
     expect(inherited.edit({ required: 1 }, sql`1 = 1`).toSQL().params).toEqual([1, 'first']);
-    expect(second.query(table).edit({ required: 1 }, sql`1 = 1`).toSQL().params).toEqual([1, 'second']);
+    expect(
+      second
+        .query(table)
+        .edit({ required: 1 }, sql`1 = 1`)
+        .toSQL().params
+    ).toEqual([1, 'second']);
     expect(override.edit({ required: 1 }, sql`1 = 1`).toSQL().params).toEqual([1, 'override']);
     expect(getTimestamp).toHaveBeenCalledTimes(2);
     const unconfigured = new MySqlQuery(table, () => first.current());

@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import type { PoolOptions } from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
 import { count, defineRelations, getTableColumns, is, isTable, SQL, sql, Subquery } from 'drizzle-orm';
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
@@ -17,11 +18,10 @@ import {
   type ResolveSubquerySelectInput,
 } from './MySqlQuery';
 
-export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> {
-  url: string;
+export type DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> = {
   schema: TSchema;
   getTimestamp?: () => unknown;
-}
+} & (({ url: string } & Omit<PoolOptions, 'uri'>) | (PoolOptions & { uri?: never; url?: never }));
 
 type MySqlConnection<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConnection<TSchema>>;
 
@@ -73,11 +73,26 @@ type MultiColumnOrderHelper = {
   (first: OrderByColumn, second: OrderByColumn, ...rest: OrderByColumn[]): SQL[];
 } & AliasOrderByHelper;
 
-type MySqlNativeHelpers = Omit<Pick<
-  typeof native,
-  | 'count' | 'countDistinct' | 'avg' | 'avgDistinct' | 'sum' | 'sumDistinct'
-  | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'
->, 'asc' | 'desc'> & {
+type MySqlNativeHelpers = Omit<
+  Pick<
+    typeof native,
+    | 'count'
+    | 'countDistinct'
+    | 'avg'
+    | 'avgDistinct'
+    | 'sum'
+    | 'sumDistinct'
+    | 'max'
+    | 'min'
+    | 'not'
+    | 'exists'
+    | 'notExists'
+    | 'arrayContains'
+    | 'arrayContained'
+    | 'arrayOverlaps'
+  >,
+  'asc' | 'desc'
+> & {
   asc: MultiColumnOrderHelper;
   desc: MultiColumnOrderHelper;
 };
@@ -109,11 +124,21 @@ export type DrizzleMySql<TSchema extends Record<string, MySqlTable>> = MySqlData
   MySqlSchemaConditions<TSchema>;
 
 function createConnection<TSchema extends Record<string, MySqlTable>>(options: DrizzleMySqlOptions<TSchema>) {
-  const pool = mysql.createPool({ uri: options.url });
-  const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
+  const { url, schema, getTimestamp: configuredTimestamp, ...connectionOptions } = options;
+  const pool = mysql.createPool(url ? { ...connectionOptions, uri: url } : connectionOptions);
+  const raw = drizzle({ client: pool, relations: defineRelations(schema) });
   type Transaction = Parameters<Parameters<typeof raw.transaction>[0]>[0];
   const context = new AsyncLocalStorage<Transaction>();
-  const getTimestamp = options.getTimestamp ?? (() => sql`CURRENT_TIMESTAMP`);
+  const timezone = connectionOptions.timezone ?? (url ? new URL(url).searchParams.get('timezone') : null);
+  const timestampGenerator = configuredTimestamp ?? (() => new Date());
+  const getTimestamp = () => {
+    const now = timestampGenerator();
+    if (timezone !== 'local' || !(now instanceof Date)) return now;
+    // Drizzle encodes Date values as UTC before mysql2 can apply its timezone option.
+    const pad = (value: number, length = 2) => String(value).padStart(length, '0');
+    const local = `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
+    return sql`${local}`;
+  };
   const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp });
   const trans = <T>(callback: () => Promise<T>): Promise<T> => {
     const parent = context.getStore();

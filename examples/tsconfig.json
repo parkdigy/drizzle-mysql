@@ -5,12 +5,17 @@
     "lib": ["ES2022"],
     "types": ["node"],
     "moduleResolution": "bundler",
-    "skipLibCheck": true,
     "esModuleInterop": true,
+    "allowImportingTsExtensions": false,
+    "allowSyntheticDefaultImports": true,
+    "verbatimModuleSyntax": true,
     "strict": true,
-    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noImplicitAny": true,
+    "experimentalDecorators": true,
+    "preserveSymlinks": true,
     "resolveJsonModule": true,
-    "preserveSymlinks": true
+    "noEmit": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/**/*.test.tsx"]

@@ -1,5 +1,6 @@
 {
   "name": "examples",
+  "type": "module",
   "scripts": {
     "dev": "tsx src/example.ts",
     "reinstall": "npm run reinstall:module",
@@ -11,6 +12,7 @@
     "git:commit:push": "cd .. && npm run git:commit:push"
   },
   "devDependencies": {
+    "dotenv": "^18.0.10",
     "tsx": "4.23.15",
     "typescript": "6.0.3"
   },

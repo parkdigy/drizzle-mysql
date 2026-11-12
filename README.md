@@ -12,7 +12,7 @@ npm install @pdg/drizzle-mysql drizzle-orm@1.0.0-rc.5 mysql2
 
 ### 연결과 스키마
 
-테이블 정의에는 Drizzle의 MySQL 스키마 API를 패키지 루트에서 가져올 수 있습니다. 연결은 `drizzleMySql`에 MySQL 연결 URL과 스키마를 전달해 만듭니다.
+테이블 정의에는 Drizzle의 MySQL 스키마 API를 패키지 루트에서 가져올 수 있습니다. 연결은 `drizzleMySql`에 MySQL 연결 URL 또는 `mysql2` 연결 옵션과 스키마를 전달해 만듭니다.
 
 ```ts
 import {
@@ -43,6 +43,19 @@ const db = drizzleMySql({
 const user = db.query(users);
 ```
 
+URL 없이 `mysql2`의 연결 옵션을 직접 전달할 수도 있습니다. URL과 함께 `connectionLimit` 같은 풀 옵션도 지정할 수 있습니다.
+
+```ts
+const db = drizzleMySql({
+  host: process.env.DB_HOST!,
+  user: process.env.DB_USER!,
+  password: process.env.DB_PASSWORD!,
+  database: process.env.DB_NAME!,
+  connectionLimit: 10,
+  schema: { users, posts },
+});
+```
+
 스키마 타입은 `schema`에 전달한 객체에서 추론됩니다. 테이블명과 컬럼명의 자동완성을 유지하려면 스키마를 넓은 `Record<string, MySqlTable>` 타입으로 지정하지 않고 구체적인 타입을 유지하세요.
 
 반환 타입 `DrizzleMySql<typeof schema>`와 `MySqlAliases`, `MySqlSchemaConditions`를 공개합니다. 연결 타입과 테이블별 보조 함수 타입을 분리하며, `query(table)`은 전달받은 테이블만으로 타입을 추론합니다. 등록된 테이블 외에도 별칭 테이블이나 직접 가져온 테이블을 전달할 수 있습니다.
@@ -55,7 +68,7 @@ const query = db.query(u);
 
 200개 테이블에 대한 자동완성 후보를 TypeScript Language Service 테스트로 검증합니다. IDE 자체의 자동완성 동작은 사용하는 TypeScript 엔진과 설정에 따라서도 달라질 수 있습니다.
 
-`drizzleMySql`에는 `url`과 `schema`가 필요합니다. `getTimestamp`는 선택 사항이며, 생략하면 `CURRENT_TIMESTAMP`를 기본 시각으로 사용합니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. `new MySqlQuery(table, db.current, getTimestamp?)`의 세 번째 인자는 선택 사항이며, 생략하면 해당 `drizzleMySql`에 설정한 생성 함수를 사용합니다. 명시하면 그 쿼리 객체에서만 해당 함수를 우선 사용합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
+`drizzleMySql`에는 `url` 또는 `mysql2` 연결 옵션과 `schema`가 필요합니다. `getTimestamp`는 선택 사항이며, 생략하면 `new Date()`를 기본 시각으로 사용합니다. `timezone: 'local'`을 지정하면 `createdAt()` / `updatedAt()`의 자동 시각을 실행 PC의 현지 시간(Node.js의 `TZ` 설정 포함)으로 입력합니다. 예를 들어 `drizzleMySql({ url, schema, timezone: 'local' })`처럼 설정합니다. 이 경우 날짜를 SQL 매개변수 문자열로 전달하여 Drizzle의 UTC 변환을 피합니다. 사용자 정의 `getTimestamp`가 `Date`를 반환할 때도 현지 시간으로 변환합니다. 직접 지정한 컬럼 값과 `getTimestamp`가 반환한 문자열·SQL 표현식은 그대로 사용합니다. 이 옵션은 MySQL 서버의 세션 시간대를 변경하지 않습니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. `new MySqlQuery(table, db.current, getTimestamp?)`의 세 번째 인자는 선택 사항이며, 생략하면 해당 `drizzleMySql`에 설정한 생성 함수를 사용합니다. 명시하면 그 쿼리 객체에서만 해당 함수를 우선 사용합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
 
 연결 객체의 `select(table, fields?)`에서도 같은 선택 기능을 사용할 수 있습니다. 첫 인자는 등록된 스키마의 테이블명 또는 alias 테이블이며, 이후 선택 인자와 반환 빌더는 `MySqlQuery.select`와 동일합니다.
 
@@ -464,7 +477,7 @@ const id = await usersQuery.add({ name: '사용자' });
 await usersQuery.editByPrimaryKey({ name: '수정' }, id);
 ```
 
-`createdAt()`과 `updatedAt()` 컬럼은 `add` 시 직접 값을 지정할 수 있습니다. 생략하거나 `undefined`를 전달한 컬럼만 `getTimestamp` 생성 함수의 기본값으로 채우며, 한 행에서 생성한 값은 누락된 시각 컬럼들이 공유합니다. `getTimestamp`를 지정하지 않으면 MySQL의 `CURRENT_TIMESTAMP`를 사용합니다. `edit` 시에는 `createdAt()`의 직접 입력을 금지하고 기존 값을 유지합니다. `updatedAt()`은 직접 지정한 값을 사용하며, 생략하거나 `undefined`이면 기본 시각으로 갱신합니다. 명시적인 `updateBlocked()` 정책은 계속 적용되며, `updatedAt().updateRequired()`는 생략 시 기본 시각을 사용합니다. 직접 지정하는 값과 생성 함수의 반환값은 컬럼의 데이터 형식에 맞아야 합니다. `MySqlQuery`에 `db.current`가 아닌 연결 함수를 직접 전달하는 경우에는 기본 시각이 필요한 작업을 위해 세 번째 인자로 시각 생성 함수도 지정해야 하며, 생성 함수 없이 기본 시각이 필요한 작업을 실행하면 오류가 발생합니다. 정책은 `MySqlQuery`에만 적용되며 `db.current()`의 원본 Drizzle 쿼리에는 적용되지 않습니다. `mysqlTableCreator`, `mysqlSchema` 또는 Drizzle에서 직접 가져온 `mysqlTable`은 컬럼 정책을 수집하지 않으므로 정책이 필요한 테이블에는 이 패키지의 `mysqlTable`을 사용합니다.
+`createdAt()`과 `updatedAt()` 컬럼은 `add` 시 직접 값을 지정할 수 있습니다. 생략하거나 `undefined`를 전달한 컬럼만 `getTimestamp` 생성 함수의 기본값으로 채우며, 한 행에서 생성한 값은 누락된 시각 컬럼들이 공유합니다. `getTimestamp`를 지정하지 않으면 기본적으로 `new Date()`를 사용하며, `timezone: 'local'`이면 실행 PC의 현지 시간을 사용합니다. `edit` 시에는 `createdAt()`의 직접 입력을 금지하고 기존 값을 유지합니다. `updatedAt()`은 직접 지정한 값을 사용하며, 생략하거나 `undefined`이면 기본 시각으로 갱신합니다. 명시적인 `updateBlocked()` 정책은 계속 적용되며, `updatedAt().updateRequired()`는 생략 시 기본 시각을 사용합니다. 직접 지정하는 값과 생성 함수의 반환값은 컬럼의 데이터 형식에 맞아야 합니다. `MySqlQuery`에 `db.current`가 아닌 연결 함수를 직접 전달하는 경우에는 기본 시각이 필요한 작업을 위해 세 번째 인자로 시각 생성 함수도 지정해야 하며, 생성 함수 없이 기본 시각이 필요한 작업을 실행하면 오류가 발생합니다. 정책은 `MySqlQuery`에만 적용되며 `db.current()`의 원본 Drizzle 쿼리에는 적용되지 않습니다. `mysqlTableCreator`, `mysqlSchema` 또는 Drizzle에서 직접 가져온 `mysqlTable`은 컬럼 정책을 수집하지 않으므로 정책이 필요한 테이블에는 이 패키지의 `mysqlTable`을 사용합니다.
 
 ```ts
 await usersQuery.add({ name: '사용자', created_at: '2026-01-01 00:00:00' });

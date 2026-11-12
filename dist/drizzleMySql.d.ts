@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import type { PoolOptions } from 'mysql2/promise';
 import { SQL, sql, Subquery } from 'drizzle-orm';
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import * as native from 'drizzle-orm';
@@ -7,11 +8,15 @@ import { type MySqlSchemaConditions } from './conditions.js';
 import { TableColumns } from './columns.js';
 import type { MySqlColumnName } from './@types/index.js';
 import { MySqlQuery, type SelectFrom, type SelectInput, type ResolveSelectInput, type SubquerySelectInput, type ResolveSubquerySelectInput } from './MySqlQuery.js';
-export interface DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> {
-    url: string;
+export type DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> = {
     schema: TSchema;
     getTimestamp?: () => unknown;
-}
+} & (({
+    url: string;
+} & Omit<PoolOptions, 'uri'>) | (PoolOptions & {
+    uri?: never;
+    url?: never;
+}));
 type MySqlConnection<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConnection<TSchema>>;
 type SelectTable<TSchema, TSource> = TSource extends MySqlTable ? TSource : TSource extends keyof TSchema ? Extract<TSchema[TSource], MySqlTable> : never;
 interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> extends MySqlNativeHelpers {

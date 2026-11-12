@@ -15,6 +15,8 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     const db = drizzleMySql({ url: '', getTimestamp: () => 0, schema: {
       ${Array.from({ length: 200 }, (_, i) => `table${i}`).join(',')}
     }});
+    drizzleMySql({ host: 'localhost', user: 'test', database: 'example', schema: { table199 } });
+    drizzleMySql({ url: 'mysql://localhost/example', connectionLimit: 5, schema: { table199 } });
     const a = db.a.table199('a');
     db./*members*/s;
     db.a./*aliases*/table199;

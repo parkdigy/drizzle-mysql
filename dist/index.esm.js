@@ -1071,10 +1071,21 @@ function sourceColumns(source, names = []) {
 const asc = createOrderByHelper(native.asc);
 const desc = createOrderByHelper(native.desc);
 function createConnection(options) {
-    const pool = mysql.createPool({ uri: options.url });
-    const raw = drizzle({ client: pool, relations: defineRelations(options.schema) });
+    const { url, schema, getTimestamp: configuredTimestamp, ...connectionOptions } = options;
+    const pool = mysql.createPool(url ? { ...connectionOptions, uri: url } : connectionOptions);
+    const raw = drizzle({ client: pool, relations: defineRelations(schema) });
     const context = new AsyncLocalStorage();
-    const getTimestamp = options.getTimestamp ?? (() => sql `CURRENT_TIMESTAMP`);
+    const timezone = connectionOptions.timezone ?? (url ? new URL(url).searchParams.get('timezone') : null);
+    const timestampGenerator = configuredTimestamp ?? (() => new Date());
+    const getTimestamp = () => {
+        const now = timestampGenerator();
+        if (timezone !== 'local' || !(now instanceof Date))
+            return now;
+        // Drizzle encodes Date values as UTC before mysql2 can apply its timezone option.
+        const pad = (value, length = 2) => String(value).padStart(length, '0');
+        const local = `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
+        return sql `${local}`;
+    };
     const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp });
     const trans = (callback) => {
         const parent = context.getStore();
