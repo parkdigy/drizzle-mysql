@@ -112,7 +112,9 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     find<N extends MySqlColumnSelectionName<TTable>>(fields: readonly N[], where?: BaseWhere<this>): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
     find<const T extends readonly FieldInput[]>(fields: (query: FieldsQuery<TTable>) => T, where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<T>>>;
     find<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(fields: T, where: BaseWhere<this>): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
+    find<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, where: (query: WhereQuery<MySqlQuery<TTable, AV, EV, AR>>) => SQL | undefined): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
     find<const TSelection extends StringColumnSelection<TTable>>(fields: TSelection, where?: BaseWhere<this>): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
+    find<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, where: (query: WhereQuery<MySqlQuery<TTable, AV, EV, AR>>) => SQL | undefined): Promise<FindResult<TTable, TSelection>>;
     find<TSelection extends SelectedFields<MySqlColumn, TTable>>(fields: Fields<FieldsQuery<TTable>, TSelection>, where?: BaseWhere<this>): Promise<FindResult<TTable, TSelection>>;
     find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, where: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, undefined>>;
     find<TAlias extends string>(alias: MySqlAliasTable<TTable, TAlias>, fields: readonly [], where?: BaseWhere<this>): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, {}>>;
@@ -203,9 +205,9 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     /********************************************************************************************************************
      * eq
      * ******************************************************************************************************************/
+    eq(values: MySqlCompareValues<TTable>): SQL | undefined;
     eq<N extends MySqlColumnName<TTable>>(name: N, value: Required<MySqlCompareValues<TTable>>[N]): SQL;
     eq<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(table: MySqlAliasTable<TTable, TAlias>, name: N, value: Required<MySqlCompareValues<MySqlAliasTable<TTable, TAlias>>>[N]): SQL;
-    eq(values: MySqlCompareValues<TTable>): SQL | undefined;
     orEq(values: MySqlCompareValues<TTable>): SQL | undefined;
     orNe(values: MySqlCompareValues<TTable>): SQL | undefined;
     orGt(values: MySqlCompareValues<TTable>): SQL | undefined;
@@ -378,7 +380,17 @@ export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends 
     offset(value: number | Placeholder): Omit<SelectFrom<TTable, TSelection>, 'offset'>;
 };
 type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefined> = Awaited<SelectFrom<TTable, TSelection>>[number] | undefined;
-type WhereQuery<TQuery> = Pick<TQuery, Extract<keyof TQuery, 't' | 'eq' | 'ne' | 'orEq' | 'orNe' | 'orGt' | 'orGte' | 'orLt' | 'orLte' | 'orInArray' | 'orNotInArray' | 'orBetween' | 'orNotBetween' | 'orLike' | 'orNotLike' | 'orIlike' | 'orNotIlike' | 'orIsNull' | 'orIsNotNull' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull' | 'and' | 'or'>>;
+type WhereQueryEq<TTable extends MySqlTable> = {
+    (values: MySqlCompareValues<TTable>): SQL | undefined;
+    <N extends MySqlColumnName<TTable>>(name: N, value: Required<MySqlCompareValues<TTable>>[N]): SQL;
+    <TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(table: MySqlAliasTable<TTable, TAlias>, name: N, value: Required<MySqlCompareValues<MySqlAliasTable<TTable, TAlias>>>[N]): SQL;
+};
+type QueryTable<TQuery> = TQuery extends {
+    readonly t: infer TTable extends MySqlTable;
+} ? TTable : never;
+type WhereQuery<TQuery> = Omit<Pick<TQuery, Extract<keyof TQuery, 't' | 'eq' | 'ne' | 'orEq' | 'orNe' | 'orGt' | 'orGte' | 'orLt' | 'orLte' | 'orInArray' | 'orNotInArray' | 'orBetween' | 'orNotBetween' | 'orLike' | 'orNotLike' | 'orIlike' | 'orNotIlike' | 'orIsNull' | 'orIsNotNull' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull' | 'and' | 'or'>>, 'eq'> & {
+    eq: WhereQueryEq<QueryTable<TQuery>>;
+};
 type SelectConditionQuery<TSource extends MySqlTable | Subquery> = TSource extends MySqlTable ? TableConditionQuery<TSource> : TSource extends Subquery ? SubqueryConditionQuery<TSource> : never;
 type BaseTableConditionQuery<TTable extends MySqlTable> = {
     readonly t: TTable;

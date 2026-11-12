@@ -214,6 +214,8 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
 
     console.log(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, this.eq({ name: 'name' })));
 
+    console.log(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, (q) => q.eq({ id: 1 })));
+
     console.log(await this.find({ min_id: this.min('id'), max_id: this.max('id') }));
 
     console.log(await this.findByPrimaryKey(['id', 'name', 'email'], 1));

@@ -624,8 +624,18 @@ export class MySqlQuery<
 
   async find<const TSelection extends StringColumnSelection<TTable>>(
     fields: TSelection,
+    where: (query: WhereQuery<MySqlQuery<TTable, AV, EV, AR>>) => SQL | undefined
+  ): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
+
+  async find<const TSelection extends StringColumnSelection<TTable>>(
+    fields: TSelection,
     where?: BaseWhere<this>
   ): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
+
+  async find<TSelection extends SelectedFields<MySqlColumn, TTable>>(
+    fields: Fields<FieldsQuery<TTable>, TSelection>,
+    where: (query: WhereQuery<MySqlQuery<TTable, AV, EV, AR>>) => SQL | undefined
+  ): Promise<FindResult<TTable, TSelection>>;
 
   async find<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields: Fields<FieldsQuery<TTable>, TSelection>,
@@ -1117,6 +1127,8 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * eq
    * ******************************************************************************************************************/
+  eq(values: MySqlCompareValues<TTable>): SQL | undefined;
+
   eq<N extends MySqlColumnName<TTable>>(name: N, value: Required<MySqlCompareValues<TTable>>[N]): SQL;
 
   eq<TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(
@@ -1124,8 +1136,6 @@ export class MySqlQuery<
     name: N,
     value: Required<MySqlCompareValues<MySqlAliasTable<TTable, TAlias>>>[N]
   ): SQL;
-
-  eq(values: MySqlCompareValues<TTable>): SQL | undefined;
 
   eq(
     tableOrValues: MySqlTable | string | MySqlCompareValues<TTable>,
@@ -1488,7 +1498,20 @@ export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends 
 type FindResult<TTable extends MySqlTable, TSelection extends FieldSet | undefined> =
   Awaited<SelectFrom<TTable, TSelection>>[number] | undefined;
 
-type WhereQuery<TQuery> = Pick<
+type WhereQueryEq<TTable extends MySqlTable> = {
+  (values: MySqlCompareValues<TTable>): SQL | undefined;
+  <N extends MySqlColumnName<TTable>>(name: N, value: Required<MySqlCompareValues<TTable>>[N]): SQL;
+  <TAlias extends string, N extends MySqlColumnName<MySqlAliasTable<TTable, TAlias>>>(
+    table: MySqlAliasTable<TTable, TAlias>,
+    name: N,
+    value: Required<MySqlCompareValues<MySqlAliasTable<TTable, TAlias>>>[N]
+  ): SQL;
+};
+
+type QueryTable<TQuery> = TQuery extends { readonly t: infer TTable extends MySqlTable } ? TTable : never;
+
+type WhereQuery<TQuery> = Omit<
+  Pick<
   TQuery,
   Extract<
     keyof TQuery,
@@ -1527,8 +1550,12 @@ type WhereQuery<TQuery> = Pick<
     | 'isNotNull'
     | 'and'
     | 'or'
-  >
->;
+    >
+  >,
+  'eq'
+> & {
+  eq: WhereQueryEq<QueryTable<TQuery>>;
+};
 type SelectConditionQuery<TSource extends MySqlTable | Subquery> = TSource extends MySqlTable
   ? TableConditionQuery<TSource>
   : TSource extends Subquery

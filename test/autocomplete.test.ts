@@ -48,6 +48,8 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     ({} as Awaited<typeof directSelected>[number]).extra0;
     void [directRow, directAliasRow];
     const query = db.query(table199);
+    // @ts-expect-error 자동완성용 미완성 조건 키
+    query.eq({ i/*queryEq*/ });
     const j = query.select(['id', 'name']).limit(1).orderBy(query.desc('id')).as('j');
     // @ts-expect-error 서브쿼리 선택 콜백의 자동완성용 미완성 컬럼명
     db.select(j, (q) => q.columns('id', '/*subquerySelect*/'));
@@ -69,6 +71,9 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     const merged = query.select([query.columns('id'), { label: table199.name }]);
     const aliased = query.select(a, ['id', 'name as displayName']);
     const found = query.find({ renamed: 'id' });
+    // @ts-expect-error 자동완성용 미완성 조건 키
+    query.find({ idLabel: 'id', nameLabel: 'name' }, q => q.eq({ i/*findCondition*/ }));
+    query.find({ idLabel: 'id' }, q => q.eq('id', 1));
     const foundByKey = query.findByPrimaryKey({ renamed: 'id' }, 1);
     type Row = Awaited<typeof selected>[number];
     const row: Row = { renamed: 1 };
@@ -130,7 +135,9 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
       subqueryThird: ['id', 'name'],
       query: ['id', 'name'],
       condition: ['id', 'name'],
+      queryEq: ['id'],
       namedCondition: ['id', 'name'],
+      findCondition: ['id'],
     })) {
       const entries = service.getCompletionsAtPosition(file, positions[name], {})?.entries.map((entry) => entry.name);
       expect({ name, entries }).toEqual({ name, entries: expect.arrayContaining(expected) });
