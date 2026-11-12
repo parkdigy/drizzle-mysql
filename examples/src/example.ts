@@ -240,6 +240,17 @@ export class AdminUser extends MySqlQuery<'adminUser'> {
       orEq: { id: 1, name: 'name' },
     });
 
+    this.select().where((q) =>
+      q.and(
+        q.and({
+          eq: { id: 1 },
+        }),
+        q.or({
+          eq: { id: 1, name: 'name' },
+        })
+      )
+    );
+
     const oneRowBuilder = this.select(['id'])
       .where((q) => q.lt({ id: 1 }))
       .limit(1);

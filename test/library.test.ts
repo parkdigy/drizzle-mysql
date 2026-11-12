@@ -57,6 +57,34 @@ test('where 콜백은 조건 헬퍼와 테이블 객체를 제공한다', () => 
   expect(aliasCondition.params).toEqual(['Ada']);
 });
 
+test('and와 or는 객체 조건과 여러 SQL 조건을 중첩 결합한다', () => {
+  const query = db.query(user);
+  const composed = query.select().where((q) =>
+    q.and(
+      q.and({ eq: { id: 1 } }),
+      q.or({ isNull: 'displayName', eq: { displayName: 'Ada' } }),
+    ),
+  ).toSQL();
+  expect(composed.sql).toContain('`users`.`id` = ?');
+  expect(composed.sql).toContain(' or ');
+  expect(composed.params).toEqual([1, 'Ada']);
+
+  const direct = query.and(query.eq({ id: 1 }), false, query.eq({ displayName: 'Ada' }));
+  const directOr = query.or(query.eq({ id: 1 }), query.eq({ id: 2 }));
+  expect(db.current().select().from(user).where(direct).toSQL().params).toEqual([1, 'Ada']);
+  expect(db.current().select().from(user).where(directOr).toSQL().params).toEqual([1, 2]);
+  expect(query.and(false, undefined)).toBeUndefined();
+  expect(query.or(false, undefined)).toBeUndefined();
+
+  const subquery = query.select(['id']).as('selected_user');
+  const subqueryCondition = query.select(subquery).where((q) =>
+    q.and(q.and(q.eq({ id: 1 })), q.or(q.eq({ id: 2 }), q.eq({ id: 3 }))),
+  ).toSQL();
+  expect(subqueryCondition.sql).toContain('`selected_user`.`id`');
+  expect(subqueryCondition.sql).toContain(' or ');
+  expect(subqueryCondition.params).toEqual([1, 2, 3]);
+});
+
 test('orEq와 orNe는 쿼리·스키마 키·테이블 별칭에서 비교를 OR로 결합한다', () => {
   const alias = db.a.user('u');
   const conditions = createConditions({ user });

@@ -430,6 +430,24 @@ class MySqlQuery {
                 });
                 return join(...conditions);
             };
+            const combineCallbackConditions = (operator, conditionTable, inputs) => {
+                const conditions = [];
+                for (const input of inputs) {
+                    if (input === undefined || input === false)
+                        continue;
+                    if (typeof input === 'object' && input !== null && 'getSQL' in input && typeof input.getSQL === 'function') {
+                        conditions.push(input);
+                        continue;
+                    }
+                    if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
+                        conditions.push(bindCondition(operator, conditionTable)(input));
+                        continue;
+                    }
+                    throw new Error(`${operator}: expected SQL conditions or a condition object.`);
+                }
+                const filtered = conditions.filter((condition) => condition !== false);
+                return operator === 'and' ? and(...filtered) : or(...filtered);
+            };
             const conditionQuery = (conditionTable, contextTable) => ({
                 t: contextTable,
                 eq: bindCondition('eq', conditionTable),
@@ -464,8 +482,8 @@ class MySqlQuery {
                 orNotIlike: bindCondition('orNotIlike', conditionTable),
                 orIsNull: bindCondition('orIsNull', conditionTable),
                 orIsNotNull: bindCondition('orIsNotNull', conditionTable),
-                and: bindCondition('and', conditionTable),
-                or: bindCondition('or', conditionTable),
+                and: (...conditions) => combineCallbackConditions('and', conditionTable, conditions),
+                or: (...conditions) => combineCallbackConditions('or', conditionTable, conditions),
             });
             const whereQuery = conditionQuery(table, table);
             const orderByColumns = (direction, name, ...names) => this.orderByColumns(direction, table, [name, ...names]);
@@ -956,17 +974,17 @@ class MySqlQuery {
     isNotNull(names) {
         return this.drizzle.isNotNull(this.t, names);
     }
-    /********************************************************************************************************************
-     * and
-     * ******************************************************************************************************************/
-    and(options) {
-        return this.drizzle.and(this.t, options);
+    and(options, ...conditions) {
+        if (typeof options === 'object' && options !== null && !('getSQL' in options)) {
+            return this.drizzle.and(this.t, options);
+        }
+        return and(...[options, ...conditions].filter((condition) => condition !== false));
     }
-    /********************************************************************************************************************
-     * or
-     * ******************************************************************************************************************/
-    or(options) {
-        return this.drizzle.or(this.t, options);
+    or(options, ...conditions) {
+        if (typeof options === 'object' && options !== null && !('getSQL' in options)) {
+            return this.drizzle.or(this.t, options);
+        }
+        return or(...[options, ...conditions].filter((condition) => condition !== false));
     }
 }
 const normalizeFields = (fields, table) => {
