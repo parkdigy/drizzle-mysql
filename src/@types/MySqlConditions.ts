@@ -26,6 +26,21 @@ type BaseConditions<T extends MySqlTable> = {
   isNotNull?: MySqlNullConditionInput<T>;
 };
 
-export type MySqlConditions<T extends MySqlTable> = BaseConditions<T> & {
+type OrConditions<T extends MySqlTable> = {
   [K in keyof BaseConditions<T> as `or${Capitalize<K>}`]?: BaseConditions<T>[K];
+};
+
+type AtomicConditions<T extends MySqlTable> = BaseConditions<T> & OrConditions<T>;
+
+export type MySqlAndConditions<T extends MySqlTable> = AtomicConditions<T> & {
+  or?: MySqlOrConditions<T>;
+};
+
+export type MySqlOrConditions<T extends MySqlTable> = AtomicConditions<T> & {
+  and?: MySqlAndConditions<T>;
+};
+
+export type MySqlConditions<T extends MySqlTable> = AtomicConditions<T> & {
+  and?: MySqlAndConditions<T>;
+  or?: MySqlOrConditions<T>;
 };

@@ -115,7 +115,10 @@
         const table = resolveTable(input);
         const sqlConditions = [];
         for (const [name, values] of recordEntries(options)) {
-            if (!Object.hasOwn(conditions, name) || name === 'and' || name === 'or') {
+            if (name === operator) {
+                throw new Error(`Condition: cannot nest "${operator}" inside itself.`);
+            }
+            if (!Object.hasOwn(conditions, name)) {
                 throw new Error(`Condition: unknown operator "${name}".`);
             }
             if (values === undefined)
@@ -394,7 +397,12 @@ class MySqlQuery {
                     if (typeof input !== 'object' || input === null || Array.isArray(input)) {
                         throw new Error(`${operator}: expected a condition object.`);
                     }
-                    const conditions = Object.entries(input).map(([nestedOperator, values]) => bindCondition(nestedOperator, conditionTable)(values));
+                    const conditions = Object.entries(input).map(([nestedOperator, values]) => {
+                        if (nestedOperator === operator) {
+                            throw new Error(`Condition: cannot nest "${operator}" inside itself.`);
+                        }
+                        return bindCondition(nestedOperator, conditionTable)(values);
+                    });
                     return operator === 'and' ? native.and(...conditions) : native.or(...conditions);
                 }
                 if (baseOperator === 'isNull' || baseOperator === 'isNotNull') {

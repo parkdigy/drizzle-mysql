@@ -6,7 +6,7 @@ import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types
 import type { GetMySqlSetOperators, MySqlSetOperatorWithResult, SetOperatorRightSelect } from 'drizzle-orm/mysql-core/query-builders/select.types';
 import type { MySqlColumnSelectionName, MySqlSelectedNamedColumnUnion, MySqlSelectedNamedColumns, MySqlSelectedTableColumns, MySqlAliasTable } from './columns.js';
 import { type TableMutationPolicy } from './mysqlTable.js';
-import type { MySqlAddValues, MySqlEditValues, MySqlCompareValues, MySqlColumnName, MySqlArrayCompareValues, MySqlRangeCompareValues, MySqlPatternCompareValues, MySqlNullConditionInput, MySqlConditions } from './@types/index.js';
+import type { MySqlAddValues, MySqlEditValues, MySqlCompareValues, MySqlColumnName, MySqlArrayCompareValues, MySqlRangeCompareValues, MySqlPatternCompareValues, MySqlNullConditionInput, MySqlAndConditions, MySqlOrConditions } from './@types/index.js';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import type { TypedQueryBuilder } from 'drizzle-orm/query-builders/query-builder';
 /********************************************************************************************************************
@@ -289,12 +289,12 @@ export declare class MySqlQuery<TTable extends MySqlTable, AV extends MySqlAddVa
     /********************************************************************************************************************
      * and
      * ******************************************************************************************************************/
-    and(options: MySqlConditions<TTable>): SQL | undefined;
+    and(options: MySqlAndConditions<TTable>): SQL | undefined;
     and(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
     /********************************************************************************************************************
      * or
      * ******************************************************************************************************************/
-    or(options: MySqlConditions<TTable>): SQL | undefined;
+    or(options: MySqlOrConditions<TTable>): SQL | undefined;
     or(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
 }
 /********************************************************************************************************************
@@ -410,9 +410,9 @@ type BaseTableConditionQuery<TTable extends MySqlTable> = {
     notIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
     isNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
     isNotNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
-    and(options: MySqlConditions<TTable>): SQL | undefined;
+    and(options: MySqlAndConditions<TTable>): SQL | undefined;
     and(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
-    or(options: MySqlConditions<TTable>): SQL | undefined;
+    or(options: MySqlOrConditions<TTable>): SQL | undefined;
     or(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
 };
 type TableConditionQuery<TTable extends MySqlTable> = BaseTableConditionQuery<TTable> & {
@@ -484,6 +484,29 @@ type SubqueryRangeValues<T extends Subquery> = {
 type SubqueryPatternValues<T extends Subquery> = {
     [K in keyof T['_']['selectedFields'] as NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> extends string ? K : never]?: string;
 };
+type SubqueryAtomicMethods<T extends Subquery> = Pick<{
+    [K in 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte']: (values: SubqueryValues<T>) => SQL | undefined;
+} & {
+    [K in 'inArray' | 'notInArray']: (values: SubqueryArrayValues<T>) => SQL | undefined;
+} & {
+    [K in 'between' | 'notBetween']: (values: SubqueryRangeValues<T>) => SQL | undefined;
+} & {
+    [K in 'like' | 'notLike' | 'ilike' | 'notIlike']: (values: SubqueryPatternValues<T>) => SQL | undefined;
+} & {
+    isNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
+    isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
+}, 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'inArray' | 'notInArray' | 'between' | 'notBetween' | 'like' | 'notLike' | 'ilike' | 'notIlike' | 'isNull' | 'isNotNull'>;
+type SubqueryAtomicConditions<T extends Subquery> = {
+    [K in keyof SubqueryAtomicMethods<T>]?: Parameters<SubqueryAtomicMethods<T>[K]>[0];
+} & {
+    [K in keyof SubqueryAtomicMethods<T> as `or${Capitalize<K & string>}`]?: Parameters<SubqueryAtomicMethods<T>[K]>[0];
+};
+type SubqueryAndConditions<T extends Subquery> = SubqueryAtomicConditions<T> & {
+    or?: SubqueryOrConditions<T>;
+};
+type SubqueryOrConditions<T extends Subquery> = SubqueryAtomicConditions<T> & {
+    and?: SubqueryAndConditions<T>;
+};
 type BaseSubqueryConditionQuery<T extends Subquery> = {
     readonly t: T;
 } & {
@@ -497,16 +520,13 @@ type BaseSubqueryConditionQuery<T extends Subquery> = {
 } & {
     isNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
     isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
-    and(values: SubqueryConditions<T>): SQL | undefined;
+    and(values: SubqueryAndConditions<T>): SQL | undefined;
     and(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
-    or(values: SubqueryConditions<T>): SQL | undefined;
+    or(values: SubqueryOrConditions<T>): SQL | undefined;
     or(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
 };
 type SubqueryConditionQuery<T extends Subquery> = BaseSubqueryConditionQuery<T> & {
     [K in keyof Omit<BaseSubqueryConditionQuery<T>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`]: BaseSubqueryConditionQuery<T>[K];
-};
-type SubqueryConditions<T extends Subquery> = {
-    [K in keyof Omit<SubqueryConditionQuery<T>, 't'>]?: SubqueryConditionQuery<T>[K] extends (values: infer V) => unknown ? V : never;
 };
 type NamedFields<TTable extends MySqlTable, T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]> = {
     [I in keyof T]: T[I] extends MySqlColumnSelectionName<TTable> ? MySqlSelectedNamedColumns<TTable, readonly [T[I]]> : Extract<T[I], FieldInput>;

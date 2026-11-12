@@ -1,7 +1,7 @@
 import * as native from 'drizzle-orm';
 import { MySqlTable } from 'drizzle-orm/mysql-core';
 import type { Column, SQL } from 'drizzle-orm';
-import type { MySqlColumnName, MySqlConditions, MySqlNullConditionInput } from './@types/index.js';
+import type { MySqlAndConditions, MySqlColumnName, MySqlNullConditionInput, MySqlOrConditions } from './@types/index.js';
 export declare function createConditions<TSchema extends Record<string, MySqlTable>>(schema: TSchema): {
     eq: {
         <T extends MySqlTable>(table: T, values: import("./index.js").MySqlCompareValues<T> | undefined): SQL | undefined;
@@ -164,12 +164,12 @@ export declare function createConditions<TSchema extends Record<string, MySqlTab
         <K extends keyof TSchema & string>(table: K, names: MySqlNullConditionInput<(typeof schema)[K]>): SQL | undefined;
     };
     and: {
-        <T extends MySqlTable>(table: T, options: MySqlConditions<T>): SQL | undefined;
-        <K extends keyof TSchema & string>(table: K, options: MySqlConditions<TSchema[K]>): SQL | undefined;
+        <T extends MySqlTable>(table: T, options: MySqlAndConditions<T> | MySqlOrConditions<T>): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, options: MySqlAndConditions<TSchema[K]> | MySqlOrConditions<TSchema[K]>): SQL | undefined;
     } & ((...conditions: (native.SQLWrapper | false | undefined)[]) => SQL | undefined);
     or: {
-        <T extends MySqlTable>(table: T, options: MySqlConditions<T>): SQL | undefined;
-        <K extends keyof TSchema & string>(table: K, options: MySqlConditions<TSchema[K]>): SQL | undefined;
+        <T extends MySqlTable>(table: T, options: MySqlAndConditions<T> | MySqlOrConditions<T>): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, options: MySqlAndConditions<TSchema[K]> | MySqlOrConditions<TSchema[K]>): SQL | undefined;
     } & ((...conditions: (native.SQLWrapper | false | undefined)[]) => SQL | undefined);
 };
 export type MySqlSchemaConditions<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConditions<TSchema>>;

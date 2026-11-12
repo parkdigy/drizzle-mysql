@@ -52,7 +52,8 @@ import type {
   MySqlRangeCompareValues,
   MySqlPatternCompareValues,
   MySqlNullConditionInput,
-  MySqlConditions,
+  MySqlAndConditions,
+  MySqlOrConditions,
 } from './@types';
 import { createConditions } from './conditions';
 import type { MySqlInsertValue } from 'drizzle-orm/mysql-core/query-builders/insert';
@@ -436,9 +437,12 @@ export class MySqlQuery<
             if (typeof input !== 'object' || input === null || Array.isArray(input)) {
               throw new Error(`${operator}: expected a condition object.`);
             }
-            const conditions: (SQL | undefined)[] = Object.entries(input).map(
-              ([nestedOperator, values]) => bindCondition(nestedOperator, conditionTable)(values) as SQL | undefined
-            );
+            const conditions: (SQL | undefined)[] = Object.entries(input).map(([nestedOperator, values]) => {
+              if (nestedOperator === operator) {
+                throw new Error(`Condition: cannot nest "${operator}" inside itself.`);
+              }
+              return bindCondition(nestedOperator, conditionTable)(values) as SQL | undefined;
+            });
             return operator === 'and' ? drizzleAnd(...conditions) : drizzleOr(...conditions);
           }
 
@@ -1327,14 +1331,14 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * and
    * ******************************************************************************************************************/
-  and(options: MySqlConditions<TTable>): SQL | undefined;
+  and(options: MySqlAndConditions<TTable>): SQL | undefined;
   and(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
   and(
-    options: MySqlConditions<TTable> | SQLWrapper | false | undefined,
+    options: MySqlAndConditions<TTable> | SQLWrapper | false | undefined,
     ...conditions: (SQLWrapper | false | undefined)[]
   ): SQL | undefined {
     if (typeof options === 'object' && options !== null && !('getSQL' in options)) {
-      return this.drizzle.and(this.t, options as MySqlConditions<TTable>);
+      return this.drizzle.and(this.t, options as MySqlAndConditions<TTable>);
     }
     return drizzleAnd(...[options, ...conditions].filter((condition): condition is SQLWrapper | undefined => condition !== false));
   }
@@ -1342,14 +1346,14 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * or
    * ******************************************************************************************************************/
-  or(options: MySqlConditions<TTable>): SQL | undefined;
+  or(options: MySqlOrConditions<TTable>): SQL | undefined;
   or(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
   or(
-    options: MySqlConditions<TTable> | SQLWrapper | false | undefined,
+    options: MySqlOrConditions<TTable> | SQLWrapper | false | undefined,
     ...conditions: (SQLWrapper | false | undefined)[]
   ): SQL | undefined {
     if (typeof options === 'object' && options !== null && !('getSQL' in options)) {
-      return this.drizzle.or(this.t, options as MySqlConditions<TTable>);
+      return this.drizzle.or(this.t, options as MySqlOrConditions<TTable>);
     }
     return drizzleOr(...[options, ...conditions].filter((condition): condition is SQLWrapper | undefined => condition !== false));
   }
@@ -1579,9 +1583,9 @@ type BaseTableConditionQuery<TTable extends MySqlTable> = {
   notIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
   isNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
   isNotNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
-  and(options: MySqlConditions<TTable>): SQL | undefined;
+  and(options: MySqlAndConditions<TTable>): SQL | undefined;
   and(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
-  or(options: MySqlConditions<TTable>): SQL | undefined;
+  or(options: MySqlOrConditions<TTable>): SQL | undefined;
   or(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
 };
 type TableConditionQuery<TTable extends MySqlTable> = BaseTableConditionQuery<TTable> & {
@@ -1724,6 +1728,43 @@ type SubqueryPatternValues<T extends Subquery> = {
       : never
   ]?: string;
 };
+type SubqueryAtomicMethods<T extends Subquery> = Pick<
+  {
+    [K in 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte']: (values: SubqueryValues<T>) => SQL | undefined;
+  } & { [K in 'inArray' | 'notInArray']: (values: SubqueryArrayValues<T>) => SQL | undefined } & {
+    [K in 'between' | 'notBetween']: (values: SubqueryRangeValues<T>) => SQL | undefined;
+  } & { [K in 'like' | 'notLike' | 'ilike' | 'notIlike']: (values: SubqueryPatternValues<T>) => SQL | undefined } & {
+    isNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
+    isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
+  },
+  | 'eq'
+  | 'ne'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'inArray'
+  | 'notInArray'
+  | 'between'
+  | 'notBetween'
+  | 'like'
+  | 'notLike'
+  | 'ilike'
+  | 'notIlike'
+  | 'isNull'
+  | 'isNotNull'
+>;
+type SubqueryAtomicConditions<T extends Subquery> = {
+  [K in keyof SubqueryAtomicMethods<T>]?: Parameters<SubqueryAtomicMethods<T>[K]>[0];
+} & {
+  [K in keyof SubqueryAtomicMethods<T> as `or${Capitalize<K & string>}`]?: Parameters<SubqueryAtomicMethods<T>[K]>[0];
+};
+type SubqueryAndConditions<T extends Subquery> = SubqueryAtomicConditions<T> & {
+  or?: SubqueryOrConditions<T>;
+};
+type SubqueryOrConditions<T extends Subquery> = SubqueryAtomicConditions<T> & {
+  and?: SubqueryAndConditions<T>;
+};
 type BaseSubqueryConditionQuery<T extends Subquery> = {
   readonly t: T;
 } & {
@@ -1737,19 +1778,14 @@ type BaseSubqueryConditionQuery<T extends Subquery> = {
 } & {
   isNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
   isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
-  and(values: SubqueryConditions<T>): SQL | undefined;
+  and(values: SubqueryAndConditions<T>): SQL | undefined;
   and(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
-  or(values: SubqueryConditions<T>): SQL | undefined;
+  or(values: SubqueryOrConditions<T>): SQL | undefined;
   or(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
 };
 type SubqueryConditionQuery<T extends Subquery> = BaseSubqueryConditionQuery<T> & {
   [K in keyof Omit<BaseSubqueryConditionQuery<T>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`]:
     BaseSubqueryConditionQuery<T>[K];
-};
-type SubqueryConditions<T extends Subquery> = {
-  [K in keyof Omit<SubqueryConditionQuery<T>, 't'>]?: SubqueryConditionQuery<T>[K] extends (values: infer V) => unknown
-    ? V
-    : never;
 };
 type NamedFields<TTable extends MySqlTable, T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]> = {
   [I in keyof T]: T[I] extends MySqlColumnSelectionName<TTable>

@@ -85,6 +85,24 @@ test('and와 or는 객체 조건과 여러 SQL 조건을 중첩 결합한다', (
   expect(subqueryCondition.params).toEqual([1, 2, 3]);
 });
 
+test('and/or 객체 조건은 서로 중첩할 수 있지만 같은 연산자는 다시 중첩할 수 없다', () => {
+  const query = db.query(user);
+  const nested = query.and({
+    eq: { id: 1 },
+    or: {
+      eq: { displayName: 'Ada' },
+      ne: { displayName: 'Grace' },
+    },
+  });
+  const generated = db.current().select().from(user).where(nested).toSQL();
+
+  expect(generated.sql).toContain('`users`.`id` = ?');
+  expect(generated.sql).toContain(' or ');
+  expect(generated.params).toEqual([1, 'Ada', 'Grace']);
+  expect(() => Reflect.apply(query.and, query, [{ and: {} }])).toThrow('cannot nest "and" inside itself');
+  expect(() => Reflect.apply(query.or, query, [{ or: {} }])).toThrow('cannot nest "or" inside itself');
+});
+
 test('orEq와 orNe는 쿼리·스키마 키·테이블 별칭에서 비교를 OR로 결합한다', () => {
   const alias = db.a.user('u');
   const conditions = createConditions({ user });
