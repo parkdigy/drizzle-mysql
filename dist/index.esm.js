@@ -1081,6 +1081,7 @@ function createConnection(options) {
     const { url, schema, getTimestamp: configuredTimestamp, ...connectionOptions } = options;
     const pool = mysql.createPool(url ? { ...connectionOptions, uri: url } : connectionOptions);
     const raw = drizzle({ client: pool, relations: defineRelations(schema) });
+    const transactionDatabase = (client) => drizzle({ client, relations: defineRelations(schema) });
     const context = new AsyncLocalStorage();
     const timezone = connectionOptions.timezone ?? (url ? new URL(url).searchParams.get('timezone') : null);
     const timestampGenerator = configuredTimestamp ?? (() => new Date());
@@ -1093,11 +1094,50 @@ function createConnection(options) {
         const local = `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
         return sql `${local}`;
     };
-    const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp });
-    const trans = (callback) => {
-        const execute = (tx) => context.run(tx, callback);
-        // 중첩 호출도 별도 연결의 독립 트랜잭션으로 실행한다.
-        return raw.transaction(execute);
+    const current = Object.assign(() => {
+        const tx = context.getStore();
+        if (tx && !tx.active)
+            throw new Error('Transaction has already ended.');
+        return tx?.database ?? raw;
+    }, { getTimestamp });
+    const trans = async (callback) => {
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            const frame = { database: transactionDatabase(connection), active: true };
+            let rollbackPromise;
+            const handle = {
+                rollback: () => {
+                    if (rollbackPromise)
+                        return rollbackPromise;
+                    if (!frame.active)
+                        return Promise.resolve();
+                    frame.active = false;
+                    rollbackPromise = connection.rollback();
+                    return rollbackPromise;
+                },
+            };
+            try {
+                const result = await context.run(frame, () => callback(handle));
+                if (rollbackPromise)
+                    await rollbackPromise;
+                if (frame.active) {
+                    await connection.commit();
+                    frame.active = false;
+                }
+                return result;
+            }
+            catch (error) {
+                await handle.rollback().catch(() => { });
+                throw error;
+            }
+            finally {
+                frame.active = false;
+            }
+        }
+        finally {
+            connection.release();
+        }
     };
     const paginate = async (builder, page, limit) => {
         if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1) {

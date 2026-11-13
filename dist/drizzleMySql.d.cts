@@ -17,6 +17,10 @@ export type DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> = {
     uri?: never;
     url?: never;
 }));
+export interface MySqlTransactionHandle {
+    /** 롤백 완료를 await한 뒤 후속 쿼리를 실행한다. */
+    rollback(): Promise<void>;
+}
 type MySqlConnection<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConnection<TSchema>>;
 type SelectTable<TSchema, TSource> = TSource extends MySqlTable ? TSource : TSource extends keyof TSchema ? Extract<TSchema[TSource], MySqlTable> : never;
 interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> extends MySqlNativeHelpers {
@@ -53,10 +57,12 @@ export type DrizzleMySql<TSchema extends Record<string, MySqlTable>> = MySqlData
 declare function createConnection<TSchema extends Record<string, MySqlTable>>(options: DrizzleMySqlOptions<TSchema>): {
     current: (() => (import("drizzle-orm/mysql2").MySql2Database<native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>> & {
         $client: mysql.Pool;
-    }) | import("drizzle-orm/mysql-core").MySqlAsyncTransaction<import("drizzle-orm/mysql2").MySql2QueryResultHKT, native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>>) & {
+    }) | (import("drizzle-orm/mysql2").MySql2Database<native.ExtractTablesWithRelations<{}, native.ExtractTablesFromSchema<TSchema>>> & {
+        $client: mysql.PoolConnection;
+    })) & {
         getTimestamp: () => unknown;
     };
-    trans: <T>(callback: () => Promise<T>) => Promise<T>;
+    trans: <T>(callback: (trx: MySqlTransactionHandle) => Promise<T>) => Promise<T>;
     paginate: <TResult extends unknown[]>(builder: {
         limit(limit: number): {
             offset(offset: number): PromiseLike<TResult>;

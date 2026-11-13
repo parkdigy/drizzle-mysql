@@ -23,6 +23,11 @@ export type DrizzleMySqlOptions<TSchema extends Record<string, MySqlTable>> = {
   getTimestamp?: () => unknown;
 } & (({ url: string } & Omit<PoolOptions, 'uri'>) | (PoolOptions & { uri?: never; url?: never }));
 
+export interface MySqlTransactionHandle {
+  /** 롤백 완료를 await한 뒤 후속 쿼리를 실행한다. */
+  rollback(): Promise<void>;
+}
+
 type MySqlConnection<TSchema extends Record<string, MySqlTable>> = ReturnType<typeof createConnection<TSchema>>;
 
 type SelectTable<TSchema, TSource> = TSource extends MySqlTable
@@ -127,8 +132,9 @@ function createConnection<TSchema extends Record<string, MySqlTable>>(options: D
   const { url, schema, getTimestamp: configuredTimestamp, ...connectionOptions } = options;
   const pool = mysql.createPool(url ? { ...connectionOptions, uri: url } : connectionOptions);
   const raw = drizzle({ client: pool, relations: defineRelations(schema) });
-  type Transaction = Parameters<Parameters<typeof raw.transaction>[0]>[0];
-  const context = new AsyncLocalStorage<Transaction>();
+  const transactionDatabase = (client: mysql.PoolConnection) => drizzle({ client, relations: defineRelations(schema) });
+  type TransactionContext = { database: ReturnType<typeof transactionDatabase>; active: boolean };
+  const context = new AsyncLocalStorage<TransactionContext>();
   const timezone = connectionOptions.timezone ?? (url ? new URL(url).searchParams.get('timezone') : null);
   const timestampGenerator = configuredTimestamp ?? (() => new Date());
   const getTimestamp = () => {
@@ -139,11 +145,43 @@ function createConnection<TSchema extends Record<string, MySqlTable>>(options: D
     const local = `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
     return sql`${local}`;
   };
-  const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp });
-  const trans = <T>(callback: () => Promise<T>): Promise<T> => {
-    const execute = (tx: Transaction) => context.run(tx, callback);
-    // 중첩 호출도 별도 연결의 독립 트랜잭션으로 실행한다.
-    return raw.transaction(execute);
+  const current = Object.assign(() => {
+    const tx = context.getStore();
+    if (tx && !tx.active) throw new Error('Transaction has already ended.');
+    return tx?.database ?? raw;
+  }, { getTimestamp });
+  const trans = async <T>(callback: (trx: MySqlTransactionHandle) => Promise<T>): Promise<T> => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const frame = { database: transactionDatabase(connection), active: true };
+      let rollbackPromise: Promise<void> | undefined;
+      const handle: MySqlTransactionHandle = {
+        rollback: () => {
+          if (rollbackPromise) return rollbackPromise;
+          if (!frame.active) return Promise.resolve();
+          frame.active = false;
+          rollbackPromise = connection.rollback();
+          return rollbackPromise;
+        },
+      };
+      try {
+        const result = await context.run(frame, () => callback(handle));
+        if (rollbackPromise) await rollbackPromise;
+        if (frame.active) {
+          await connection.commit();
+          frame.active = false;
+        }
+        return result;
+      } catch (error) {
+        await handle.rollback().catch(() => {});
+        throw error;
+      } finally {
+        frame.active = false;
+      }
+    } finally {
+      connection.release();
+    }
   };
   const paginate = async <TResult extends unknown[]>(
     builder: {

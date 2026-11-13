@@ -424,6 +424,22 @@ await db.trans(async () => {
 });
 ```
 
+콜백 인자의 `rollback()`으로 해당 트랜잭션을 명시적으로 종료할 수 있습니다. 롤백은 비동기이므로 반드시 `await`한 뒤 후속 쿼리를 실행합니다. 이미 롤백된 트랜잭션은 다시 커밋하거나 롤백하지 않습니다. 이후 콜백에서 던진 오류는 호출자에게 그대로 전달됩니다. 종료된 트랜잭션 문맥에서 쿼리를 실행하면 오류가 발생합니다.
+
+```ts
+await db.trans(async (trxOuter) => {
+  await user.editByPrimaryKey({ name: 'name-outer' }, 2);
+
+  await db.trans(async () => {
+    await trxOuter.rollback(); // 바깥 트랜잭션의 잠금을 해제한다
+    await user.editByPrimaryKey({ name: 'name-inner' }, 2);
+  });
+
+  throw new Error('outer error'); // 오류는 전파되지만 바깥 롤백을 반복하지 않는다
+});
+// 안쪽 커밋은 유지되어 name은 'name-inner'가 된다.
+```
+
 독립 트랜잭션은 연결 풀에 추가 연결이 필요합니다. 바깥이 잠근 행을 안쪽에서 수정하거나 미커밋 데이터에 의존하면 잠금 대기 또는 타임아웃이 발생할 수 있습니다.
 
 `db.current()`는 현재 문맥의 Drizzle 데이터베이스 인스턴스를 반환합니다. 래퍼가 제공하지 않는 Drizzle 기능은 이 API로 직접 사용할 수 있습니다.
