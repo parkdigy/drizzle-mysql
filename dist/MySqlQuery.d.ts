@@ -3,7 +3,7 @@ import { MySqlTable, MySqlColumn, type MySqlAsyncSelectBase, type MySqlJoin } fr
 import type { MySqlViewBase } from 'drizzle-orm/mysql-core/view-base';
 import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
-import type { GetMySqlSetOperators, MySqlSetOperatorWithResult, SetOperatorRightSelect } from 'drizzle-orm/mysql-core/query-builders/select.types';
+import type { AnyMySqlSelectQueryBuilder, MySqlSelectKind, GetMySqlSetOperators, MySqlSetOperatorWithResult, SetOperatorRightSelect } from 'drizzle-orm/mysql-core/query-builders/select.types';
 import type { MySqlColumnSelectionName, MySqlSelectedNamedColumnUnion, MySqlSelectedNamedColumns, MySqlSelectedTableColumns, MySqlAliasTable } from './columns.js';
 import { type TableMutationPolicy } from './mysqlTable.js';
 import type { MySqlAddValues, MySqlEditValues, MySqlCompareValues, MySqlColumnName, MySqlArrayCompareValues, MySqlRangeCompareValues, MySqlPatternCompareValues, MySqlNullConditionInput, MySqlAndConditions, MySqlOrConditions } from './@types/index.js';
@@ -348,21 +348,27 @@ type JoinConditionQuery<TTable extends MySqlTable | Subquery, TJoinedTable exten
     eq(values: JoinConditionValues<TJoinedTable>): SQL | undefined;
 };
 type JoinCondition<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable> = TJoinedTable extends MySqlTable | Subquery ? SQL | undefined | ((query: JoinConditionQuery<TTable, TJoinedTable>) => SQL | undefined) : SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
-type JoinedSelect<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable, TKind extends 'inner' | 'left' | 'right' | 'cross'> = Omit<MySqlJoin<SelectQueryBase<TTable, TSelection>, false, TKind, TJoinedTable>, 'where' | 'having' | 'groupBy' | 'orderBy' | 'limit' | 'offset' | keyof SelectJoinMethods<TTable, TSelection>> & SelectJoinMethods<TTable, TSelection> & {
-    where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'where'>;
-    having(condition: HavingCondition<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'having'>;
-    groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
-    groupBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
-    orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
-    orderBy(...columns: OrderByInput[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
-    limit(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'limit'>;
-    offset(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'offset'>;
+type RestoreSelect<T extends {
+    readonly _: AnyMySqlSelectQueryBuilder['_'];
+}> = MySqlSelectKind<T['_']['hkt'], T['_']['tableName'], T['_']['selection'], T['_']['selectMode'], T['_']['nullabilityMap'], false, T['_']['excludedMethods'], T['_']['result'], T['_']['selectedFields']>;
+type JoinedQuery<TQuery extends AnyMySqlSelectQueryBuilder, TKind extends 'inner' | 'left' | 'right' | 'cross', TJoinedTable extends Joinable> = MySqlJoin<TQuery, false, TKind, TJoinedTable> extends infer TNext extends {
+    readonly _: AnyMySqlSelectQueryBuilder['_'];
+} ? RestoreSelect<TNext> : never;
+type JoinedSelect<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined, TJoinedTable extends Joinable, TKind extends 'inner' | 'left' | 'right' | 'cross', TQuery extends AnyMySqlSelectQueryBuilder> = Omit<MySqlJoin<TQuery, false, TKind, TJoinedTable>, 'where' | 'having' | 'groupBy' | 'orderBy' | 'limit' | 'offset' | keyof SelectJoinMethods<TTable, TSelection, JoinedQuery<TQuery, TKind, TJoinedTable>>> & SelectJoinMethods<TTable, TSelection, JoinedQuery<TQuery, TKind, TJoinedTable>> & {
+    where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'where'>;
+    having(condition: HavingCondition<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'having'>;
+    groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'groupBy'>;
+    groupBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'groupBy'>;
+    orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'orderBy'>;
+    orderBy(...columns: OrderByInput[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'orderBy'>;
+    limit(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'limit'>;
+    offset(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'offset'>;
 };
-type SelectJoinMethods<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = {
-    innerJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'inner'>;
-    leftJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'left'>;
-    rightJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'right'>;
-    crossJoin<TJoinedTable extends Joinable>(table: TJoinedTable): JoinedSelect<TTable, TSelection, TJoinedTable, 'cross'>;
+type SelectJoinMethods<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined, TQuery extends AnyMySqlSelectQueryBuilder = SelectQueryBase<TTable, TSelection>> = {
+    innerJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'inner', TQuery>;
+    leftJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'left', TQuery>;
+    rightJoin<TJoinedTable extends Joinable>(table: TJoinedTable, on: JoinCondition<TTable, TSelection, TJoinedTable>): JoinedSelect<TTable, TSelection, TJoinedTable, 'right', TQuery>;
+    crossJoin<TJoinedTable extends Joinable>(table: TJoinedTable): JoinedSelect<TTable, TSelection, TJoinedTable, 'cross', TQuery>;
 };
 export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = Omit<SelectQueryBase<TTable, TSelection>, 'where' | 'having' | 'groupBy' | 'orderBy' | 'limit' | 'offset' | '$dynamic' | 'union' | 'unionAll' | 'intersect' | 'except' | keyof SelectJoinMethods<TTable, TSelection>> & SelectJoinMethods<TTable, TSelection> & {
     $dynamic(): DynamicSelect<SelectQueryBase<TTable, TSelection>, TTable>;

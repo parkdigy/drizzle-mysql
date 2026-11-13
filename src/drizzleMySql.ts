@@ -157,10 +157,11 @@ function createConnection<TSchema extends Record<string, MySqlTable>>(options: D
       throw new RangeError('page and limit must be positive integers');
     }
     const offset = (page - 1) * limit;
-    const [[{ total }], data] = await Promise.all([
+    const [[countRow], data] = await Promise.all([
       current().select({ total: count() }).from(builder.as('a')),
       builder.limit(limit).offset(offset),
     ]);
+    const total = countRow?.total ?? 0;
     return {
       data,
       paging: {

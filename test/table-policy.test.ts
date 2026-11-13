@@ -180,7 +180,7 @@ test('登録・配列登録・参照とインデックス設定を維持する',
     expect(query.select()).toBe('select builder');
     expect(from).toHaveBeenLastCalledWith(table);
   }
-  expect(getTableConfig(indexedLogs).indexes[0].config.name).toBe('logs_name_idx');
+  expect(getTableConfig(indexedLogs).indexes[0]?.config.name).toBe('logs_name_idx');
 });
 
 test('省略・false・片方だけのポリシーと既存の設定コールバックを維持する', async () => {
@@ -212,7 +212,7 @@ test('省略・false・片方だけのポリシーと既存の設定コールバ
   expect(() => new MySqlQuery<MySqlTable>(updateOnly, current).remove(sql`1 = 1`)).toThrow('delete is blocked');
   expect(update).toHaveBeenCalledTimes(7);
   expect(remove).toHaveBeenCalledTimes(7);
-  expect(getTableConfig(oldConfig).indexes[0].config.name).toBe('old_name_idx');
+  expect(getTableConfig(oldConfig).indexes[0]?.config.name).toBe('old_name_idx');
 });
 
 test('기본 키 편의 메서드는 기존처럼 edit과 remove에 위임한다', async () => {

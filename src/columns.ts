@@ -201,8 +201,9 @@ export function TableColumns(
       if (!Object.hasOwn(tableColumns, name)) {
         throw new Error(`columns: unknown column "${name}".`);
       }
-      if (alias) selected[alias] = sql`${tableColumns[name]}`.as(alias);
-      else selected[tableColumns[name].name] = tableColumns[name];
+      const column = tableColumns[name]!;
+      if (alias) selected[alias] = sql`${column}`.as(alias);
+      else selected[column.name] = column;
     }
     return selected;
   }

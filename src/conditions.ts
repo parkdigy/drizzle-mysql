@@ -25,7 +25,7 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     if (!Object.hasOwn(schema, table)) {
       throw new Error(`Condition: unknown table "${table}".`);
     }
-    return schema[table];
+    return schema[table]!;
   };
 
   const getColumn = (table: MySqlTable, name: string): Column => {
@@ -33,7 +33,7 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     if (!Object.hasOwn(columns, name)) {
       throw new Error(`Condition: unknown column "${name}".`);
     }
-    return columns[name];
+    return columns[name]!;
   };
 
   const recordEntries = (values: unknown): [string, unknown][] => {

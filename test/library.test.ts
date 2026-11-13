@@ -182,10 +182,10 @@ test('OR 비교 연산자들은 컬럼 조건만 OR로 묶고 배열·범위 검
     isNotNull: ['id', 'displayName'],
   };
   const call = (operator: string, ...args: unknown[]) =>
-    Reflect.apply((conditions as unknown as Record<string, (...args: unknown[]) => SQL | undefined>)[operator], undefined, args);
+    Reflect.apply((conditions as unknown as Record<string, (...args: unknown[]) => SQL | undefined>)[operator]!, undefined, args);
 
   for (const [base, values] of Object.entries(cases)) {
-    const operator = `or${base[0].toUpperCase()}${base.slice(1)}`;
+    const operator = `or${base.charAt(0).toUpperCase()}${base.slice(1)}`;
     const ordinary = call(base, user, values);
     const expected = call(operator, user, values);
     const generated = db.current().select().from(user).where(expected).toSQL();

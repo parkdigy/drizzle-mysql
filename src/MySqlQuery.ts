@@ -30,6 +30,8 @@ import type { MySqlViewBase } from 'drizzle-orm/mysql-core/view-base';
 import type { SelectedFields } from 'drizzle-orm/operations';
 import type { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
 import type {
+  AnyMySqlSelectQueryBuilder,
+  MySqlSelectKind,
   GetMySqlSetOperators,
   MySqlSetOperatorWithResult,
   SetOperatorRightSelect,
@@ -152,7 +154,7 @@ export class MySqlQuery<
   private resolveConditionColumn(name: string, table: MySqlTable): MySqlColumn {
     const columns = getTableColumns(table);
     if (!Object.hasOwn(columns, name)) throw new Error(`Condition: unknown column "${name}".`);
-    return columns[name];
+    return columns[name]!;
   }
 
   /********************************************************************************************************************
@@ -207,7 +209,7 @@ export class MySqlQuery<
     names: (string | undefined)[],
   ): SQL | SQL[] {
     const orders = names.map((name) => direction(this.resolveOrderColumn(name, table)));
-    return orders.length === 1 ? orders[0] : orders;
+    return orders.length === 1 ? orders[0]! : orders;
   }
 
   private resolveFields(fields: unknown, table: MySqlTable | Subquery = this.t): FieldSet | undefined {
@@ -423,11 +425,14 @@ export class MySqlQuery<
             operator
           ];
         const orGroup = operator.startsWith('or') && operator !== 'or';
-        const baseOperator = orGroup ? operator[2].toLowerCase() + operator.slice(3) : operator;
+        const baseOperator = orGroup ? operator.charAt(2).toLowerCase() + operator.slice(3) : operator;
         const join = orGroup ? drizzleOr : drizzleAnd;
         const baseConditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[
           baseOperator
         ];
+          if (!conditionOperator || !baseConditionOperator) {
+            throw new Error(`Condition: unknown operator "${operator}".`);
+          }
           if (isTable(conditionTable)) {
             return Reflect.apply(conditionOperator, undefined, [conditionTable, input]) as SQL | undefined;
           }
@@ -897,9 +902,9 @@ export class MySqlQuery<
       throw new Error('count: the where callback must return SQL or undefined.');
     }
 
-    const [{ cnt }] = await this.select({ cnt: count() }).where(condition);
+    const [row] = await this.select({ cnt: count() }).where(condition);
 
-    return cnt;
+    return row?.cnt ?? 0;
   }
 
   private prepareValues(input: object, operation: 'insert' | 'update'): Record<string, unknown> {
@@ -1445,40 +1450,80 @@ type JoinCondition<
 > = TJoinedTable extends MySqlTable | Subquery
   ? SQL | undefined | ((query: JoinConditionQuery<TTable, TJoinedTable>) => SQL | undefined)
   : SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
+// Drizzle의 Omit 반환값을 메타데이터로 복원해 다음 JOIN에 누적한다.
+type RestoreSelect<T extends { readonly _: AnyMySqlSelectQueryBuilder['_'] }> = MySqlSelectKind<
+  T['_']['hkt'],
+  T['_']['tableName'],
+  T['_']['selection'],
+  T['_']['selectMode'],
+  T['_']['nullabilityMap'],
+  false,
+  T['_']['excludedMethods'],
+  T['_']['result'],
+  T['_']['selectedFields']
+>;
+type JoinedQuery<
+  TQuery extends AnyMySqlSelectQueryBuilder,
+  TKind extends 'inner' | 'left' | 'right' | 'cross',
+  TJoinedTable extends Joinable,
+> =
+  MySqlJoin<TQuery, false, TKind, TJoinedTable> extends infer TNext extends {
+    readonly _: AnyMySqlSelectQueryBuilder['_'];
+  }
+    ? RestoreSelect<TNext>
+    : never;
 type JoinedSelect<
   TTable extends MySqlTable | Subquery,
   TSelection extends FieldSet | undefined,
   TJoinedTable extends Joinable,
   TKind extends 'inner' | 'left' | 'right' | 'cross',
+  TQuery extends AnyMySqlSelectQueryBuilder,
 > = Omit<
-  MySqlJoin<SelectQueryBase<TTable, TSelection>, false, TKind, TJoinedTable>,
-  | 'where' | 'having' | 'groupBy' | 'orderBy' | 'limit' | 'offset'
-  | keyof SelectJoinMethods<TTable, TSelection>
+  MySqlJoin<TQuery, false, TKind, TJoinedTable>,
+  | 'where'
+  | 'having'
+  | 'groupBy'
+  | 'orderBy'
+  | 'limit'
+  | 'offset'
+  | keyof SelectJoinMethods<TTable, TSelection, JoinedQuery<TQuery, TKind, TJoinedTable>>
 > &
-  SelectJoinMethods<TTable, TSelection> & {
-    where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'where'>;
-    having(condition: HavingCondition<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'having'>;
-    groupBy(builder: GroupByCallback<TTable, TSelection>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
-    groupBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'groupBy'>;
-    orderBy(builder: OrderByCallback<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
-    orderBy(...columns: OrderByInput[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'orderBy'>;
-    limit(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'limit'>;
-    offset(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind>, 'offset'>;
+  SelectJoinMethods<TTable, TSelection, JoinedQuery<TQuery, TKind, TJoinedTable>> & {
+    where(condition: TableWhere<TTable>): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'where'>;
+    having(
+      condition: HavingCondition<TTable, TSelection>
+    ): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'having'>;
+    groupBy(
+      builder: GroupByCallback<TTable, TSelection>
+    ): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'groupBy'>;
+    groupBy(...columns: OrderByValue[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'groupBy'>;
+    orderBy(
+      builder: OrderByCallback<TTable>
+    ): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'orderBy'>;
+    orderBy(...columns: OrderByInput[]): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'orderBy'>;
+    limit(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'limit'>;
+    offset(value: number | Placeholder): Omit<JoinedSelect<TTable, TSelection, TJoinedTable, TKind, TQuery>, 'offset'>;
   };
-type SelectJoinMethods<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = {
+type SelectJoinMethods<
+  TTable extends MySqlTable | Subquery,
+  TSelection extends FieldSet | undefined,
+  TQuery extends AnyMySqlSelectQueryBuilder = SelectQueryBase<TTable, TSelection>,
+> = {
   innerJoin<TJoinedTable extends Joinable>(
     table: TJoinedTable,
     on: JoinCondition<TTable, TSelection, TJoinedTable>
-  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'inner'>;
+  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'inner', TQuery>;
   leftJoin<TJoinedTable extends Joinable>(
     table: TJoinedTable,
     on: JoinCondition<TTable, TSelection, TJoinedTable>
-  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'left'>;
+  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'left', TQuery>;
   rightJoin<TJoinedTable extends Joinable>(
     table: TJoinedTable,
     on: JoinCondition<TTable, TSelection, TJoinedTable>
-  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'right'>;
-  crossJoin<TJoinedTable extends Joinable>(table: TJoinedTable): JoinedSelect<TTable, TSelection, TJoinedTable, 'cross'>;
+  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'right', TQuery>;
+  crossJoin<TJoinedTable extends Joinable>(
+    table: TJoinedTable
+  ): JoinedSelect<TTable, TSelection, TJoinedTable, 'cross', TQuery>;
 };
 
 export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = Omit<

@@ -214,10 +214,11 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
             if (!Object.hasOwn(tableColumns, name)) {
                 throw new Error(`columns: unknown column "${name}".`);
             }
+            const column = tableColumns[name];
             if (alias)
-                selected[alias] = sql `${tableColumns[name]}`.as(alias);
+                selected[alias] = sql `${column}`.as(alias);
             else
-                selected[tableColumns[name].name] = tableColumns[name];
+                selected[column.name] = column;
         }
         return selected;
     }
@@ -386,9 +387,12 @@ class MySqlQuery {
             const bindCondition = (operator, conditionTable = table) => (input) => {
                 const conditionOperator = this.drizzle[operator];
                 const orGroup = operator.startsWith('or') && operator !== 'or';
-                const baseOperator = orGroup ? operator[2].toLowerCase() + operator.slice(3) : operator;
+                const baseOperator = orGroup ? operator.charAt(2).toLowerCase() + operator.slice(3) : operator;
                 const join = orGroup ? or : and;
                 const baseConditionOperator = this.drizzle[baseOperator];
+                if (!conditionOperator || !baseConditionOperator) {
+                    throw new Error(`Condition: unknown operator "${operator}".`);
+                }
                 if (isTable(conditionTable)) {
                     return Reflect.apply(conditionOperator, undefined, [conditionTable, input]);
                 }
@@ -672,8 +676,8 @@ class MySqlQuery {
         if (condition !== undefined && !is(condition, SQL)) {
             throw new Error('count: the where callback must return SQL or undefined.');
         }
-        const [{ cnt }] = await this.select({ cnt: count() }).where(condition);
-        return cnt;
+        const [row] = await this.select({ cnt: count() }).where(condition);
+        return row?.cnt ?? 0;
     }
     prepareValues(input, operation) {
         const values = { ...input };
@@ -1100,10 +1104,11 @@ function createConnection(options) {
             throw new RangeError('page and limit must be positive integers');
         }
         const offset = (page - 1) * limit;
-        const [[{ total }], data] = await Promise.all([
+        const [[countRow], data] = await Promise.all([
             current().select({ total: count() }).from(builder.as('a')),
             builder.limit(limit).offset(offset),
         ]);
+        const total = countRow?.total ?? 0;
         return {
             data,
             paging: {

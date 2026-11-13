@@ -1,16 +1,18 @@
 import ts from 'typescript';
 import path from 'node:path';
 
-test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타입을 유지한다', () => {
-  const file = path.resolve('test/__autocomplete_fixture.ts');
-  const wideColumns = Array.from({ length: 200 }, (_, i) => `extra${i}: int('extra${i}')`).join(',');
-  const tables = Array.from(
-    { length: 200 },
-    (_, i) =>
-      `const table${i} = mysqlTable('table${i}', { id: int('id').notNull().primaryKey(), name: varchar('name', {length: 100}), ${i === 199 ? wideColumns : ''} });`
-  ).join('\n');
-  const marked = `
-    import { drizzleMySql, mysqlTable, int, varchar } from '../src/index';
+test.each(['../src/index', '../dist/index'])(
+  '%s: 200개 테이블에서도 자동완성과 JOIN 결과 타입을 유지한다',
+  (entry) => {
+    const file = path.resolve('test/__autocomplete_fixture.ts');
+    const wideColumns = Array.from({ length: 200 }, (_, i) => `extra${i}: int('extra${i}')`).join(',');
+    const tables = Array.from(
+      { length: 200 },
+      (_, i) =>
+        `const table${i} = mysqlTable('table${i}', { id: int('id').notNull().primaryKey(), name: varchar('name', {length: 100}), ${i === 199 ? wideColumns : ''} });`
+    ).join('\n');
+    const marked = `
+    import { drizzleMySql, mysqlTable, int, varchar } from '${entry}';
     ${tables}
     const db = drizzleMySql({ url: '', getTimestamp: () => 0, schema: {
       ${Array.from({ length: 200 }, (_, i) => `table${i}`).join(',')}
@@ -49,6 +51,31 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     // @ts-expect-error 선택하지 않은 컬럼은 포함하지 않는다
     ({} as Awaited<typeof directSelected>[number]).extra0;
     void [directRow, directAliasRow];
+    const b = db.a.table199('b');
+    const c = db.a.table199('c');
+    const d = db.a.table199('d');
+    const e = db.a.table199('e');
+    const joined = db.query(table199).select(a, [
+      db.columns(b, 'id'), { second: c.id }, { third: d.id }, { fourth: e.id },
+    ]).innerJoin(b, db.eq(a.id, b.id))
+      .innerJoin(c, db.eq(b.id, c.id))
+      .innerJoin(d, db.eq(c.id, d.id))
+      .innerJoin(e, db.eq(d.id, e.id))
+      .where(db.eq(a.id, 0));
+    type JoinedRow = Awaited<typeof joined>[number];
+    const joinedRow: JoinedRow = { id: 1, second: 2, third: 3, fourth: 4 };
+    // @ts-expect-error JOIN 후에도 컬럼 타입을 유지한다
+    const invalidJoinedRow: JoinedRow = { id: 'wrong', second: 2, third: 3, fourth: 4 };
+    const outer = db.query(table199).select(a, [{ base: a.id }, { left: b.id }, { inner: c.id }])
+      .leftJoin(b, db.eq(a.id, b.id)).innerJoin(c, db.eq(a.id, c.id));
+    type OuterRow = Awaited<typeof outer>[number];
+    const outerRow: OuterRow = { base: 1, left: null, inner: 3 };
+    // @ts-expect-error INNER JOIN은 앞선 LEFT JOIN의 null 허용 상태를 유지한다
+    const invalidOuterRow: OuterRow = { base: null, left: 2, inner: 3 };
+    const right = db.query(table199).select(a, [{ base: a.id }, { first: b.id }, { last: c.id }])
+      .innerJoin(b, db.eq(a.id, b.id)).rightJoin(c, db.eq(a.id, c.id));
+    const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
+    void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
     // @ts-expect-error 자동완성용 미완성 조건 키
     query.eq({ i/*queryEq*/ });
@@ -100,68 +127,71 @@ test('200개 테이블에서도 공개 API의 자동완성과 선택 결과 타�
     void [merged, aliased, found, foundByKey, row, invalidRow, subqueryId, subqueryName];
     const fields = db.columns(a, 'id', 'name as displayName');
     db.current().select(fields).from(a).then((rows: {id: number; displayName: string | null}[]) => {
-      const row: {id: number; displayName: string | null} = rows[0];
+      const row: {id: number; displayName: string | null} = rows[0]!;
       void row;
     });
     // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
     db.columns(a, 'missing');
   `;
-  const positions: Record<string, number> = {};
-  let removed = 0;
-  const source = marked.replace(/\/\*(\w+)\*\//g, (match, name: string, offset: number) => {
-    positions[name] = offset - removed;
-    removed += match.length;
-    return '';
-  });
-  const options: ts.CompilerOptions = {
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-    strict: true,
-    skipLibCheck: true,
-    noEmit: true,
-  };
-  const host: ts.LanguageServiceHost = {
-    getScriptFileNames: () => [file],
-    getScriptVersion: () => '1',
-    getScriptSnapshot: (name) => {
-      const content = name === file ? source : ts.sys.readFile(name);
-      return content === undefined ? undefined : ts.ScriptSnapshot.fromString(content);
-    },
-    getCurrentDirectory: ts.sys.getCurrentDirectory,
-    getCompilationSettings: () => options,
-    getDefaultLibFileName: ts.getDefaultLibFilePath,
-    fileExists: ts.sys.fileExists,
-    readFile: ts.sys.readFile,
-    readDirectory: ts.sys.readDirectory,
-  };
-  const service = ts.createLanguageService(host);
-  try {
-    for (const [name, expected] of Object.entries({
-      directNamedFirst: ['id', 'name', 'extra0', 'extra199'],
-      directNamedNext: ['id', 'name', 'extra0', 'extra199'],
-      directFirst: ['id', 'name', 'extra0', 'extra199'],
-      directNext: ['id', 'name', 'extra0', 'extra199'],
-      members: ['columns', 'query', 'current', 'eq'],
-      aliases: ['table0', 'table199'],
-      columns: ['id', 'name'],
-      subquerySelect: ['id', 'name'],
-      subqueryFirst: ['id', 'name'],
-      subqueryNext: ['id', 'name'],
-      subqueryThird: ['id', 'name'],
-      query: ['id', 'name'],
-      condition: ['id', 'name'],
-      queryEq: ['id'],
-      namedCondition: ['id', 'name'],
-      findCondition: ['id'],
-      editCondition: ['id'],
-    })) {
-      const entries = service.getCompletionsAtPosition(file, positions[name], {})?.entries.map((entry) => entry.name);
-      expect({ name, entries }).toEqual({ name, entries: expect.arrayContaining(expected) });
+    const positions: Record<string, number> = {};
+    let removed = 0;
+    const source = marked.replace(/\/\*(\w+)\*\//g, (match, name: string, offset: number) => {
+      positions[name] = offset - removed;
+      removed += match.length;
+      return '';
+    });
+    const options: ts.CompilerOptions = {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      strict: true,
+    noUncheckedIndexedAccess: true,
+      skipLibCheck: true,
+      noEmit: true,
+    };
+    const host: ts.LanguageServiceHost = {
+      getScriptFileNames: () => [file],
+      getScriptVersion: () => '1',
+      getScriptSnapshot: (name) => {
+        const content = name === file ? source : ts.sys.readFile(name);
+        return content === undefined ? undefined : ts.ScriptSnapshot.fromString(content);
+      },
+      getCurrentDirectory: ts.sys.getCurrentDirectory,
+      getCompilationSettings: () => options,
+      getDefaultLibFileName: ts.getDefaultLibFilePath,
+      fileExists: ts.sys.fileExists,
+      readFile: ts.sys.readFile,
+      readDirectory: ts.sys.readDirectory,
+    };
+    const service = ts.createLanguageService(host);
+    try {
+      for (const [name, expected] of Object.entries({
+        directNamedFirst: ['id', 'name', 'extra0', 'extra199'],
+        directNamedNext: ['id', 'name', 'extra0', 'extra199'],
+        directFirst: ['id', 'name', 'extra0', 'extra199'],
+        directNext: ['id', 'name', 'extra0', 'extra199'],
+        members: ['columns', 'query', 'current', 'eq'],
+        aliases: ['table0', 'table199'],
+        columns: ['id', 'name'],
+        subquerySelect: ['id', 'name'],
+        subqueryFirst: ['id', 'name'],
+        subqueryNext: ['id', 'name'],
+        subqueryThird: ['id', 'name'],
+        query: ['id', 'name'],
+        condition: ['id', 'name'],
+        queryEq: ['id'],
+        namedCondition: ['id', 'name'],
+        findCondition: ['id'],
+        editCondition: ['id'],
+      })) {
+        const entries = service.getCompletionsAtPosition(file, positions[name]!, {})?.entries.map((entry) => entry.name);
+        expect({ name, entries }).toEqual({ name, entries: expect.arrayContaining(expected) });
+      }
+      const diagnostics = service.getSemanticDiagnostics(file);
+      expect(diagnostics.map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'))).toEqual([]);
+    } finally {
+      service.dispose();
     }
-    const diagnostics = service.getSemanticDiagnostics(file);
-    expect(diagnostics.map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'))).toEqual([]);
-  } finally {
-    service.dispose();
-  }
-}, 30000);
+  },
+  30000
+);

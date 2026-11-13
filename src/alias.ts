@@ -32,7 +32,7 @@ export function createAlias<TSchema extends Record<string, MySqlTable>>(schema: 
   const createAlias =
     <K extends SchemaKey>(tableName: K) =>
     (alias: string = getDefaultAlias(tableName)) =>
-      _alias(schema[tableName], alias);
+      _alias(schema[tableName]!, alias);
 
   /********************************************************************************************************************
    * alias
