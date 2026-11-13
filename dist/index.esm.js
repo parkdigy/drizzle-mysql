@@ -1095,9 +1095,9 @@ function createConnection(options) {
     };
     const current = Object.assign(() => context.getStore() ?? raw, { getTimestamp });
     const trans = (callback) => {
-        const parent = context.getStore();
         const execute = (tx) => context.run(tx, callback);
-        return parent ? parent.transaction(execute) : raw.transaction(execute);
+        // 중첩 호출도 별도 연결의 독립 트랜잭션으로 실행한다.
+        return raw.transaction(execute);
     };
     const paginate = async (builder, page, limit) => {
         if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1) {

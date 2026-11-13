@@ -408,21 +408,23 @@ console.log(page.paging); // current_page, per_page, last_page, total, from, to
 
 ### 트랜잭션과 원본 Drizzle API
 
-`db.trans` 콜백 안의 쿼리 객체는 현재 트랜잭션을 자동으로 사용합니다. 중첩된 `db.trans`는 savepoint로 동작합니다. 트랜잭션 안에서 시작한 비동기 작업은 트랜잭션이 끝나기 전에 모두 `await`해야 합니다.
+`db.trans` 콜백 안의 쿼리 객체는 현재 트랜잭션을 자동으로 사용합니다. 중첩된 `db.trans`도 별도 연결의 독립 트랜잭션으로 실행됩니다. 안쪽이 커밋된 뒤 바깥이 롤백되어도 안쪽 변경은 유지됩니다. 안쪽 종료 후에는 바깥 트랜잭션 문맥으로 복귀합니다. 안쪽 오류가 바깥으로 전파되면 바깥도 롤백되며, 바깥에서 오류를 처리하면 계속 진행할 수 있습니다. 트랜잭션 안에서 시작한 비동기 작업은 트랜잭션이 끝나기 전에 모두 `await`해야 합니다.
 
 ```ts
 await db.trans(async () => {
-  const id = await user.add({ name: '트랜잭션 사용자' });
+  const id = (await user.add({ name: '트랜잭션 사용자' })) as number;
   await user.editByPrimaryKey({ name: '이름 변경' }, id);
 
   // 같은 트랜잭션을 사용하는 원본 Drizzle API
   await db.current().select().from(users);
 
   await db.trans(async () => {
-    await user.removeByPrimaryKey(id);
+    await user.add({ name: '독립 트랜잭션 사용자' });
   });
 });
 ```
+
+독립 트랜잭션은 연결 풀에 추가 연결이 필요합니다. 바깥이 잠근 행을 안쪽에서 수정하거나 미커밋 데이터에 의존하면 잠금 대기 또는 타임아웃이 발생할 수 있습니다.
 
 `db.current()`는 현재 문맥의 Drizzle 데이터베이스 인스턴스를 반환합니다. 래퍼가 제공하지 않는 Drizzle 기능은 이 API로 직접 사용할 수 있습니다.
 

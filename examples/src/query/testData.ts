@@ -440,7 +440,7 @@ export class TestData extends MySqlQuery<'testData'> {
    * otherTest
    * ******************************************************************************************************************/
   async otherTest() {
-    //
+    console.log('::::: TestData::otherTest() :::::');
   }
 }
 

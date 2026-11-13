@@ -33,7 +33,7 @@
 ## API와 동작 경계
 
 - `drizzleMySql({ url, schema, getTimestamp? })`는 연결 풀과 편의 API를 만든다. `getTimestamp`를 생략하면 `CURRENT_TIMESTAMP`를 사용한다. `db.query(table)`은 해당 테이블용 `MySqlQuery` 인스턴스를 반환한다. `new MySqlQuery(table, db.current, getTimestamp?)`에서 생성 함수를 생략하면 해당 연결의 생성 함수를 사용하고, 명시하면 그 쿼리 객체에서 우선 사용한다. `db.current()`는 비동기 실행 문맥의 트랜잭션 또는 기본 Drizzle 연결을 반환한다.
-- `db.trans(callback)`은 현재 연결의 트랜잭션을 실행하고 중첩 호출은 savepoint를 사용한다. 콜백의 비동기 작업은 완료 전에 모두 기다려야 한다. 연결 종료에는 `db.close()`를 사용한다.
+- `db.trans(callback)`은 중첩 호출을 포함해 별도 연결의 독립 트랜잭션을 실행한다. 안쪽 커밋은 바깥 롤백 후에도 유지되며, 안쪽 종료 후 바깥 문맥으로 복귀한다. 연결 풀에 추가 연결이 필요하고 바깥이 잠근 행에 접근하면 잠금 대기가 발생할 수 있다. 콜백의 비동기 작업은 완료 전에 모두 기다려야 한다. 연결 종료에는 `db.close()`를 사용한다.
 - `MySqlQuery`는 조회 빌더와 `find`, 기본 키 조회, 존재 여부·개수, CRUD, 선택 빌더를 받는 INSERT…SELECT, 컬럼 정책에 따른 생성·수정 시각 자동 입력, 테이블별 조건 메서드를 제공한다. `createdAt()` / `updatedAt()` 컬럼은 `add`에서 직접 입력할 수 있고, 생략하거나 `undefined`이면 기본 시각을 채운다. `edit`에서는 생성 시각의 직접 입력을 금지하고 기존 값을 유지한다. 수정 시각은 직접 지정할 수 있으며, 생략하거나 `undefined`이면 기본 시각으로 갱신한다. 일반 `edit` / `remove`에는 SQL 조건이 필요하다.
 - `db`와 쿼리 객체의 조건 API는 비교, 배열·범위, 패턴, NULL, 그룹 조건을 제공한다. `query.and/or({ ... })`는 객체 그룹 결합이며 같은 객체 안에 and/or 그룹을 재귀 중첩하지 않는다. 함수 오버로드는 Drizzle SQL 조건에도 사용할 수 있다.
 - 조건 구현은 `ilike` / `notIlike`도 노출하지만 이들은 `ILIKE` SQL을 생성한다. MySQL은 `ILIKE` 문법을 지원하지 않으므로 MySQL 실행 쿼리에는 사용하지 않는다. `LIKE`의 대소문자 처리는 컬럼 collation에 따른다.
