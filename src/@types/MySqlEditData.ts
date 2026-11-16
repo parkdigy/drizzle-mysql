@@ -17,13 +17,13 @@ type Blocked<T extends MySqlTable> = {
         ? never
         : TablePolicies<T>[K] extends { timestamp: 'created' }
           ? K
-        : K extends keyof T['_']['columns']
-          ? T['_']['columns'][K]['_']['isPrimaryKey'] extends true
-            ? K
-            : TablePolicies<T>[K] extends { update: 'required' }
-              ? never
-              : DefaultBlocked<T, K>
-          : never
+          : K extends keyof T['_']['columns']
+            ? T['_']['columns'][K]['_']['isPrimaryKey'] extends true
+              ? K
+              : TablePolicies<T>[K] extends { update: 'required' }
+                ? never
+                : DefaultBlocked<T, K>
+            : never
     : DefaultBlocked<T, K>;
 }[keyof MySqlUpdateSetSource<T>] &
   keyof MySqlUpdateSetSource<T>;
@@ -38,7 +38,7 @@ type RequiredKeys<T extends MySqlTable> = {
 }[keyof MySqlUpdateSetSource<T>] &
   keyof MySqlUpdateSetSource<T>;
 
-export type MySqlEditValues<
+export type MySqlEditData<
   T extends MySqlTable,
   B extends keyof MySqlUpdateSetSource<T> = never,
   R extends Exclude<keyof MySqlUpdateSetSource<T>, B | Blocked<T>> = never,

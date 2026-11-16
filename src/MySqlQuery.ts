@@ -46,8 +46,8 @@ import type {
 import { TableColumns } from './columns';
 import { getColumnPolicies, getTablePolicy, type TableMutationPolicy } from './mysqlTable';
 import type {
-  MySqlAddValues,
-  MySqlEditValues,
+  MySqlAddData,
+  MySqlEditData,
   MySqlCompareValues,
   MySqlColumnName,
   MySqlArrayCompareValues,
@@ -67,8 +67,8 @@ import type { TypedQueryBuilder } from 'drizzle-orm/query-builders/query-builder
  * ******************************************************************************************************************/
 export class MySqlQuery<
   TTable extends MySqlTable,
-  AV extends MySqlAddValues<TTable> = MySqlAddValues<TTable>,
-  EV extends MySqlEditValues<TTable> = MySqlEditValues<TTable>,
+  AD extends MySqlAddData<TTable> = MySqlAddData<TTable>,
+  ED extends MySqlEditData<TTable> = MySqlEditData<TTable>,
   AR = AddResult<TTable>,
 > {
   // Table
@@ -206,7 +206,7 @@ export class MySqlQuery<
   private orderByColumns(
     direction: typeof drizzleAsc | typeof drizzleDesc,
     table: MySqlTable | Subquery,
-    names: (string | undefined)[],
+    names: (string | undefined)[]
   ): SQL | SQL[] {
     const orders = names.map((name) => direction(this.resolveOrderColumn(name, table)));
     return orders.length === 1 ? orders[0]! : orders;
@@ -282,7 +282,9 @@ export class MySqlQuery<
 
   select<
     TAlias extends string,
-    const T extends readonly (SelectFieldInput<MySqlAliasTable<TTable, TAlias>> | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[],
+    const T extends readonly (
+      SelectFieldInput<MySqlAliasTable<TTable, TAlias>> | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>
+    )[],
   >(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: T
@@ -366,7 +368,9 @@ export class MySqlQuery<
 
   selectDistinct<
     TAlias extends string,
-    const T extends readonly (SelectFieldInput<MySqlAliasTable<TTable, TAlias>> | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>)[],
+    const T extends readonly (
+      SelectFieldInput<MySqlAliasTable<TTable, TAlias>> | MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>
+    )[],
   >(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: T
@@ -424,12 +428,12 @@ export class MySqlQuery<
           const conditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[
             operator
           ];
-        const orGroup = operator.startsWith('or') && operator !== 'or';
-        const baseOperator = orGroup ? operator.charAt(2).toLowerCase() + operator.slice(3) : operator;
-        const join = orGroup ? drizzleOr : drizzleAnd;
-        const baseConditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[
-          baseOperator
-        ];
+          const orGroup = operator.startsWith('or') && operator !== 'or';
+          const baseOperator = orGroup ? operator.charAt(2).toLowerCase() + operator.slice(3) : operator;
+          const join = orGroup ? drizzleOr : drizzleAnd;
+          const baseConditionOperator = (this.drizzle as unknown as Record<string, (...args: unknown[]) => unknown>)[
+            baseOperator
+          ];
           if (!conditionOperator || !baseConditionOperator) {
             throw new Error(`Condition: unknown operator "${operator}".`);
           }
@@ -612,60 +616,60 @@ export class MySqlQuery<
    * find
    * ******************************************************************************************************************/
 
-  async find(where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, undefined>>;
+  async find(where: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>): Promise<FindResult<TTable, undefined>>;
 
-  async find(fields: readonly [], where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<FindResult<TTable, {}>>;
+  async find(fields: readonly [], where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>): Promise<FindResult<TTable, {}>>;
 
   async find<N extends MySqlColumnSelectionName<TTable>>(
     fields: readonly N[],
-    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<TTable, MySqlSelectedNamedColumns<TTable, readonly N[]>>>;
 
   async find<const T extends readonly FieldInput[]>(
     fields: (query: FieldsQuery<TTable>) => T,
-    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<TTable, MergeFields<T>>>;
 
   async find<const T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]>(
     fields: T,
-    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<TTable, MergeFields<NamedFields<TTable, T>>>>;
 
   async find<const TSelection extends StringColumnSelection<TTable>>(
     fields: TSelection,
-    where: (query: WhereQuery<MySqlQuery<TTable, AV, EV, AR>>) => SQL | undefined
+    where: (query: WhereQuery<MySqlQuery<TTable, AD, ED, AR>>) => SQL | undefined
   ): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
 
   async find<const TSelection extends StringColumnSelection<TTable>>(
     fields: TSelection,
-    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<TTable, StringColumnSelectionFields<TTable, TSelection>>>;
 
   async find<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields: Fields<FieldsQuery<TTable>, TSelection>,
-    where: (query: WhereQuery<MySqlQuery<TTable, AV, EV, AR>>) => SQL | undefined
+    where: (query: WhereQuery<MySqlQuery<TTable, AD, ED, AR>>) => SQL | undefined
   ): Promise<FindResult<TTable, TSelection>>;
 
   async find<TSelection extends SelectedFields<MySqlColumn, TTable>>(
     fields: Fields<FieldsQuery<TTable>, TSelection>,
-    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<TTable, TSelection>>;
 
   async find<TAlias extends string>(
     alias: MySqlAliasTable<TTable, TAlias>,
-    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, undefined>>;
 
   async find<TAlias extends string>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: readonly [],
-    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, {}>>;
 
   async find<TAlias extends string, N extends MySqlColumnSelectionName<MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: readonly N[],
-    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<
     FindResult<
       MySqlAliasTable<TTable, TAlias>,
@@ -676,7 +680,7 @@ export class MySqlQuery<
   async find<TAlias extends string, const T extends readonly FieldInput[]>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: (query: FieldsQuery<MySqlAliasTable<TTable, TAlias>>) => T,
-    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<T>>>;
 
   async find<
@@ -685,21 +689,26 @@ export class MySqlQuery<
   >(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: T,
-    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, MergeFields<NamedFields<MySqlAliasTable<TTable, TAlias>, T>>>>;
 
   async find<TAlias extends string, TSelection extends SelectedFields<MySqlColumn, MySqlAliasTable<TTable, TAlias>>>(
     alias: MySqlAliasTable<TTable, TAlias>,
     fields: Fields<FieldsQuery<MySqlAliasTable<TTable, TAlias>>, TSelection>,
-    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ): Promise<FindResult<MySqlAliasTable<TTable, TAlias>, TSelection>>;
 
-  async find(aliasOrFieldsOrWhere: unknown, fieldsOrWhere?: unknown, where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<unknown> {
+  async find(
+    aliasOrFieldsOrWhere: unknown,
+    fieldsOrWhere?: unknown,
+    where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
+  ): Promise<unknown> {
     const hasAlias = isTable(aliasOrFieldsOrWhere);
     const fieldsOrCondition = hasAlias ? fieldsOrWhere : aliasOrFieldsOrWhere;
     const hasFields = arguments.length === (hasAlias ? 3 : 2);
 
-    const isCondition = (value: unknown): value is BaseWhere<MySqlQuery<TTable, AV, EV, AR>> => is(value, SQL) || typeof value === 'function';
+    const isCondition = (value: unknown): value is BaseWhere<MySqlQuery<TTable, AD, ED, AR>> =>
+      is(value, SQL) || typeof value === 'function';
 
     const table = hasAlias ? (aliasOrFieldsOrWhere as MySqlTable) : this.t;
     const selectedFields = this.resolveFields(
@@ -855,7 +864,7 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * exists
    * ******************************************************************************************************************/
-  async exists(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<boolean> {
+  async exists(where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>): Promise<boolean> {
     const condition = typeof where === 'function' ? where(this) : where;
 
     if (condition !== undefined && !is(condition, SQL)) {
@@ -881,7 +890,7 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * notExists
    * ******************************************************************************************************************/
-  async notExists(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<boolean> {
+  async notExists(where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>): Promise<boolean> {
     return !(await this.exists(where));
   }
 
@@ -895,7 +904,7 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * count
    * ******************************************************************************************************************/
-  async count(where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>): Promise<number> {
+  async count(where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>): Promise<number> {
     const condition = typeof where === 'function' ? where(this) : where;
 
     if (condition !== undefined && !is(condition, SQL)) {
@@ -979,9 +988,7 @@ export class MySqlQuery<
     }
   }
 
-  private async executeInsertSelect(
-    selectQuery: TypedQueryBuilder<Record<string, unknown>>
-  ): Promise<AR[]> {
+  private async executeInsertSelect(selectQuery: TypedQueryBuilder<Record<string, unknown>>): Promise<AR[]> {
     const selectedFields = (selectQuery as any).getSelectedFields() as Record<string, unknown>;
     const columns = getTableColumns(this.t);
     const policies = getColumnPolicies(this.t);
@@ -990,7 +997,10 @@ export class MySqlQuery<
       const column = columns[name];
       const policy = policies[name] ?? {};
       const autoIncrement = column && 'autoIncrement' in column && column.autoIncrement === true;
-      if (policy.insert === 'blocked' || (autoIncrement && policy.insert !== 'allowed' && policy.insert !== 'required')) {
+      if (
+        policy.insert === 'blocked' ||
+        (autoIncrement && policy.insert !== 'allowed' && policy.insert !== 'required')
+      ) {
         throw new Error(`insert: column "${name}" is blocked.`);
       }
     }
@@ -1008,13 +1018,17 @@ export class MySqlQuery<
       const fields = Object.fromEntries(Object.keys(selectedFields).map((name) => [name, source[name]]));
       const timestamp = getTimestamp();
       for (const [name] of missingTimestamps) fields[name] = sql`${timestamp}`.as(name);
-      selectQuery = this.getTx().select(fields as any).from(source) as TypedQueryBuilder<Record<string, unknown>>;
+      selectQuery = this.getTx()
+        .select(fields as any)
+        .from(source) as TypedQueryBuilder<Record<string, unknown>>;
     }
 
     const autoIncrementColumn = getTableConfig(this.t).columns.find(
       (column) => 'autoIncrement' in column && column.autoIncrement === true
     );
-    const insert = this.getTx().insert(this.t).select(selectQuery as any);
+    const insert = this.getTx()
+      .insert(this.t)
+      .select(selectQuery as any);
 
     if (autoIncrementColumn) {
       const autoIncrementKey = Object.keys(columns).find((key) => columns[key] === autoIncrementColumn);
@@ -1027,31 +1041,31 @@ export class MySqlQuery<
   }
 
   /********************************************************************************************************************
-   * addValues
+   * addData
    * ******************************************************************************************************************/
-  addValues(values: AV[]): AV[];
-  addValues(values: AV): AV;
-  addValues(values: AV | AV[]): AV | AV[] {
+  addData(values: AD[]): AD[];
+  addData(values: AD): AD;
+  addData(values: AD | AD[]): AD | AD[] {
     return values;
   }
 
   /********************************************************************************************************************
-   * editValues
+   * editData
    * ******************************************************************************************************************/
-  editValues(values: EV): EV {
+  editData(values: ED): ED {
     return values;
   }
 
   /********************************************************************************************************************
    * add
    * ******************************************************************************************************************/
-  add(value: AV[]): Promise<AR[]>;
+  add(value: AD[]): Promise<AR[]>;
 
   add<TSelection extends Record<string, unknown>>(value: TypedQueryBuilder<TSelection>): Promise<AR[]>;
 
-  add(value: AV): Promise<AR>;
+  add(value: AD): Promise<AR>;
 
-  add(value: AV | AV[] | TypedQueryBuilder<Record<string, unknown>>) {
+  add(value: AD | AD[] | TypedQueryBuilder<Record<string, unknown>>) {
     if (is(value, MySqlSelectBase)) {
       return this.executeInsertSelect(value as TypedQueryBuilder<Record<string, unknown>>);
     }
@@ -1066,8 +1080,8 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   edit(
     this: this & (TableMutationPolicy<TTable> extends { updateBlocked: true } ? never : unknown),
-    set: EV,
-    where: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    set: ED,
+    where: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ) {
     this.assertMutationAllowed('update', 'edit');
     const condition = typeof where === 'function' ? where(this) : where;
@@ -1089,7 +1103,7 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   editByPrimaryKey(
     this: this & (TableMutationPolicy<TTable> extends { updateBlocked: true } ? never : unknown),
-    set: EV,
+    set: ED,
     key: PrimaryKeyInput<TTable>
   ) {
     this.assertMutationAllowed('update', 'editByPrimaryKey');
@@ -1101,7 +1115,7 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   remove(
     this: this & (TableMutationPolicy<TTable> extends { deleteBlocked: true } ? never : unknown),
-    where?: BaseWhere<MySqlQuery<TTable, AV, EV, AR>>
+    where?: BaseWhere<MySqlQuery<TTable, AD, ED, AR>>
   ) {
     this.assertMutationAllowed('delete', 'remove');
     const tx = this.getTx();
@@ -1349,7 +1363,9 @@ export class MySqlQuery<
     if (typeof options === 'object' && options !== null && !('getSQL' in options)) {
       return this.drizzle.and(this.t, options as MySqlAndConditions<TTable>);
     }
-    return drizzleAnd(...[options, ...conditions].filter((condition): condition is SQLWrapper | undefined => condition !== false));
+    return drizzleAnd(
+      ...[options, ...conditions].filter((condition): condition is SQLWrapper | undefined => condition !== false)
+    );
   }
 
   /********************************************************************************************************************
@@ -1364,7 +1380,9 @@ export class MySqlQuery<
     if (typeof options === 'object' && options !== null && !('getSQL' in options)) {
       return this.drizzle.or(this.t, options as MySqlOrConditions<TTable>);
     }
-    return drizzleOr(...[options, ...conditions].filter((condition): condition is SQLWrapper | undefined => condition !== false));
+    return drizzleOr(
+      ...[options, ...conditions].filter((condition): condition is SQLWrapper | undefined => condition !== false)
+    );
   }
 }
 
@@ -1394,14 +1412,11 @@ type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
 type OrderByCallback<TTable extends MySqlTable | Subquery> = (
   query: SelectOrderByQuery<TTable>
 ) => OrderByInput | OrderByInput[];
-type GroupByCallback<
-  TTable extends MySqlTable | Subquery,
-  TSelection extends FieldSet | undefined,
-> = (aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => OrderByValue | OrderByValue[];
-type HavingCondition<
-  TTable extends MySqlTable | Subquery,
-  TSelection extends FieldSet | undefined,
-> = SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
+type GroupByCallback<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = (
+  aliases: SelectQueryBase<TTable, TSelection>['_']['selection']
+) => OrderByValue | OrderByValue[];
+type HavingCondition<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> =
+  SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
 type OrderByPreserved<TQuery, TTable extends MySqlTable | Subquery> = Omit<TQuery, 'orderBy'> & {
   orderBy(builder: OrderByCallback<TTable>): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
   orderBy(...columns: OrderByInput[]): Omit<OrderByPreserved<TQuery, TTable>, 'orderBy'>;
@@ -1417,15 +1432,14 @@ type SelectSetOperatorMethod<
 type DynamicSelect<
   TQuery extends { readonly _: { readonly selection: unknown }; $dynamic: (...args: any[]) => any },
   TTable extends MySqlTable | Subquery,
-> = Omit<
-  ReturnType<TQuery['$dynamic']>,
-  'groupBy' | 'orderBy' | 'having' | 'limit' | 'offset' | '$dynamic'
-> & {
+> = Omit<ReturnType<TQuery['$dynamic']>, 'groupBy' | 'orderBy' | 'having' | 'limit' | 'offset' | '$dynamic'> & {
   groupBy(builder: (aliases: TQuery['_']['selection']) => OrderByValue | OrderByValue[]): DynamicSelect<TQuery, TTable>;
   groupBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
   orderBy(builder: OrderByCallback<TTable>): DynamicSelect<TQuery, TTable>;
   orderBy(...columns: OrderByInput[]): DynamicSelect<TQuery, TTable>;
-  having(condition: SQL | undefined | ((aliases: TQuery['_']['selection']) => SQL | undefined)): DynamicSelect<TQuery, TTable>;
+  having(
+    condition: SQL | undefined | ((aliases: TQuery['_']['selection']) => SQL | undefined)
+  ): DynamicSelect<TQuery, TTable>;
   limit(value: number | Placeholder): DynamicSelect<TQuery, TTable>;
   offset(value: number | Placeholder): DynamicSelect<TQuery, TTable>;
   $dynamic(): DynamicSelect<TQuery, TTable>;
@@ -1528,8 +1542,17 @@ type SelectJoinMethods<
 
 export type SelectFrom<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = Omit<
   SelectQueryBase<TTable, TSelection>,
-  | 'where' | 'having' | 'groupBy' | 'orderBy' | 'limit' | 'offset' | '$dynamic'
-  | 'union' | 'unionAll' | 'intersect' | 'except'
+  | 'where'
+  | 'having'
+  | 'groupBy'
+  | 'orderBy'
+  | 'limit'
+  | 'offset'
+  | '$dynamic'
+  | 'union'
+  | 'unionAll'
+  | 'intersect'
+  | 'except'
   | keyof SelectJoinMethods<TTable, TSelection>
 > &
   SelectJoinMethods<TTable, TSelection> & {
@@ -1565,44 +1588,44 @@ type QueryTable<TQuery> = TQuery extends { readonly t: infer TTable extends MySq
 
 type WhereQuery<TQuery> = Omit<
   Pick<
-  TQuery,
-  Extract<
-    keyof TQuery,
-    | 't'
-    | 'eq'
-    | 'ne'
-    | 'orEq'
-    | 'orNe'
-    | 'orGt'
-    | 'orGte'
-    | 'orLt'
-    | 'orLte'
-    | 'orInArray'
-    | 'orNotInArray'
-    | 'orBetween'
-    | 'orNotBetween'
-    | 'orLike'
-    | 'orNotLike'
-    | 'orIlike'
-    | 'orNotIlike'
-    | 'orIsNull'
-    | 'orIsNotNull'
-    | 'gt'
-    | 'gte'
-    | 'lt'
-    | 'lte'
-    | 'inArray'
-    | 'notInArray'
-    | 'between'
-    | 'notBetween'
-    | 'like'
-    | 'notLike'
-    | 'ilike'
-    | 'notIlike'
-    | 'isNull'
-    | 'isNotNull'
-    | 'and'
-    | 'or'
+    TQuery,
+    Extract<
+      keyof TQuery,
+      | 't'
+      | 'eq'
+      | 'ne'
+      | 'orEq'
+      | 'orNe'
+      | 'orGt'
+      | 'orGte'
+      | 'orLt'
+      | 'orLte'
+      | 'orInArray'
+      | 'orNotInArray'
+      | 'orBetween'
+      | 'orNotBetween'
+      | 'orLike'
+      | 'orNotLike'
+      | 'orIlike'
+      | 'orNotIlike'
+      | 'orIsNull'
+      | 'orIsNotNull'
+      | 'gt'
+      | 'gte'
+      | 'lt'
+      | 'lte'
+      | 'inArray'
+      | 'notInArray'
+      | 'between'
+      | 'notBetween'
+      | 'like'
+      | 'notLike'
+      | 'ilike'
+      | 'notIlike'
+      | 'isNull'
+      | 'isNotNull'
+      | 'and'
+      | 'or'
     >
   >,
   'eq'
@@ -1638,8 +1661,9 @@ type BaseTableConditionQuery<TTable extends MySqlTable> = {
   or(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
 };
 type TableConditionQuery<TTable extends MySqlTable> = BaseTableConditionQuery<TTable> & {
-  [K in keyof Omit<BaseTableConditionQuery<TTable>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`]:
-    BaseTableConditionQuery<TTable>[K];
+  [
+    K in keyof Omit<BaseTableConditionQuery<TTable>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`
+  ]: BaseTableConditionQuery<TTable>[K];
 };
 type BaseWhere<TQuery> = SQL | undefined | ((query: WhereQuery<TQuery>) => SQL | undefined);
 
@@ -1660,9 +1684,9 @@ type ResolveMixedSelection<TTable extends MySqlTable, TSelection> = {
       ? TSelection[K]
       : TSelection[K] extends { _: { result: unknown } }
         ? SQL.Aliased<SelectBuilderFieldData<TSelection[K]>>
-      : TSelection[K] extends SQLWrapper<infer TData>
-        ? SQL.Aliased<TData>
-        : Extract<TSelection[K], FieldSet[string]>;
+        : TSelection[K] extends SQLWrapper<infer TData>
+          ? SQL.Aliased<TData>
+          : Extract<TSelection[K], FieldSet[string]>;
 };
 type SelectBuilderFieldData<TBuilder> = TBuilder extends { _: { result: unknown } }
   ? Awaited<TBuilder> extends readonly (infer TRow)[]
@@ -1761,8 +1785,7 @@ type SubqueryValues<T extends Subquery> = {
 };
 type SubqueryArrayValues<T extends Subquery> = {
   [K in keyof T['_']['selectedFields']]?:
-    | (NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> | SQLWrapper)[]
-    | SQLWrapper;
+    (NonNullable<SubqueryFieldData<T['_']['selectedFields'][K]>> | SQLWrapper)[] | SQLWrapper;
 };
 type SubqueryRangeValues<T extends Subquery> = {
   [K in keyof T['_']['selectedFields']]?: [
@@ -1833,8 +1856,9 @@ type BaseSubqueryConditionQuery<T extends Subquery> = {
   or(...conditions: (SQLWrapper | false | undefined)[]): SQL | undefined;
 };
 type SubqueryConditionQuery<T extends Subquery> = BaseSubqueryConditionQuery<T> & {
-  [K in keyof Omit<BaseSubqueryConditionQuery<T>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`]:
-    BaseSubqueryConditionQuery<T>[K];
+  [
+    K in keyof Omit<BaseSubqueryConditionQuery<T>, 't' | 'and' | 'or'> as `or${Capitalize<K & string>}`
+  ]: BaseSubqueryConditionQuery<T>[K];
 };
 type NamedFields<TTable extends MySqlTable, T extends readonly (FieldInput | MySqlColumnSelectionName<TTable>)[]> = {
   [I in keyof T]: T[I] extends MySqlColumnSelectionName<TTable>
@@ -1863,7 +1887,9 @@ type MergeSelectFields<TTable extends MySqlTable, T extends readonly unknown[], 
   ? MergeSelectFields<
       TTable,
       Rest,
-      First extends FieldSet | MixedSelection<TTable> ? Omit<Result, keyof First> & ResolveSelectField<TTable, First> : Result
+      First extends FieldSet | MixedSelection<TTable>
+        ? Omit<Result, keyof First> & ResolveSelectField<TTable, First>
+        : Result
     >
   : number extends T['length']
     ? ResolveSelectField<TTable, Exclude<T[number], false | undefined>>

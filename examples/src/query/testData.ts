@@ -348,17 +348,17 @@ export class TestData extends MySqlQuery<'testData'> {
   }
 
   /********************************************************************************************************************
-   * addValuesTest
+   * addDataTest
    * ******************************************************************************************************************/
-  async addValuesTest() {
-    console.log('::::: TestData::addValuesTest() :::::');
+  async addDataTest() {
+    console.log('::::: TestData::addDataTest() :::::');
 
     const dt = new Date().toISOString();
-    const addValues = this.addValues({
+    const addData = this.addData({
       name: `name ${dt}`,
       email: `email${dt}@test.com`,
     });
-    console.log(await this.add(addValues));
+    console.log(await this.add(addData));
   }
 
   /********************************************************************************************************************
@@ -396,15 +396,15 @@ export class TestData extends MySqlQuery<'testData'> {
   }
 
   /********************************************************************************************************************
-   * editValuesTest
+   * editDataTest
    * ******************************************************************************************************************/
-  async editValuesTest() {
-    console.log('::::: TestData::editValuesTest() :::::');
+  async editDataTest() {
+    console.log('::::: TestData::editDataTest() :::::');
 
-    const editValues = this.editValues({
+    const editData = this.editData({
       is_lock: true,
     });
-    console.log(await this.editByPrimaryKey(editValues, 1));
+    console.log(await this.editByPrimaryKey(editData, 1));
   }
 
   /********************************************************************************************************************

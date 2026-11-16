@@ -1,4 +1,4 @@
 export * from './common';
 export * from './MySqlConditions';
-export * from './MySqlAddValues';
-export * from './MySqlEditValues';
+export * from './MySqlAddData';
+export * from './MySqlEditData';

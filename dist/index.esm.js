@@ -754,7 +754,8 @@ class MySqlQuery {
             const column = columns[name];
             const policy = policies[name] ?? {};
             const autoIncrement = column && 'autoIncrement' in column && column.autoIncrement === true;
-            if (policy.insert === 'blocked' || (autoIncrement && policy.insert !== 'allowed' && policy.insert !== 'required')) {
+            if (policy.insert === 'blocked' ||
+                (autoIncrement && policy.insert !== 'allowed' && policy.insert !== 'required')) {
                 throw new Error(`insert: column "${name}" is blocked.`);
             }
         }
@@ -769,10 +770,14 @@ class MySqlQuery {
             const timestamp = getTimestamp();
             for (const [name] of missingTimestamps)
                 fields[name] = sql `${timestamp}`.as(name);
-            selectQuery = this.getTx().select(fields).from(source);
+            selectQuery = this.getTx()
+                .select(fields)
+                .from(source);
         }
         const autoIncrementColumn = getTableConfig(this.t).columns.find((column) => 'autoIncrement' in column && column.autoIncrement === true);
-        const insert = this.getTx().insert(this.t).select(selectQuery);
+        const insert = this.getTx()
+            .insert(this.t)
+            .select(selectQuery);
         if (autoIncrementColumn) {
             const autoIncrementKey = Object.keys(columns).find((key) => columns[key] === autoIncrementColumn);
             const rows = await insert.$returningId();
@@ -781,13 +786,13 @@ class MySqlQuery {
         const [result] = (await insert);
         return Array(result.affectedRows).fill(undefined);
     }
-    addValues(values) {
+    addData(values) {
         return values;
     }
     /********************************************************************************************************************
-     * editValues
+     * editData
      * ******************************************************************************************************************/
-    editValues(values) {
+    editData(values) {
         return values;
     }
     add(value) {
