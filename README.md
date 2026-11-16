@@ -70,6 +70,22 @@ const query = db.query(u);
 
 `drizzleMySql`에는 `url` 또는 `mysql2` 연결 옵션과 `schema`가 필요합니다. `getTimestamp`는 선택 사항이며, 생략하면 `new Date()`를 기본 시각으로 사용합니다. `timezone: 'local'`을 지정하면 `createdAt()` / `updatedAt()`의 자동 시각을 실행 PC의 현지 시간(Node.js의 `TZ` 설정 포함)으로 입력합니다. 예를 들어 `drizzleMySql({ url, schema, timezone: 'local' })`처럼 설정합니다. 이 경우 날짜를 SQL 매개변수 문자열로 전달하여 Drizzle의 UTC 변환을 피합니다. 사용자 정의 `getTimestamp`가 `Date`를 반환할 때도 현지 시간으로 변환합니다. 직접 지정한 컬럼 값과 `getTimestamp`가 반환한 문자열·SQL 표현식은 그대로 사용합니다. 이 옵션은 MySQL 서버의 세션 시간대를 변경하지 않습니다. `db.query(table)`은 해당 테이블에 맞춰 타입이 지정된 쿼리 객체를 반환합니다. `new MySqlQuery(table, db.current, getTimestamp?)`의 세 번째 인자는 선택 사항이며, 생략하면 해당 `drizzleMySql`에 설정한 생성 함수를 사용합니다. 명시하면 그 쿼리 객체에서만 해당 함수를 우선 사용합니다. 연결을 다 사용한 뒤 `await db.close()`로 커넥션 풀을 닫습니다.
 
+`orderBy`는 직접 인자와 콜백 반환값에서 `false`, `undefined`를 제외합니다. 배열 안의 값에도 동일하게 적용하며, 모두 제외되면 `ORDER BY`를 생성하지 않습니다.
+
+```ts
+const isOrderByName = false;
+await user.select().orderBy(
+  user.desc('id'),
+  isOrderByName && user.asc('name'),
+  isOrderByName ? user.asc('name') : undefined,
+);
+await user.select().orderBy(q => [
+  q.desc('id'),
+  isOrderByName && q.asc('name'),
+  isOrderByName ? q.asc('name') : undefined,
+]);
+```
+
 연결 객체의 `select(table, fields?)`에서도 같은 선택 기능을 사용할 수 있습니다. 첫 인자는 등록된 스키마의 테이블명 또는 alias 테이블이며, 이후 선택 인자와 반환 빌더는 `MySqlQuery.select`와 동일합니다.
 
 ```ts

@@ -514,9 +514,9 @@ class MySqlQuery {
                     if (typeof args[0] === 'function') {
                         const result = args[0](orderByQuery);
                         const columns = Array.isArray(result) ? result.flat(Infinity) : [result];
-                        return enhance(originalOrderBy(...columns));
+                        return enhance(originalOrderBy(...columns.filter((column) => column !== false && column !== undefined)));
                     }
-                    return enhance(originalOrderBy(...args.flat(Infinity)));
+                    return enhance(originalOrderBy(...args.flat(Infinity).filter((column) => column !== false && column !== undefined)));
                 };
             }
             for (const setOperator of ['union', 'unionAll', 'intersect', 'except']) {

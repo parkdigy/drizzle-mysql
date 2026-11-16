@@ -502,3 +502,47 @@ test('스키마와 SQL 컬럼명이 같을 때 전체 선택 결과의 타입과
 test('제거한 컬럼명 보정 API는 내보내지 않는다', () => {
   expect(Object.hasOwn(api, 'withColumnNames')).toBe(false);
 });
+
+test.each([false, true])('orderBy는 직접 인자와 콜백에서 조건부 정렬(%s)을 제외하거나 유지한다', (enabled) => {
+  const query = db.query(user);
+  const expected = query
+    .select()
+    .orderBy(query.desc('id'), ...(enabled ? [query.asc('displayName'), query.asc('displayName')] : []))
+    .toSQL();
+  const direct = query
+    .select()
+    .orderBy(query.desc('id'), enabled && query.asc('displayName'), enabled ? query.asc('displayName') : undefined)
+    .toSQL();
+  const callback = query
+    .select()
+    .orderBy((q) => [q.desc('id'), enabled && q.asc('displayName'), enabled ? q.asc('displayName') : undefined])
+    .toSQL();
+  expect(direct).toEqual(expected);
+  expect(callback).toEqual(expected);
+  const grouped = query
+    .select()
+    .orderBy([false, query.desc('id'), undefined], false, undefined)
+    .toSQL();
+  expect(grouped).toEqual(query.select().orderBy(query.desc('id')).toSQL());
+});
+
+test('정렬 조건이 전부 제외되면 ORDER BY를 생성하지 않는다', () => {
+  const query = db.query(user);
+  for (const builder of [
+    query.select().orderBy(false, undefined),
+    query.select().orderBy(() => [false, undefined]),
+    query.select().orderBy(() => false),
+    query.select().orderBy(() => undefined),
+    query.select().limit(1).orderBy(false, undefined),
+    query
+      .select()
+      .$dynamic()
+      .orderBy((q) => [q.desc('id'), false, undefined])
+      .orderBy(false, undefined),
+    query
+      .select(['id'])
+      .union(query.select(['id']))
+      .orderBy(false, undefined),
+  ])
+    expect(builder.toSQL().sql).not.toMatch(/order by/i);
+});

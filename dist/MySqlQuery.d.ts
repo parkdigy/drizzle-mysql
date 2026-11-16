@@ -303,13 +303,14 @@ export declare class MySqlQuery<TTable extends MySqlTable, AD extends MySqlAddDa
 type SelectQueryBase<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<GetSelectTableName<TTable>, TSelection extends undefined ? SourceSelection<TTable> : AliasedSelection<NonNullable<TSelection>>, 'partial'>;
 type TableWhere<TTable extends MySqlTable | Subquery> = SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
 type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
-type OrderByInput = OrderByValue | readonly OrderByValue[];
+type OptionalOrderByValue = OrderByValue | false | undefined;
+type OrderByInput = OptionalOrderByValue | readonly OptionalOrderByValue[];
 type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
     readonly t: TTable;
     asc(name: SourceColumnName<TTable>, ...names: SourceColumnName<TTable>[]): SQL | SQL[];
     desc(name: SourceColumnName<TTable>, ...names: SourceColumnName<TTable>[]): SQL | SQL[];
 };
-type OrderByCallback<TTable extends MySqlTable | Subquery> = (query: SelectOrderByQuery<TTable>) => OrderByInput | OrderByInput[];
+type OrderByCallback<TTable extends MySqlTable | Subquery> = (query: SelectOrderByQuery<TTable>) => OrderByInput | readonly OrderByInput[];
 type GroupByCallback<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = (aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => OrderByValue | OrderByValue[];
 type HavingCondition<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = SQL | undefined | ((aliases: SelectQueryBase<TTable, TSelection>['_']['selection']) => SQL | undefined);
 type OrderByPreserved<TQuery, TTable extends MySqlTable | Subquery> = Omit<TQuery, 'orderBy'> & {

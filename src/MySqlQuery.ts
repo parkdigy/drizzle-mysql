@@ -570,9 +570,9 @@ export class MySqlQuery<
           if (typeof args[0] === 'function') {
             const result = (args[0] as (query: SelectOrderByQuery<MySqlTable | Subquery>) => unknown)(orderByQuery);
             const columns = Array.isArray(result) ? result.flat(Infinity) : [result];
-            return enhance(originalOrderBy(...columns));
+            return enhance(originalOrderBy(...columns.filter((column) => column !== false && column !== undefined)));
           }
-          return enhance(originalOrderBy(...args.flat(Infinity)));
+          return enhance(originalOrderBy(...args.flat(Infinity).filter((column) => column !== false && column !== undefined)));
         };
       }
       for (const setOperator of ['union', 'unionAll', 'intersect', 'except']) {
@@ -1403,7 +1403,8 @@ type TableWhere<TTable extends MySqlTable | Subquery> =
   SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
 
 type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
-type OrderByInput = OrderByValue | readonly OrderByValue[];
+type OptionalOrderByValue = OrderByValue | false | undefined;
+type OrderByInput = OptionalOrderByValue | readonly OptionalOrderByValue[];
 type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
   readonly t: TTable;
   asc(name: SourceColumnName<TTable>, ...names: SourceColumnName<TTable>[]): SQL | SQL[];
@@ -1411,7 +1412,7 @@ type SelectOrderByQuery<TTable extends MySqlTable | Subquery> = {
 };
 type OrderByCallback<TTable extends MySqlTable | Subquery> = (
   query: SelectOrderByQuery<TTable>
-) => OrderByInput | OrderByInput[];
+) => OrderByInput | readonly OrderByInput[];
 type GroupByCallback<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = (
   aliases: SelectQueryBase<TTable, TSelection>['_']['selection']
 ) => OrderByValue | OrderByValue[];

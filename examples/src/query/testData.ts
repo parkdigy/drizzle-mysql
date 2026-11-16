@@ -31,6 +31,22 @@ export class TestData extends MySqlQuery<'testData'> {
 
     console.log(await this.select().orderBy(this.desc('id')));
 
+    const isOrderByName = false;
+    console.log(
+      await this.select().orderBy(
+        this.desc('id'),
+        isOrderByName && this.asc('name'),
+        isOrderByName ? this.asc('name') : undefined
+      )
+    );
+    console.log(
+      await this.select().orderBy((q) => [
+        q.desc('id'),
+        isOrderByName && q.asc('name'),
+        isOrderByName ? q.asc('name') : undefined,
+      ])
+    );
+
     console.log(await this.select().orderBy(this.asc('id')));
 
     console.log(await this.select(['id']).orderBy((q) => q.desc('id', 'name')));

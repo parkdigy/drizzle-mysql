@@ -77,6 +77,15 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    const isOrderByName = false;
+    query.select().orderBy(query.desc('id'), isOrderByName && query.asc('name'), isOrderByName ? query.asc('name') : undefined);
+    query.select().orderBy(q => [q.desc('id'), isOrderByName && q.asc('name'), isOrderByName ? q.asc('name') : undefined]);
+    query.select().innerJoin(b, db.eq(table199.id, b.id)).orderBy(q => [q.desc('id'), false, undefined]);
+    query.select().limit(1).orderBy(false, undefined);
+    query.select().$dynamic().orderBy(q => [q.desc('id'), false, undefined]);
+    query.select(['id']).union(query.select(['id'])).orderBy(q => [q.desc('id'), false, undefined]);
+
+
     // @ts-expect-error 자동완성용 미완성 조건 키
     query.eq({ i/*queryEq*/ });
     // @ts-expect-error and 객체 안에 and를 다시 넣을 수 없다
