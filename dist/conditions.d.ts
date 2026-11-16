@@ -83,14 +83,6 @@ export declare function createConditions<TSchema extends Record<string, MySqlTab
         <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
         <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
     } & typeof native.notLike;
-    ilike: {
-        <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
-        <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
-    } & typeof native.ilike;
-    notIlike: {
-        <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
-        <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
-    } & typeof native.notIlike;
     isNull: {
         <T extends MySqlTable>(table: T, name: MySqlColumnName<T>): SQL;
         <T extends MySqlTable>(table: T, names: MySqlNullConditionInput<T>): SQL | undefined;
@@ -140,14 +132,6 @@ export declare function createConditions<TSchema extends Record<string, MySqlTab
         <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
     };
     orNotLike: {
-        <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
-        <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
-    };
-    orIlike: {
-        <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
-        <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
-    };
-    orNotIlike: {
         <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
         <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
     };

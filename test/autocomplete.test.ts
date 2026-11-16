@@ -77,6 +77,25 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    // @ts-expect-error MySQL에서 지원하지 않는 연산자
+    db.ilike;
+    // @ts-expect-error MySQL에서 지원하지 않는 연산자
+    query.ilike;
+    // @ts-expect-error MySQL에서 지원하지 않는 연산자
+    db.notIlike;
+    // @ts-expect-error MySQL에서 지원하지 않는 연산자
+    query.notIlike;
+    // @ts-expect-error MySQL에서 지원하지 않는 연산자
+    db.orIlike;
+    // @ts-expect-error MySQL에서 지원하지 않는 연산자
+    query.orIlike;
+    // @ts-expect-error MySQL에서 지원하지 않는 연산자
+    db.orNotIlike;
+    // @ts-expect-error MySQL에서 지원하지 않는 연산자
+    query.orNotIlike;
+    // @ts-expect-error MySQL 객체 조건에서 지원하지 않는 연산자
+    query.and({ ilike: { name: 'A%' } });
+
     const isOrderByName = false;
     query.select().orderBy(query.desc('id'), isOrderByName && query.asc('name'), isOrderByName ? query.asc('name') : undefined);
     query.select().orderBy(q => [q.desc('id'), isOrderByName && q.asc('name'), isOrderByName ? q.asc('name') : undefined]);

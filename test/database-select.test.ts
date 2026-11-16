@@ -199,3 +199,42 @@ test('SQL 표현식 필드의 자동 별칭과 데이터 타입을 서브쿼리 
     void [row, wrong];
   }
 });
+
+
+test.each([false, true])('다중 JOIN에서 래퍼를 중복 적용하지 않는다 (distinct=%s)', (distinct) => {
+  const query = distinct ? db.query(users).selectDistinct(u, ['id']) : db.select(u, ['id']);
+  let joinCallbackCalls = 0;
+  for (let index = 0; index < 24; index += 1) {
+    const joined = db.a.users(`joined_${index}`);
+    if (index % 2 === 0) {
+      query.leftJoin(joined, db.eq(joined.id, u.id));
+    } else {
+      query.innerJoin(joined, (q) => {
+        joinCallbackCalls += 1;
+        return q.eq({ id: q.t.id });
+      });
+    }
+  }
+  let whereCallbackCalls = 0;
+  let orderCallbackCalls = 0;
+  const result = query
+    .where((q) => {
+      whereCallbackCalls += 1;
+      return q.eq({ id: 7 });
+    })
+    .orderBy((q) => {
+      orderCallbackCalls += 1;
+      return q.desc('id');
+    })
+    .limit(3)
+    .toSQL();
+
+  expect(result.sql.match(/(?:left|inner) join/g)).toHaveLength(24);
+  expect(result.sql).toContain('`joined_23`.`id` = `u`.`id`');
+  expect(result.sql).toContain('where `u`.`id` = ?');
+  expect(result.sql).toContain('order by `u`.`id` desc');
+  expect(result.params).toEqual([7, 3]);
+  expect(joinCallbackCalls).toBe(12);
+  expect(whereCallbackCalls).toBe(1);
+  expect(orderCallbackCalls).toBe(1);
+});

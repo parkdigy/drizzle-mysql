@@ -145,8 +145,6 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
         notBetween: extendOperator(native.notBetween, objectOperator('notBetween')),
         like: extendOperator(native.like, objectOperator('like')),
         notLike: extendOperator(native.notLike, objectOperator('notLike')),
-        ilike: extendOperator(native.ilike, objectOperator('ilike')),
-        notIlike: extendOperator(native.notIlike, objectOperator('notIlike')),
         isNull: extendOperator(native.isNull, nullOperator('isNull')),
         isNotNull: extendOperator(native.isNotNull, nullOperator('isNotNull')),
         orGt: objectOperator('gt', 'or'),
@@ -159,8 +157,6 @@ import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';impor
         orNotBetween: objectOperator('notBetween', 'or'),
         orLike: objectOperator('like', 'or'),
         orNotLike: objectOperator('notLike', 'or'),
-        orIlike: objectOperator('ilike', 'or'),
-        orNotIlike: objectOperator('notIlike', 'or'),
         orIsNull: nullOperator('isNull', 'or'),
         orIsNotNull: nullOperator('isNotNull', 'or'),
         and: logicalOperator('and'),
@@ -476,8 +472,6 @@ class MySqlQuery {
                 notBetween: bindCondition('notBetween', conditionTable),
                 like: bindCondition('like', conditionTable),
                 notLike: bindCondition('notLike', conditionTable),
-                ilike: bindCondition('ilike', conditionTable),
-                notIlike: bindCondition('notIlike', conditionTable),
                 isNull: bindCondition('isNull', conditionTable),
                 isNotNull: bindCondition('isNotNull', conditionTable),
                 orGt: bindCondition('orGt', conditionTable),
@@ -490,8 +484,6 @@ class MySqlQuery {
                 orNotBetween: bindCondition('orNotBetween', conditionTable),
                 orLike: bindCondition('orLike', conditionTable),
                 orNotLike: bindCondition('orNotLike', conditionTable),
-                orIlike: bindCondition('orIlike', conditionTable),
-                orNotIlike: bindCondition('orNotIlike', conditionTable),
                 orIsNull: bindCondition('orIsNull', conditionTable),
                 orIsNotNull: bindCondition('orIsNotNull', conditionTable),
                 and: (...conditions) => combineCallbackConditions('and', conditionTable, conditions),
@@ -898,12 +890,6 @@ class MySqlQuery {
     orNotLike(values) {
         return this.drizzle.orNotLike(this.t, values);
     }
-    orIlike(values) {
-        return this.drizzle.orIlike(this.t, values);
-    }
-    orNotIlike(values) {
-        return this.drizzle.orNotIlike(this.t, values);
-    }
     orIsNull(names) {
         return this.drizzle.orIsNull(this.t, names);
     }
@@ -975,18 +961,6 @@ class MySqlQuery {
      * ******************************************************************************************************************/
     notLike(values) {
         return this.drizzle.notLike(this.t, values);
-    }
-    /********************************************************************************************************************
-     * ilike
-     * ******************************************************************************************************************/
-    ilike(values) {
-        return this.drizzle.ilike(this.t, values);
-    }
-    /********************************************************************************************************************
-     * notIlike
-     * ******************************************************************************************************************/
-    notIlike(values) {
-        return this.drizzle.notIlike(this.t, values);
     }
     isNull(names) {
         return this.drizzle.isNull(this.t, names);

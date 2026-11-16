@@ -176,8 +176,6 @@ test('OR 비교 연산자들은 컬럼 조건만 OR로 묶고 배열·범위 검
     notBetween: { id: [1, 2], displayName: ['A', 'Z'] },
     like: { displayName: 'A%' },
     notLike: { displayName: 'A%' },
-    ilike: { displayName: 'A%' },
-    notIlike: { displayName: 'A%' },
     isNull: ['id', 'displayName'],
     isNotNull: ['id', 'displayName'],
   };
@@ -206,7 +204,7 @@ test('OR 비교 연산자들은 컬럼 조건만 OR로 묶고 배열·범위 검
     second: varchar({ length: 50 }),
   });
   const contactConditions = createConditions({ contacts });
-  for (const operator of ['orLike', 'orNotLike', 'orIlike', 'orNotIlike'] as const) {
+  for (const operator of ['orLike', 'orNotLike'] as const) {
     const generated = db.current().select().from(contacts)
       .where(contactConditions[operator](contacts, { first: 'A%', second: '%@example.com' }))
       .toSQL();
@@ -545,4 +543,18 @@ test('정렬 조건이 전부 제외되면 ORDER BY를 생성하지 않는다', 
       .orderBy(false, undefined),
   ])
     expect(builder.toSQL().sql).not.toMatch(/order by/i);
+});
+
+test('MySQL에서 지원하지 않는 패턴 연산자는 노출하지 않는다', () => {
+  const conditions = createConditions({ user });
+  const query = db.query(user);
+  const assertRemoved = (value: object) => {
+    for (const name of ['ilike', 'notIlike', 'orIlike', 'orNotIlike']) {
+      expect(name in value).toBe(false);
+    }
+  };
+  for (const value of [api, conditions, db, query]) assertRemoved(value);
+  query.select().where((q) => { assertRemoved(q); return undefined; });
+  const subquery = query.select(['id', 'displayName']).as('sq');
+  db.select(subquery).where((q) => { assertRemoved(q); return undefined; });
 });
