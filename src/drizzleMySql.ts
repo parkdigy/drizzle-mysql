@@ -7,7 +7,7 @@ import { count, defineRelations, getTableColumns, is, isTable, SQL, sql, Subquer
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as native from 'drizzle-orm';
-import { sum, sumDistinct, avg, avgDistinct, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString } from './aggregates';
+import { sum, sumDistinct, avg, avgDistinct, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString, avgNumber, avgBoolean, avgString, avgDistinctNumber, avgDistinctBoolean, avgDistinctString } from './aggregates';
 import { createAlias, type MySqlAliases } from './alias';
 import { createConditions, type MySqlSchemaConditions } from './conditions';
 import { TableColumns } from './columns';
@@ -47,6 +47,12 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
   coalesceNumber: typeof coalesceNumber;
   coalesceString: typeof coalesceString;
   coalesceBoolean: typeof coalesceBoolean;
+  avgNumber: typeof avgNumber;
+  avgBoolean: typeof avgBoolean;
+  avgString: typeof avgString;
+  avgDistinctNumber: typeof avgDistinctNumber;
+  avgDistinctBoolean: typeof avgDistinctBoolean;
+  avgDistinctString: typeof avgDistinctString;
   sumNumber: typeof sumNumber;
   sumBoolean: typeof sumBoolean;
   sumString: typeof sumString;
@@ -275,6 +281,12 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
     coalesceNumber,
     coalesceString,
     coalesceBoolean,
+    avgNumber,
+    avgBoolean,
+    avgString,
+    avgDistinctNumber,
+    avgDistinctBoolean,
+    avgDistinctString,
     sumNumber,
     sumBoolean,
     sumString,

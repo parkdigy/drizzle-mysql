@@ -53,6 +53,18 @@ export declare class MySqlQuery<TTable extends MySqlTable, AD extends MySqlAddDa
     sumDistinctBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
     sumDistinctString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
     sumDistinctString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    avgNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<number | null>;
+    avgNumber<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    avgBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<boolean | null>;
+    avgBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    avgString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
+    avgString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    avgDistinctNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<number | null>;
+    avgDistinctNumber<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    avgDistinctBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<boolean | null>;
+    avgDistinctBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    avgDistinctString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
+    avgDistinctString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
     private readonly drizzle;
     /********************************************************************************************************************
      * (PROTECTED) getTx
@@ -318,7 +330,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AD extends MySqlAddDa
  * types
  * ******************************************************************************************************************/
 type SelectQueryBase<TTable extends MySqlTable | Subquery, TSelection extends FieldSet | undefined> = MySqlAsyncSelectBase<GetSelectTableName<TTable>, TSelection extends undefined ? SourceSelection<TTable> : AliasedSelection<NonNullable<TSelection>>, 'partial'>;
-type TableWhere<TTable extends MySqlTable | Subquery> = SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
+type TableWhere<TTable extends MySqlTable | Subquery> = SQL | false | undefined | ((query: SelectConditionQuery<TTable>) => SQL | false | undefined);
 type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
 type OptionalOrderByValue = OrderByValue | false | undefined;
 type OrderByInput = OptionalOrderByValue | readonly OptionalOrderByValue[];
@@ -345,7 +357,8 @@ type DynamicSelect<TQuery extends {
         readonly selection: unknown;
     };
     $dynamic: (...args: any[]) => any;
-}, TTable extends MySqlTable | Subquery> = Omit<ReturnType<TQuery['$dynamic']>, 'groupBy' | 'orderBy' | 'having' | 'limit' | 'offset' | '$dynamic'> & {
+}, TTable extends MySqlTable | Subquery> = Omit<ReturnType<TQuery['$dynamic']>, 'where' | 'groupBy' | 'orderBy' | 'having' | 'limit' | 'offset' | '$dynamic'> & {
+    where(condition: TableWhere<TTable>): DynamicSelect<TQuery, TTable>;
     groupBy(builder: (aliases: TQuery['_']['selection']) => OrderByValue | OrderByValue[]): DynamicSelect<TQuery, TTable>;
     groupBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
     orderBy(builder: OrderByCallback<TTable>): DynamicSelect<TQuery, TTable>;

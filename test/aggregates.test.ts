@@ -1,3 +1,5 @@
+import { avg as nativeAvg, avgDistinct as nativeAvgDistinct } from 'drizzle-orm';
+import { avgNumber, avgBoolean, avgString, avgDistinctNumber, avgDistinctBoolean, avgDistinctString } from '../src';
 import { sum as nativeSum, sumDistinct as nativeSumDistinct } from 'drizzle-orm';
 import { sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString } from '../src';
 import { drizzle } from 'drizzle-orm/mysql2';
@@ -93,6 +95,13 @@ test.each([
   ['sumNumber', sumNumber, Number],
   ['sumBoolean', sumBoolean, Boolean],
   ['sumString', sumString, String],
+  ['avgNumber', avgNumber, Number],
+  ['avgBoolean', avgBoolean, Boolean],
+  ['avgString', avgString, String],
+  ['avgDistinctNumber', avgDistinctNumber, Number],
+  ['avgDistinctBoolean', avgDistinctBoolean, Boolean],
+  ['avgDistinctString', avgDistinctString, String],
+
 ] as const)('%s는 자동 변환기를 모든 진입점에 적용한다', async (method, aggregate, decoder) => {
   const query = db.query(table);
   for (const value of ['12.5', '0', 0, 1, null]) {
@@ -113,7 +122,7 @@ test.each([
       const selected = database.select({ total: expression }).from(table);
       const expected = database
         .select({
-          total: (method.startsWith('sumDistinct') ? nativeSumDistinct : nativeSum)(table.id).mapWith(decoder),
+          total: (method.startsWith('avgDistinct') ? nativeAvgDistinct : method.startsWith('avg') ? nativeAvg : method.startsWith('sumDistinct') ? nativeSumDistinct : nativeSum)(table.id).mapWith(decoder),
         })
         .from(table);
       expect(selected.toSQL()).toEqual(expected.toSQL());

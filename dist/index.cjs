@@ -53,6 +53,24 @@ function sumDistinctBoolean(expression) {
 }
 function sumDistinctString(expression) {
     return sumDistinct(expression, String);
+}
+function avgNumber(expression) {
+    return avg(expression, Number);
+}
+function avgBoolean(expression) {
+    return avg(expression, Boolean);
+}
+function avgString(expression) {
+    return avg(expression, String);
+}
+function avgDistinctNumber(expression) {
+    return avgDistinct(expression, Number);
+}
+function avgDistinctBoolean(expression) {
+    return avgDistinct(expression, Boolean);
+}
+function avgDistinctString(expression) {
+    return avgDistinct(expression, String);
 }function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
@@ -388,6 +406,24 @@ class MySqlQuery {
     sumDistinctString(columnOrName) {
         return this.sumDistinct(columnOrName, String);
     }
+    avgNumber(columnOrName) {
+        return avg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Number);
+    }
+    avgBoolean(columnOrName) {
+        return avg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Boolean);
+    }
+    avgString(columnOrName) {
+        return avg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, String);
+    }
+    avgDistinctNumber(columnOrName) {
+        return avgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Number);
+    }
+    avgDistinctBoolean(columnOrName) {
+        return avgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Boolean);
+    }
+    avgDistinctString(columnOrName) {
+        return avgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, String);
+    }
     drizzle = { ...createConditions({}), sqlNumber: (value) => native.sql `${value}`.mapWith(Number) };
     /********************************************************************************************************************
      * (PROTECTED) getTx
@@ -598,8 +634,11 @@ class MySqlQuery {
             };
             const enhancements = {
                 where: (condition) => enhance(originalWhere(typeof condition === 'function'
-                    ? () => condition(whereQuery)
-                    : condition)),
+                    ? () => {
+                        const resolved = condition(whereQuery);
+                        return resolved === false ? undefined : resolved;
+                    }
+                    : condition === false ? undefined : condition)),
             };
             if (originalOrderBy) {
                 enhancements.orderBy = (...args) => {
@@ -1284,6 +1323,12 @@ function drizzleMySql(options) {
         coalesceNumber,
         coalesceString,
         coalesceBoolean,
+        avgNumber,
+        avgBoolean,
+        avgString,
+        avgDistinctNumber,
+        avgDistinctBoolean,
+        avgDistinctString,
         sumNumber,
         sumBoolean,
         sumString,
@@ -1298,4 +1343,4 @@ function drizzleMySql(options) {
         ...connection,
         query: (table) => new MySqlQuery(table, connection.current),
     };
-}Object.defineProperty(exports,"asc",{enumerable:true,get:function(){return native.asc}});Object.defineProperty(exports,"count",{enumerable:true,get:function(){return native.count}});Object.defineProperty(exports,"countDistinct",{enumerable:true,get:function(){return native.countDistinct}});Object.defineProperty(exports,"desc",{enumerable:true,get:function(){return native.desc}});Object.defineProperty(exports,"exists",{enumerable:true,get:function(){return native.exists}});Object.defineProperty(exports,"max",{enumerable:true,get:function(){return native.max}});Object.defineProperty(exports,"min",{enumerable:true,get:function(){return native.min}});Object.defineProperty(exports,"not",{enumerable:true,get:function(){return native.not}});Object.defineProperty(exports,"notExists",{enumerable:true,get:function(){return native.notExists}});Object.defineProperty(exports,"bigint",{enumerable:true,get:function(){return mysqlCore.bigint}});Object.defineProperty(exports,"binary",{enumerable:true,get:function(){return mysqlCore.binary}});Object.defineProperty(exports,"blob",{enumerable:true,get:function(){return mysqlCore.blob}});Object.defineProperty(exports,"boolean",{enumerable:true,get:function(){return mysqlCore.boolean}});Object.defineProperty(exports,"char",{enumerable:true,get:function(){return mysqlCore.char}});Object.defineProperty(exports,"check",{enumerable:true,get:function(){return mysqlCore.check}});Object.defineProperty(exports,"customType",{enumerable:true,get:function(){return mysqlCore.customType}});Object.defineProperty(exports,"date",{enumerable:true,get:function(){return mysqlCore.date}});Object.defineProperty(exports,"datetime",{enumerable:true,get:function(){return mysqlCore.datetime}});Object.defineProperty(exports,"decimal",{enumerable:true,get:function(){return mysqlCore.decimal}});Object.defineProperty(exports,"double",{enumerable:true,get:function(){return mysqlCore.double}});Object.defineProperty(exports,"float",{enumerable:true,get:function(){return mysqlCore.float}});Object.defineProperty(exports,"foreignKey",{enumerable:true,get:function(){return mysqlCore.foreignKey}});Object.defineProperty(exports,"index",{enumerable:true,get:function(){return mysqlCore.index}});Object.defineProperty(exports,"int",{enumerable:true,get:function(){return mysqlCore.int}});Object.defineProperty(exports,"json",{enumerable:true,get:function(){return mysqlCore.json}});Object.defineProperty(exports,"longblob",{enumerable:true,get:function(){return mysqlCore.longblob}});Object.defineProperty(exports,"longtext",{enumerable:true,get:function(){return mysqlCore.longtext}});Object.defineProperty(exports,"mediumblob",{enumerable:true,get:function(){return mysqlCore.mediumblob}});Object.defineProperty(exports,"mediumint",{enumerable:true,get:function(){return mysqlCore.mediumint}});Object.defineProperty(exports,"mediumtext",{enumerable:true,get:function(){return mysqlCore.mediumtext}});Object.defineProperty(exports,"mysqlDatabase",{enumerable:true,get:function(){return mysqlCore.mysqlDatabase}});Object.defineProperty(exports,"mysqlEnum",{enumerable:true,get:function(){return mysqlCore.mysqlEnum}});Object.defineProperty(exports,"mysqlSchema",{enumerable:true,get:function(){return mysqlCore.mysqlSchema}});Object.defineProperty(exports,"mysqlTableCreator",{enumerable:true,get:function(){return mysqlCore.mysqlTableCreator}});Object.defineProperty(exports,"mysqlView",{enumerable:true,get:function(){return mysqlCore.mysqlView}});Object.defineProperty(exports,"primaryKey",{enumerable:true,get:function(){return mysqlCore.primaryKey}});Object.defineProperty(exports,"real",{enumerable:true,get:function(){return mysqlCore.real}});Object.defineProperty(exports,"serial",{enumerable:true,get:function(){return mysqlCore.serial}});Object.defineProperty(exports,"smallint",{enumerable:true,get:function(){return mysqlCore.smallint}});Object.defineProperty(exports,"text",{enumerable:true,get:function(){return mysqlCore.text}});Object.defineProperty(exports,"time",{enumerable:true,get:function(){return mysqlCore.time}});Object.defineProperty(exports,"timestamp",{enumerable:true,get:function(){return mysqlCore.timestamp}});Object.defineProperty(exports,"tinyblob",{enumerable:true,get:function(){return mysqlCore.tinyblob}});Object.defineProperty(exports,"tinyint",{enumerable:true,get:function(){return mysqlCore.tinyint}});Object.defineProperty(exports,"tinytext",{enumerable:true,get:function(){return mysqlCore.tinytext}});Object.defineProperty(exports,"unique",{enumerable:true,get:function(){return mysqlCore.unique}});Object.defineProperty(exports,"uniqueIndex",{enumerable:true,get:function(){return mysqlCore.uniqueIndex}});Object.defineProperty(exports,"varbinary",{enumerable:true,get:function(){return mysqlCore.varbinary}});Object.defineProperty(exports,"varchar",{enumerable:true,get:function(){return mysqlCore.varchar}});Object.defineProperty(exports,"year",{enumerable:true,get:function(){return mysqlCore.year}});exports.MySqlQuery=MySqlQuery;exports.TableColumns=TableColumns;exports.avg=avg;exports.avgDistinct=avgDistinct;exports.coalesce=coalesce;exports.coalesceBoolean=coalesceBoolean;exports.coalesceNumber=coalesceNumber;exports.coalesceString=coalesceString;exports.createConditions=createConditions;exports.default=drizzleMySql;exports.drizzleMySql=drizzleMySql;exports.mysqlTable=mysqlTable;exports.sum=sum;exports.sumBoolean=sumBoolean;exports.sumDistinct=sumDistinct;exports.sumDistinctBoolean=sumDistinctBoolean;exports.sumDistinctNumber=sumDistinctNumber;exports.sumDistinctString=sumDistinctString;exports.sumNumber=sumNumber;exports.sumString=sumString;
+}Object.defineProperty(exports,"asc",{enumerable:true,get:function(){return native.asc}});Object.defineProperty(exports,"count",{enumerable:true,get:function(){return native.count}});Object.defineProperty(exports,"countDistinct",{enumerable:true,get:function(){return native.countDistinct}});Object.defineProperty(exports,"desc",{enumerable:true,get:function(){return native.desc}});Object.defineProperty(exports,"exists",{enumerable:true,get:function(){return native.exists}});Object.defineProperty(exports,"max",{enumerable:true,get:function(){return native.max}});Object.defineProperty(exports,"min",{enumerable:true,get:function(){return native.min}});Object.defineProperty(exports,"not",{enumerable:true,get:function(){return native.not}});Object.defineProperty(exports,"notExists",{enumerable:true,get:function(){return native.notExists}});Object.defineProperty(exports,"bigint",{enumerable:true,get:function(){return mysqlCore.bigint}});Object.defineProperty(exports,"binary",{enumerable:true,get:function(){return mysqlCore.binary}});Object.defineProperty(exports,"blob",{enumerable:true,get:function(){return mysqlCore.blob}});Object.defineProperty(exports,"boolean",{enumerable:true,get:function(){return mysqlCore.boolean}});Object.defineProperty(exports,"char",{enumerable:true,get:function(){return mysqlCore.char}});Object.defineProperty(exports,"check",{enumerable:true,get:function(){return mysqlCore.check}});Object.defineProperty(exports,"customType",{enumerable:true,get:function(){return mysqlCore.customType}});Object.defineProperty(exports,"date",{enumerable:true,get:function(){return mysqlCore.date}});Object.defineProperty(exports,"datetime",{enumerable:true,get:function(){return mysqlCore.datetime}});Object.defineProperty(exports,"decimal",{enumerable:true,get:function(){return mysqlCore.decimal}});Object.defineProperty(exports,"double",{enumerable:true,get:function(){return mysqlCore.double}});Object.defineProperty(exports,"float",{enumerable:true,get:function(){return mysqlCore.float}});Object.defineProperty(exports,"foreignKey",{enumerable:true,get:function(){return mysqlCore.foreignKey}});Object.defineProperty(exports,"index",{enumerable:true,get:function(){return mysqlCore.index}});Object.defineProperty(exports,"int",{enumerable:true,get:function(){return mysqlCore.int}});Object.defineProperty(exports,"json",{enumerable:true,get:function(){return mysqlCore.json}});Object.defineProperty(exports,"longblob",{enumerable:true,get:function(){return mysqlCore.longblob}});Object.defineProperty(exports,"longtext",{enumerable:true,get:function(){return mysqlCore.longtext}});Object.defineProperty(exports,"mediumblob",{enumerable:true,get:function(){return mysqlCore.mediumblob}});Object.defineProperty(exports,"mediumint",{enumerable:true,get:function(){return mysqlCore.mediumint}});Object.defineProperty(exports,"mediumtext",{enumerable:true,get:function(){return mysqlCore.mediumtext}});Object.defineProperty(exports,"mysqlDatabase",{enumerable:true,get:function(){return mysqlCore.mysqlDatabase}});Object.defineProperty(exports,"mysqlEnum",{enumerable:true,get:function(){return mysqlCore.mysqlEnum}});Object.defineProperty(exports,"mysqlSchema",{enumerable:true,get:function(){return mysqlCore.mysqlSchema}});Object.defineProperty(exports,"mysqlTableCreator",{enumerable:true,get:function(){return mysqlCore.mysqlTableCreator}});Object.defineProperty(exports,"mysqlView",{enumerable:true,get:function(){return mysqlCore.mysqlView}});Object.defineProperty(exports,"primaryKey",{enumerable:true,get:function(){return mysqlCore.primaryKey}});Object.defineProperty(exports,"real",{enumerable:true,get:function(){return mysqlCore.real}});Object.defineProperty(exports,"serial",{enumerable:true,get:function(){return mysqlCore.serial}});Object.defineProperty(exports,"smallint",{enumerable:true,get:function(){return mysqlCore.smallint}});Object.defineProperty(exports,"text",{enumerable:true,get:function(){return mysqlCore.text}});Object.defineProperty(exports,"time",{enumerable:true,get:function(){return mysqlCore.time}});Object.defineProperty(exports,"timestamp",{enumerable:true,get:function(){return mysqlCore.timestamp}});Object.defineProperty(exports,"tinyblob",{enumerable:true,get:function(){return mysqlCore.tinyblob}});Object.defineProperty(exports,"tinyint",{enumerable:true,get:function(){return mysqlCore.tinyint}});Object.defineProperty(exports,"tinytext",{enumerable:true,get:function(){return mysqlCore.tinytext}});Object.defineProperty(exports,"unique",{enumerable:true,get:function(){return mysqlCore.unique}});Object.defineProperty(exports,"uniqueIndex",{enumerable:true,get:function(){return mysqlCore.uniqueIndex}});Object.defineProperty(exports,"varbinary",{enumerable:true,get:function(){return mysqlCore.varbinary}});Object.defineProperty(exports,"varchar",{enumerable:true,get:function(){return mysqlCore.varchar}});Object.defineProperty(exports,"year",{enumerable:true,get:function(){return mysqlCore.year}});exports.MySqlQuery=MySqlQuery;exports.TableColumns=TableColumns;exports.avg=avg;exports.avgBoolean=avgBoolean;exports.avgDistinct=avgDistinct;exports.avgDistinctBoolean=avgDistinctBoolean;exports.avgDistinctNumber=avgDistinctNumber;exports.avgDistinctString=avgDistinctString;exports.avgNumber=avgNumber;exports.avgString=avgString;exports.coalesce=coalesce;exports.coalesceBoolean=coalesceBoolean;exports.coalesceNumber=coalesceNumber;exports.coalesceString=coalesceString;exports.createConditions=createConditions;exports.default=drizzleMySql;exports.drizzleMySql=drizzleMySql;exports.mysqlTable=mysqlTable;exports.sum=sum;exports.sumBoolean=sumBoolean;exports.sumDistinct=sumDistinct;exports.sumDistinctBoolean=sumDistinctBoolean;exports.sumDistinctNumber=sumDistinctNumber;exports.sumDistinctString=sumDistinctString;exports.sumNumber=sumNumber;exports.sumString=sumString;

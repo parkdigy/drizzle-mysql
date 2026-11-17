@@ -53,6 +53,24 @@ function sumDistinctBoolean(expression) {
 }
 function sumDistinctString(expression) {
     return sumDistinct(expression, String);
+}
+function avgNumber(expression) {
+    return avg(expression, Number);
+}
+function avgBoolean(expression) {
+    return avg(expression, Boolean);
+}
+function avgString(expression) {
+    return avg(expression, String);
+}
+function avgDistinctNumber(expression) {
+    return avgDistinct(expression, Number);
+}
+function avgDistinctBoolean(expression) {
+    return avgDistinct(expression, Boolean);
+}
+function avgDistinctString(expression) {
+    return avgDistinct(expression, String);
 }function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
@@ -388,6 +406,24 @@ class MySqlQuery {
     sumDistinctString(columnOrName) {
         return this.sumDistinct(columnOrName, String);
     }
+    avgNumber(columnOrName) {
+        return avg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Number);
+    }
+    avgBoolean(columnOrName) {
+        return avg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Boolean);
+    }
+    avgString(columnOrName) {
+        return avg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, String);
+    }
+    avgDistinctNumber(columnOrName) {
+        return avgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Number);
+    }
+    avgDistinctBoolean(columnOrName) {
+        return avgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Boolean);
+    }
+    avgDistinctString(columnOrName) {
+        return avgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, String);
+    }
     drizzle = { ...createConditions({}), sqlNumber: (value) => sql `${value}`.mapWith(Number) };
     /********************************************************************************************************************
      * (PROTECTED) getTx
@@ -598,8 +634,11 @@ class MySqlQuery {
             };
             const enhancements = {
                 where: (condition) => enhance(originalWhere(typeof condition === 'function'
-                    ? () => condition(whereQuery)
-                    : condition)),
+                    ? () => {
+                        const resolved = condition(whereQuery);
+                        return resolved === false ? undefined : resolved;
+                    }
+                    : condition === false ? undefined : condition)),
             };
             if (originalOrderBy) {
                 enhancements.orderBy = (...args) => {
@@ -1284,6 +1323,12 @@ function drizzleMySql(options) {
         coalesceNumber,
         coalesceString,
         coalesceBoolean,
+        avgNumber,
+        avgBoolean,
+        avgString,
+        avgDistinctNumber,
+        avgDistinctBoolean,
+        avgDistinctString,
         sumNumber,
         sumBoolean,
         sumString,
@@ -1298,4 +1343,4 @@ function drizzleMySql(options) {
         ...connection,
         query: (table) => new MySqlQuery(table, connection.current),
     };
-}export{MySqlQuery,TableColumns,avg,avgDistinct,coalesce,coalesceBoolean,coalesceNumber,coalesceString,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable,sum,sumBoolean,sumDistinct,sumDistinctBoolean,sumDistinctNumber,sumDistinctString,sumNumber,sumString};
+}export{MySqlQuery,TableColumns,avg,avgBoolean,avgDistinct,avgDistinctBoolean,avgDistinctNumber,avgDistinctString,avgNumber,avgString,coalesce,coalesceBoolean,coalesceNumber,coalesceString,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable,sum,sumBoolean,sumDistinct,sumDistinctBoolean,sumDistinctNumber,sumDistinctString,sumNumber,sumString};

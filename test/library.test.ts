@@ -558,3 +558,65 @@ test('MySQL에서 지원하지 않는 패턴 연산자는 노출하지 않는다
   const subquery = query.select(['id', 'displayName']).as('sq');
   db.select(subquery).where((q) => { assertRemoved(q); return undefined; });
 });
+
+test.each([false, undefined] as const)('where는 직접 인자와 콜백의 %s를 제외한다', (value) => {
+  const query = db.query(user);
+  const expected = query.select().toSQL();
+  expect(query.select().where(value).toSQL()).toEqual(expected);
+  let calls = 0;
+  expect(
+    query
+      .select()
+      .where((q) => {
+        calls++;
+        expect(q.t).toBe(user);
+        return value;
+      })
+      .toSQL()
+  ).toEqual(expected);
+  expect(calls).toBe(1);
+  expect(
+    query
+      .select()
+      .limit(1)
+      .where(() => value)
+      .toSQL().sql
+  ).not.toMatch(/where/i);
+  expect(
+    query
+      .select()
+      .$dynamic()
+      .where((q) => q.eq({ id: 1 }))
+      .where(value)
+      .toSQL()
+  ).toEqual(expected);
+  const joined = db.a.user('joined_where');
+  expect(
+    query
+      .select()
+      .innerJoin(joined, db.eq(joined.id, user.id))
+      .where(() => value)
+      .toSQL().sql
+  ).not.toMatch(/\bwhere\b/i);
+});
+
+test.each([false, true])('where의 조건부 SQL은 활성화 여부(%s)를 유지한다', (enabled) => {
+  const query = db.query(user);
+  const condition = query.eq({ id: 1 });
+  const expected = query
+    .select()
+    .where(enabled ? condition : undefined)
+    .toSQL();
+  expect(
+    query
+      .select()
+      .where(enabled && condition)
+      .toSQL()
+  ).toEqual(expected);
+  expect(
+    query
+      .select()
+      .where((q) => enabled && q.eq({ id: 1 }))
+      .toSQL()
+  ).toEqual(expected);
+});

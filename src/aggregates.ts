@@ -69,3 +69,39 @@ export function sumDistinctString<TResult>(expression: SQLWrapper): SQL<TResult>
 export function sumDistinctString(expression: SQLWrapper): SQL {
   return sumDistinct(expression, String);
 }
+
+export function avgNumber(expression: SQLWrapper): SQL<number | null>;
+export function avgNumber<TResult>(expression: SQLWrapper): SQL<TResult>;
+export function avgNumber(expression: SQLWrapper): SQL {
+  return avg(expression, Number);
+}
+
+export function avgBoolean(expression: SQLWrapper): SQL<boolean | null>;
+export function avgBoolean<TResult>(expression: SQLWrapper): SQL<TResult>;
+export function avgBoolean(expression: SQLWrapper): SQL {
+  return avg(expression, Boolean);
+}
+
+export function avgString(expression: SQLWrapper): SQL<string | null>;
+export function avgString<TResult>(expression: SQLWrapper): SQL<TResult>;
+export function avgString(expression: SQLWrapper): SQL {
+  return avg(expression, String);
+}
+
+export function avgDistinctNumber(expression: SQLWrapper): SQL<number | null>;
+export function avgDistinctNumber<TResult>(expression: SQLWrapper): SQL<TResult>;
+export function avgDistinctNumber(expression: SQLWrapper): SQL {
+  return avgDistinct(expression, Number);
+}
+
+export function avgDistinctBoolean(expression: SQLWrapper): SQL<boolean | null>;
+export function avgDistinctBoolean<TResult>(expression: SQLWrapper): SQL<TResult>;
+export function avgDistinctBoolean(expression: SQLWrapper): SQL {
+  return avgDistinct(expression, Boolean);
+}
+
+export function avgDistinctString(expression: SQLWrapper): SQL<string | null>;
+export function avgDistinctString<TResult>(expression: SQLWrapper): SQL<TResult>;
+export function avgDistinctString(expression: SQLWrapper): SQL {
+  return avgDistinct(expression, String);
+}

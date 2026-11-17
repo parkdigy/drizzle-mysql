@@ -21,3 +21,15 @@ export declare function sumDistinctBoolean(expression: SQLWrapper): SQL<boolean 
 export declare function sumDistinctBoolean<TResult>(expression: SQLWrapper): SQL<TResult>;
 export declare function sumDistinctString(expression: SQLWrapper): SQL<string | null>;
 export declare function sumDistinctString<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function avgNumber(expression: SQLWrapper): SQL<number | null>;
+export declare function avgNumber<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function avgBoolean(expression: SQLWrapper): SQL<boolean | null>;
+export declare function avgBoolean<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function avgString(expression: SQLWrapper): SQL<string | null>;
+export declare function avgString<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function avgDistinctNumber(expression: SQLWrapper): SQL<number | null>;
+export declare function avgDistinctNumber<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function avgDistinctBoolean(expression: SQLWrapper): SQL<boolean | null>;
+export declare function avgDistinctBoolean<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function avgDistinctString(expression: SQLWrapper): SQL<string | null>;
+export declare function avgDistinctString<TResult>(expression: SQLWrapper): SQL<TResult>;

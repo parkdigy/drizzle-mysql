@@ -12,7 +12,7 @@ test.each(['../src/index', '../dist/index'])(
         `const table${i} = mysqlTable('table${i}', { id: int('id').notNull().primaryKey(), name: varchar('name', {length: 100}), ${i === 199 ? wideColumns : ''} });`
     ).join('\n');
     const marked = `
-    import { drizzleMySql, mysqlTable, int, varchar, sum, sumDistinct, coalesce, coalesceNumber, coalesceString, coalesceBoolean, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString } from '${entry}';
+    import { drizzleMySql, mysqlTable, int, varchar, sum, sumDistinct, coalesce, coalesceNumber, coalesceString, coalesceBoolean, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString, avgNumber, avgBoolean, avgString, avgDistinctNumber, avgDistinctBoolean, avgDistinctString } from '${entry}';
     ${tables}
     const db = drizzleMySql({ url: '', getTimestamp: () => 0, schema: {
       ${Array.from({ length: 200 }, (_, i) => `table${i}`).join(',')}
@@ -77,6 +77,23 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    query.select().where(false);
+    query.select().where(undefined);
+    query.select().where(() => false);
+    query.select().where(() => undefined);
+    const searchName = '';
+    query.select().where(q => !!searchName && q.eq({name:searchName}));
+    query.select(a).where(q => false as false | undefined);
+    query.select().limit(1).where(() => false);
+    query.select().innerJoin(b, db.eq(b.id,table199.id)).where(() => false);
+    query.select().$dynamic().where(q => q.eq({id:1})).where(() => false).where(undefined);
+    db.select('table199').where(false);
+    // @ts-expect-error true는 조건으로 허용하지 않는다
+    query.select().where(true);
+    // @ts-expect-error true를 반환하는 콜백은 허용하지 않는다
+    query.select().where(() => true);
+
+
     const autoCoalesces = query.select(() => ({
       n: query.coalesceNumber('id', 0), s: query.coalesceString('id', 0), b: query.coalesceBoolean('id', 0),
       explicit: query.coalesceNumber<0 | 1 | 2>('id', 0),
@@ -224,6 +241,90 @@ test.each(['../src/index', '../dist/index'])(
     // @ts-expect-error 직접 가져온 함수도 decoder는 필수다
     sumDistinct<number>(table199.id);
     void [explicitDistinctSumRow, invalidExplicitDistinctSum, invalidExplicitDistinctSumUnion, invalidExplicitDistinctSumNull];
+
+    const explicitTypedAvgs = query.select(() => ({
+      numeric: query.avgNumber<0 | 1 | 2>('id'),
+      boolean: query.avgBoolean<true>('id'),
+      text: query.avgString<'value'>('id'),
+      directNumber: db.avgNumber<number>(table199.id),
+      directBoolean: db.avgBoolean<boolean>(table199.id),
+      directString: db.avgString<string>(table199.id),
+      namedNumber: avgNumber<number | null>(table199.id),
+      namedBoolean: avgBoolean<boolean | null>(table199.id),
+      namedString: avgString<string | null>(table199.id),
+    }));
+    type ExplicitTypedAvgRow = Awaited<typeof explicitTypedAvgs>[number];
+    const explicitTypedAvgRow: ExplicitTypedAvgRow = { numeric: 2, boolean: true, text: 'value', directNumber: 1, directBoolean: false, directString: 'x', namedNumber: null, namedBoolean: null, namedString: null };
+    // @ts-expect-error 명시한 유니언을 유지한다
+    const invalidTypedAvgNumber: ExplicitTypedAvgRow['numeric'] = 3;
+    // @ts-expect-error 명시한 리터럴 타입을 유지한다
+    const invalidTypedAvgBoolean: ExplicitTypedAvgRow['boolean'] = false;
+    // @ts-expect-error 명시한 리터럴 타입을 유지한다
+    const invalidTypedAvgString: ExplicitTypedAvgRow['text'] = 'other';
+    // @ts-expect-error 명시한 타입에 null을 자동으로 추가하지 않는다
+    const invalidTypedAvgNull: ExplicitTypedAvgRow['directNumber'] = null;
+    // @ts-expect-error 타입을 지정해도 존재하지 않는 컬럼은 허용하지 않는다
+    query.avgNumber<number>('missing');
+    void [explicitTypedAvgRow, invalidTypedAvgNumber, invalidTypedAvgBoolean, invalidTypedAvgString, invalidTypedAvgNull];
+
+    const typedAvgs = query.select(() => ({
+      numeric: query.avgNumber('id'), boolean: query.avgBoolean('id'), text: query.avgString('id'),
+      directNumber: db.avgNumber(table199.id), directBoolean: db.avgBoolean(table199.id), directString: db.avgString(table199.id),
+      namedNumber: avgNumber(table199.id), namedBoolean: avgBoolean(table199.id), namedString: avgString(table199.id),
+    }));
+    type TypedAvgRow = Awaited<typeof typedAvgs>[number];
+    const typedAvgRow: TypedAvgRow = { numeric: 1, boolean: true, text: '1', directNumber: 2, directBoolean: false, directString: '2', namedNumber: null, namedBoolean: null, namedString: null };
+    // @ts-expect-error avgNumber는 number로 매핑한다
+    const invalidNumberAvg: TypedAvgRow['numeric'] = '1';
+    // @ts-expect-error avgBoolean는 boolean으로 매핑한다
+    const invalidBooleanAvg: TypedAvgRow['boolean'] = 1;
+    // @ts-expect-error avgString는 string으로 매핑한다
+    const invalidStringAvg: TypedAvgRow['text'] = 1;
+    // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
+    query.avgNumber('missing');
+    void [typedAvgRow, invalidNumberAvg, invalidBooleanAvg, invalidStringAvg];
+
+    const explicitTypedDistinctAvgs = query.select(() => ({
+      numeric: query.avgDistinctNumber<0 | 1 | 2>('id'),
+      boolean: query.avgDistinctBoolean<true>('id'),
+      text: query.avgDistinctString<'value'>('id'),
+      directNumber: db.avgDistinctNumber<number>(table199.id),
+      directBoolean: db.avgDistinctBoolean<boolean>(table199.id),
+      directString: db.avgDistinctString<string>(table199.id),
+      namedNumber: avgDistinctNumber<number | null>(table199.id),
+      namedBoolean: avgDistinctBoolean<boolean | null>(table199.id),
+      namedString: avgDistinctString<string | null>(table199.id),
+    }));
+    type ExplicitTypedDistinctAvgRow = Awaited<typeof explicitTypedDistinctAvgs>[number];
+    const explicitTypedDistinctAvgRow: ExplicitTypedDistinctAvgRow = { numeric: 2, boolean: true, text: 'value', directNumber: 1, directBoolean: false, directString: 'x', namedNumber: null, namedBoolean: null, namedString: null };
+    // @ts-expect-error 명시한 유니언을 유지한다
+    const invalidTypedDistinctAvgNumber: ExplicitTypedDistinctAvgRow['numeric'] = 3;
+    // @ts-expect-error 명시한 리터럴 타입을 유지한다
+    const invalidTypedDistinctAvgBoolean: ExplicitTypedDistinctAvgRow['boolean'] = false;
+    // @ts-expect-error 명시한 리터럴 타입을 유지한다
+    const invalidTypedDistinctAvgString: ExplicitTypedDistinctAvgRow['text'] = 'other';
+    // @ts-expect-error 명시한 타입에 null을 자동으로 추가하지 않는다
+    const invalidTypedDistinctAvgNull: ExplicitTypedDistinctAvgRow['directNumber'] = null;
+    // @ts-expect-error 타입을 지정해도 존재하지 않는 컬럼은 허용하지 않는다
+    query.avgDistinctNumber<number>('missing');
+    void [explicitTypedDistinctAvgRow, invalidTypedDistinctAvgNumber, invalidTypedDistinctAvgBoolean, invalidTypedDistinctAvgString, invalidTypedDistinctAvgNull];
+
+    const typedDistinctAvgs = query.select(() => ({
+      numeric: query.avgDistinctNumber('id'), boolean: query.avgDistinctBoolean('id'), text: query.avgDistinctString('id'),
+      directNumber: db.avgDistinctNumber(table199.id), directBoolean: db.avgDistinctBoolean(table199.id), directString: db.avgDistinctString(table199.id),
+      namedNumber: avgDistinctNumber(table199.id), namedBoolean: avgDistinctBoolean(table199.id), namedString: avgDistinctString(table199.id),
+    }));
+    type TypedDistinctAvgRow = Awaited<typeof typedDistinctAvgs>[number];
+    const typedDistinctAvgRow: TypedDistinctAvgRow = { numeric: 1, boolean: true, text: '1', directNumber: 2, directBoolean: false, directString: '2', namedNumber: null, namedBoolean: null, namedString: null };
+    // @ts-expect-error avgDistinctNumber는 number로 매핑한다
+    const invalidNumberDistinctAvg: TypedDistinctAvgRow['numeric'] = '1';
+    // @ts-expect-error avgDistinctBoolean는 boolean으로 매핑한다
+    const invalidBooleanDistinctAvg: TypedDistinctAvgRow['boolean'] = 1;
+    // @ts-expect-error avgDistinctString는 string으로 매핑한다
+    const invalidStringDistinctAvg: TypedDistinctAvgRow['text'] = 1;
+    // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
+    query.avgDistinctNumber('missing');
+    void [typedDistinctAvgRow, invalidNumberDistinctAvg, invalidBooleanDistinctAvg, invalidStringDistinctAvg];
 
     const methodSums = query.select(q => ({
       val3: query.sum('id', Number),

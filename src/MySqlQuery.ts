@@ -1,4 +1,4 @@
-import { sum, sumDistinct, type AggregateDecoder } from './aggregates';
+import { avg as aggregateAvg, avgDistinct as aggregateAvgDistinct, sum, sumDistinct, type AggregateDecoder } from './aggregates';
 import { coalesce, type CoalesceOutput, type CoalesceDecoder } from './coalesce';
 import {
   SQL,
@@ -223,6 +223,54 @@ export class MySqlQuery<
 
   sumDistinctString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
     return this.sumDistinct(columnOrName, String);
+  }
+
+  avgNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<number | null>;
+
+  avgNumber<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  avgNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return aggregateAvg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Number);
+  }
+
+  avgBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<boolean | null>;
+
+  avgBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  avgBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return aggregateAvg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Boolean);
+  }
+
+  avgString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
+
+  avgString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  avgString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return aggregateAvg(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, String);
+  }
+
+  avgDistinctNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<number | null>;
+
+  avgDistinctNumber<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  avgDistinctNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return aggregateAvgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Number);
+  }
+
+  avgDistinctBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<boolean | null>;
+
+  avgDistinctBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  avgDistinctBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return aggregateAvgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, Boolean);
+  }
+
+  avgDistinctString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
+
+  avgDistinctString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  avgDistinctString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return aggregateAvgDistinct(typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName, String);
   }
 
   private readonly drizzle = { ...createConditions({}), sqlNumber: (value: number) => sql`${value}`.mapWith(Number) };
@@ -689,8 +737,11 @@ export class MySqlQuery<
           enhance(
             originalWhere(
               typeof condition === 'function'
-                ? () => (condition as (query: SelectConditionQuery<MySqlTable | Subquery>) => unknown)(whereQuery)
-                : condition
+                ? () => {
+                    const resolved = (condition as (query: SelectConditionQuery<MySqlTable | Subquery>) => unknown)(whereQuery);
+                    return resolved === false ? undefined : resolved;
+                  }
+                : condition === false ? undefined : condition
             )
           ),
       };
@@ -1507,7 +1558,7 @@ type SelectQueryBase<
 >;
 
 type TableWhere<TTable extends MySqlTable | Subquery> =
-  SQL | undefined | ((query: SelectConditionQuery<TTable>) => SQL | undefined);
+  SQL | false | undefined | ((query: SelectConditionQuery<TTable>) => SQL | false | undefined);
 
 type OrderByValue = MySqlColumn | SQL | SQL.Aliased;
 type OptionalOrderByValue = OrderByValue | false | undefined;
@@ -1540,7 +1591,8 @@ type SelectSetOperatorMethod<
 type DynamicSelect<
   TQuery extends { readonly _: { readonly selection: unknown }; $dynamic: (...args: any[]) => any },
   TTable extends MySqlTable | Subquery,
-> = Omit<ReturnType<TQuery['$dynamic']>, 'groupBy' | 'orderBy' | 'having' | 'limit' | 'offset' | '$dynamic'> & {
+> = Omit<ReturnType<TQuery['$dynamic']>, 'where' | 'groupBy' | 'orderBy' | 'having' | 'limit' | 'offset' | '$dynamic'> & {
+  where(condition: TableWhere<TTable>): DynamicSelect<TQuery, TTable>;
   groupBy(builder: (aliases: TQuery['_']['selection']) => OrderByValue | OrderByValue[]): DynamicSelect<TQuery, TTable>;
   groupBy(...columns: OrderByValue[]): DynamicSelect<TQuery, TTable>;
   orderBy(builder: OrderByCallback<TTable>): DynamicSelect<TQuery, TTable>;
