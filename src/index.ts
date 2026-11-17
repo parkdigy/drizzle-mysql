@@ -4,6 +4,7 @@ export default drizzleMySql;
 
 export * from './@types/index';
 export * from './columns';
+export * from './aggregates';
 export { mysqlTable, type TablePolicy } from './mysqlTable';
 export * from './conditions';
 export * from './drizzleMySql';
@@ -15,10 +16,6 @@ export {
   desc,
   count,
   countDistinct,
-  avg,
-  avgDistinct,
-  sum,
-  sumDistinct,
   max,
   min,
   not,

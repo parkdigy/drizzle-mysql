@@ -552,3 +552,16 @@ const numericExpression = db.sqlNumber(db.sql`1`);
 ## 라이선스
 
 이 프로젝트는 [MIT 라이선스](https://opensource.org/licenses/MIT)에 따라 배포됩니다.
+
+`sum`, `sumDistinct`, `avg`, `avgDistinct`는 두 번째 인자로 `.mapWith()`와 동일한 변환 함수 또는 `mapFromDriverValue` 객체를 **필수**로 받습니다. 패키지 직접 import와 `db` 메서드 모두 동일합니다. 기존 한 인자 호출은 매퍼를 추가해야 합니다.
+
+```typescript
+const totals = await db.select('user', {
+  total: db.sum(db.s.user.id, Number),
+  uniqueTotal: db.sumDistinct(db.s.user.id, Number),
+  average: db.avg(db.s.user.id, Number),
+  uniqueAverage: db.avgDistinct(db.s.user.id, Number),
+});
+```
+
+`Number`를 지정하면 결과 타입은 `number | null`입니다. 집계 결과가 SQL `NULL`이면 기존 `.mapWith(Number)`와 동일하게 `null`이 유지됩니다.

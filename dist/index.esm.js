@@ -1,4 +1,19 @@
-import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,is,Subquery,sql,getTableColumns,min,max,asc as asc$1,desc as desc$1,SQL,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,avg,avgDistinct,count,countDistinct,desc,exists,max,min,not,notExists,sum,sumDistinct}from'drizzle-orm';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createAlias(schema) {
+import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,is,Subquery,sql,getTableColumns,min,max,asc as asc$1,desc as desc$1,SQL,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,max,min,not,notExists}from'drizzle-orm';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';/** 합계를 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
+function sum(expression, decoder) {
+    return native.sum(expression).mapWith(decoder);
+}
+/** 중복을 제외한 합계를 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
+function sumDistinct(expression, decoder) {
+    return native.sumDistinct(expression).mapWith(decoder);
+}
+/** 평균을 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
+function avg(expression, decoder) {
+    return native.avg(expression).mapWith(decoder);
+}
+/** 중복을 제외한 평균을 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
+function avgDistinct(expression, decoder) {
+    return native.avgDistinct(expression).mapWith(decoder);
+}function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
      * ******************************************************************************************************************/
@@ -1164,10 +1179,10 @@ function drizzleMySql(options) {
         desc,
         count: native.count,
         countDistinct: native.countDistinct,
-        avg: native.avg,
-        avgDistinct: native.avgDistinct,
-        sum: native.sum,
-        sumDistinct: native.sumDistinct,
+        avg,
+        avgDistinct,
+        sum,
+        sumDistinct,
         max: native.max,
         min: native.min,
         not: native.not,
@@ -1188,4 +1203,4 @@ function drizzleMySql(options) {
         ...connection,
         query: (table) => new MySqlQuery(table, connection.current),
     };
-}export{MySqlQuery,TableColumns,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable};
+}export{MySqlQuery,TableColumns,avg,avgDistinct,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable,sum,sumDistinct};

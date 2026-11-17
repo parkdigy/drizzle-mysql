@@ -3,6 +3,7 @@ import type { PoolOptions } from 'mysql2/promise';
 import { SQL, sql, Subquery } from 'drizzle-orm';
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import * as native from 'drizzle-orm';
+import { sum, sumDistinct, avg, avgDistinct } from './aggregates.js';
 import { type MySqlAliases } from './alias.js';
 import { type MySqlSchemaConditions } from './conditions.js';
 import { TableColumns } from './columns.js';
@@ -49,7 +50,11 @@ type MultiColumnOrderHelper = {
     (column: OrderByColumn): SQL;
     (first: OrderByColumn, second: OrderByColumn, ...rest: OrderByColumn[]): SQL[];
 } & AliasOrderByHelper;
-type MySqlNativeHelpers = Omit<Pick<typeof native, 'count' | 'countDistinct' | 'avg' | 'avgDistinct' | 'sum' | 'sumDistinct' | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'>, 'asc' | 'desc'> & {
+type MySqlNativeHelpers = Omit<Pick<typeof native, 'count' | 'countDistinct' | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'>, 'asc' | 'desc'> & {
+    sum: typeof sum;
+    sumDistinct: typeof sumDistinct;
+    avg: typeof avg;
+    avgDistinct: typeof avgDistinct;
     asc: MultiColumnOrderHelper;
     desc: MultiColumnOrderHelper;
 };

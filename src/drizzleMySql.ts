@@ -5,6 +5,7 @@ import { count, defineRelations, getTableColumns, is, isTable, SQL, sql, Subquer
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as native from 'drizzle-orm';
+import { sum, sumDistinct, avg, avgDistinct } from './aggregates';
 import { createAlias, type MySqlAliases } from './alias';
 import { createConditions, type MySqlSchemaConditions } from './conditions';
 import { TableColumns } from './columns';
@@ -83,10 +84,6 @@ type MySqlNativeHelpers = Omit<
     typeof native,
     | 'count'
     | 'countDistinct'
-    | 'avg'
-    | 'avgDistinct'
-    | 'sum'
-    | 'sumDistinct'
     | 'max'
     | 'min'
     | 'not'
@@ -98,6 +95,10 @@ type MySqlNativeHelpers = Omit<
   >,
   'asc' | 'desc'
 > & {
+  sum: typeof sum;
+  sumDistinct: typeof sumDistinct;
+  avg: typeof avg;
+  avgDistinct: typeof avgDistinct;
   asc: MultiColumnOrderHelper;
   desc: MultiColumnOrderHelper;
 };
@@ -241,10 +242,10 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
     desc,
     count: native.count,
     countDistinct: native.countDistinct,
-    avg: native.avg,
-    avgDistinct: native.avgDistinct,
-    sum: native.sum,
-    sumDistinct: native.sumDistinct,
+    avg,
+    avgDistinct,
+    sum,
+    sumDistinct,
     max: native.max,
     min: native.min,
     not: native.not,
