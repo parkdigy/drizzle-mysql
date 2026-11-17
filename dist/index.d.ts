@@ -5,6 +5,7 @@ export * from './columns.js';
 export * from './aggregates.js';
 export { mysqlTable, type TablePolicy } from './mysqlTable.js';
 export * from './conditions.js';
+export { coalesce } from './coalesce.js';
 export * from './drizzleMySql.js';
 export * from './MySqlQuery.js';
 export type { MySqlAliases } from './alias.js';

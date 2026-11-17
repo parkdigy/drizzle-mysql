@@ -1,4 +1,7 @@
-import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import*as native from'drizzle-orm';import {isTable,is,Subquery,sql,getTableColumns,min,max,asc as asc$1,desc as desc$1,SQL,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,max,min,not,notExists}from'drizzle-orm';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';/** 합계를 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
+import*as native from'drizzle-orm';import {sql,isTable,is,Subquery,getTableColumns,min,max,asc as asc$1,desc as desc$1,SQL,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,max,min,not,notExists}from'drizzle-orm';import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function coalesce(first, second, decoder) {
+    const expression = sql `coalesce(${first}, ${second})`;
+    return (decoder === undefined ? expression : expression.mapWith(decoder));
+}/** 합계를 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
 function sum(expression, decoder) {
     return native.sum(expression).mapWith(decoder);
 }
@@ -302,6 +305,16 @@ class MySqlQuery {
      * ******************************************************************************************************************/
     alias(name) {
         return alias$1(this.t, name);
+    }
+    coalesce(first, fallback, decoder) {
+        if (typeof first !== 'string')
+            return coalesce(first, fallback, decoder);
+        const columns = getTableColumns(this.t);
+        const column = columns[first];
+        if (!Object.hasOwn(columns, first) || column === undefined) {
+            throw new Error(`coalesce: unknown column "${first}".`);
+        }
+        return coalesce(column, fallback, decoder);
     }
     drizzle = { ...createConditions({}), sqlNumber: (value) => sql `${value}`.mapWith(Number) };
     /********************************************************************************************************************
@@ -1195,6 +1208,7 @@ function drizzleMySql(options) {
         a: createAlias(options.schema),
         ...createConditions(options.schema),
         columns: TableColumns,
+        coalesce,
         alias: alias$1,
         sql,
         sqlNumber: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith(Number),
@@ -1203,4 +1217,4 @@ function drizzleMySql(options) {
         ...connection,
         query: (table) => new MySqlQuery(table, connection.current),
     };
-}export{MySqlQuery,TableColumns,avg,avgDistinct,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable,sum,sumDistinct};
+}export{MySqlQuery,TableColumns,avg,avgDistinct,coalesce,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable,sum,sumDistinct};

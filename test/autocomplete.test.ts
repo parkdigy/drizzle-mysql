@@ -77,6 +77,45 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    const coalesced = query.select({
+      val1: db.coalesce(table199.name, 'no email'),
+      val2: db.coalesce(table199.id, 0),
+      val3: db.coalesce(table199.name, a.name),
+      val4: db.coalesce(db.sql\`cast(\${table199.id} as signed)\`, db.sql\`\${table199.id} * 100\`),
+      val5: query.coalesce('name', 'no email'),
+      val6: query.coalesce('id', 0),
+      val7: query.coalesce('name', a.name),
+      val8: query.coalesce(db.sql\`cast(\${table199.id} as signed)\`, db.sql\`\${table199.id} * 100\`),
+    });
+    type CoalescedRow = Awaited<typeof coalesced>[number];
+    const coalescedRow: CoalescedRow = { val1: 'a', val2: 1, val3: null, val4: 1n, val5: 'b', val6: 2, val7: null, val8: 2n };
+    // @ts-expect-error 문자열 컬럼과 기본 값의 결과는 문자열이다
+    const invalidCoalescedValue: CoalescedRow['val1'] = 1;
+    // @ts-expect-error 기본 값이 있으면 nullable 컬럼의 null을 제거한다
+    const invalidCoalescedNull: CoalescedRow['val5'] = null;
+    // @ts-expect-error 존재하지 않는 컬럼명은 허용하지 않는다
+    query.coalesce('missing', 0);
+    // @ts-expect-error 기본 값은 필수다
+    db.coalesce(table199.id);
+    void [coalescedRow, invalidCoalescedValue, invalidCoalescedNull];
+
+    const mappedCoalesced = query.select({
+      numeric: db.coalesce(db.sql\`cast(\${table199.id} as signed)\`, db.sql\`\${table199.id} * 100\`, Number),
+      shorthand: query.coalesce(db.sql\`cast(\${table199.id} as signed)\`, db.sql\`\${table199.id} * 100\`, Number),
+      named: query.coalesce('id', 0, Number),
+      nullable: db.coalesce(table199.name, a.name, Number),
+      text: query.coalesce('id', 0, { mapFromDriverValue: (value: number) => String(value) }),
+      unchanged: query.coalesce('name', 'fallback', undefined),
+    });
+    type MappedCoalescedRow = Awaited<typeof mappedCoalesced>[number];
+    const mappedCoalescedRow: MappedCoalescedRow = { numeric: 1, shorthand: 2, named: 3, nullable: null, text: '4', unchanged: 'x' };
+    // @ts-expect-error Number로 변환한 결과는 문자열이 아니다
+    const invalidMappedCoalesced: MappedCoalescedRow['numeric'] = '1';
+    // @ts-expect-error 알려진 not-null 결과의 null은 허용하지 않는다
+    const invalidMappedNamed: MappedCoalescedRow['named'] = null;
+    void [mappedCoalescedRow, invalidMappedCoalesced, invalidMappedNamed];
+
+
     // @ts-expect-error MySQL에서 지원하지 않는 연산자
     db.ilike;
     // @ts-expect-error MySQL에서 지원하지 않는 연산자

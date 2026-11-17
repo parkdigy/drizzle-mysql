@@ -1,3 +1,4 @@
+import { coalesce } from './coalesce.js';
 import mysql from 'mysql2/promise';
 import type { PoolOptions } from 'mysql2/promise';
 import { SQL, sql, Subquery } from 'drizzle-orm';
@@ -28,6 +29,7 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
     s: TSchema;
     a: MySqlAliases<TSchema>;
     columns: typeof TableColumns;
+    coalesce: typeof coalesce;
     alias: typeof alias;
     sql: typeof sql;
     sqlNumber(value: SQL | number): SQL<number>;

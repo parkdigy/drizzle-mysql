@@ -7,6 +7,7 @@ export * from './columns';
 export * from './aggregates';
 export { mysqlTable, type TablePolicy } from './mysqlTable';
 export * from './conditions';
+export { coalesce } from './coalesce';
 export * from './drizzleMySql';
 export * from './MySqlQuery';
 export type { MySqlAliases } from './alias';

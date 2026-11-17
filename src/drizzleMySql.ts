@@ -1,3 +1,4 @@
+import { coalesce } from './coalesce';
 import mysql from 'mysql2/promise';
 import type { PoolOptions } from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
@@ -41,6 +42,7 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
   s: TSchema;
   a: MySqlAliases<TSchema>;
   columns: typeof TableColumns;
+  coalesce: typeof coalesce;
   alias: typeof alias;
   sql: typeof sql;
   sqlNumber(value: SQL | number): SQL<number>;
@@ -258,6 +260,7 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
     a: createAlias(options.schema),
     ...createConditions(options.schema),
     columns: TableColumns,
+    coalesce,
     alias,
     sql,
     sqlNumber: (value: SQL | number) => (is(value, SQL) ? value : sql`${value}`).mapWith(Number),

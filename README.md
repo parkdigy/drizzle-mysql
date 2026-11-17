@@ -532,6 +532,19 @@ const [summary] = await db.current()
 const numericExpression = db.sqlNumber(db.sql`1`);
 ```
 
+`db.coalesce(expression, fallback)`는 SQL `COALESCE` 표현식을 만듭니다. 쿼리의 `coalesce(columnName, fallback)`에서는 첫 인자의 컬럼명을 해당 테이블의 컬럼으로 해석합니다. 첫 인자로 컬럼 객체나 SQL 표현식도 전달할 수 있습니다. 기본 문자열·숫자는 바인딩 파라미터로 전달하며, 두 피연산자는 MySQL에서 호환되는 타입이어야 합니다.
+
+```ts
+const rows = await user.select({
+  email: db.coalesce(user.t.email, 'no email'),
+  id: user.coalesce('id', 0),
+  label: user.coalesce('name', user.t.email),
+  calculated: user.coalesce(db.sql`cast(${user.t.id} as signed)`, db.sql`${user.t.id} * 100`, Number),
+});
+```
+
+결과 타입은 첫 값의 `null`을 제외한 타입과 대체 값의 타입을 조합합니다. 양쪽 컬럼이 nullable이면 결과도 nullable이며, 타입을 지정하지 않은 `db.sql` 표현식의 결과는 `unknown`입니다. 선택적인 세 번째 인자에 `Number` 같은 변환 함수나 `mapFromDriverValue` 객체를 전달하면 `.mapWith(...)`와 동일하게 적용됩니다. 위 `calculated`의 결과 타입은 `number`입니다. 변환기를 생략하면 기존 타입 추론을 유지합니다.
+
 ### 공개 타입과 스키마 API
 
 스키마 정의에 필요한 다음 API를 `@pdg/drizzle-mysql`에서 직접 가져올 수 있습니다.
