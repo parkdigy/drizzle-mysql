@@ -1,3 +1,4 @@
+import { sqlNumber, sqlString, sqlBoolean } from './mappedSql';
 import { coalesce } from './coalesce';
 import mysql from 'mysql2/promise';
 import type { PoolOptions } from 'mysql2/promise';
@@ -45,9 +46,9 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
   coalesce: typeof coalesce;
   alias: typeof alias;
   sql: typeof sql;
-  sqlNumber(value: SQL | number): SQL<number>;
-  sqlString(value: SQL | string): SQL<string>;
-  sqlBoolean(value: SQL | boolean): SQL<boolean>;
+  sqlNumber: typeof sqlNumber;
+  sqlString: typeof sqlString;
+  sqlBoolean: typeof sqlBoolean;
   current: MySqlConnection<TSchema>['current'];
   trans: MySqlConnection<TSchema>['trans'];
   paginate: MySqlConnection<TSchema>['paginate'];
@@ -263,10 +264,9 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
     coalesce,
     alias,
     sql,
-    sqlNumber: (value: SQL | number) => (is(value, SQL) ? value : sql`${value}`).mapWith(Number),
-    sqlString: (value: SQL | string) => (is(value, SQL) ? value : sql`${value}`).mapWith(String),
-    sqlBoolean: (value: SQL | boolean) =>
-      (is(value, SQL) ? value : sql`${value}`).mapWith((v) => v === true || v === 1),
+    sqlNumber,
+    sqlString,
+    sqlBoolean,
     ...connection,
     query: <TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable> => new MySqlQuery(table, connection.current),
   };

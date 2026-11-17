@@ -1,4 +1,16 @@
-import*as native from'drizzle-orm';import {sql,isTable,is,Subquery,getTableColumns,min,max,asc as asc$1,desc as desc$1,SQL,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,max,min,not,notExists}from'drizzle-orm';import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function coalesce(first, second, decoder) {
+import*as native from'drizzle-orm';import {sql,is,SQL,isTable,Subquery,getTableColumns,min,max,asc as asc$1,desc as desc$1,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,max,min,not,notExists}from'drizzle-orm';import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createMappedSql(decoder) {
+    return (first, ...values) => {
+        const expression = Array.isArray(first)
+            ? sql(first, ...values)
+            : is(first, SQL)
+                ? first
+                : sql `${first}`;
+        return expression.mapWith(decoder);
+    };
+}
+const sqlNumber = createMappedSql(Number);
+const sqlString = createMappedSql(String);
+const sqlBoolean = createMappedSql((value) => value === true || value === 1);function coalesce(first, second, decoder) {
     const expression = sql `coalesce(${first}, ${second})`;
     return (decoder === undefined ? expression : expression.mapWith(decoder));
 }/** 합계를 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
@@ -1211,9 +1223,9 @@ function drizzleMySql(options) {
         coalesce,
         alias: alias$1,
         sql,
-        sqlNumber: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith(Number),
-        sqlString: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith(String),
-        sqlBoolean: (value) => (is(value, SQL) ? value : sql `${value}`).mapWith((v) => v === true || v === 1),
+        sqlNumber,
+        sqlString,
+        sqlBoolean,
         ...connection,
         query: (table) => new MySqlQuery(table, connection.current),
     };

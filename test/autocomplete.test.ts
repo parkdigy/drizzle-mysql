@@ -77,6 +77,22 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    const tagged = query.select({
+      val1: db.sqlNumber\`\${table199.id} + 1\`,
+      val2: db.sqlBoolean\`\${table199.id}\`,
+      val3: db.sqlString\`\${table199.id}\`,
+    });
+    type TaggedRow = Awaited<typeof tagged>[number];
+    const taggedRow: TaggedRow = { val1: 1, val2: true, val3: '1' };
+    // @ts-expect-error sqlNumber 태그 결과는 number다
+    const invalidTaggedNumber: TaggedRow['val1'] = '1';
+    // @ts-expect-error sqlBoolean 태그 결과는 boolean이다
+    const invalidTaggedBoolean: TaggedRow['val2'] = 1;
+    // @ts-expect-error sqlString 태그 결과는 string이다
+    const invalidTaggedString: TaggedRow['val3'] = 1;
+    void [taggedRow, invalidTaggedNumber, invalidTaggedBoolean, invalidTaggedString];
+
+
     const coalesced = query.select({
       val1: db.coalesce(table199.name, 'no email'),
       val2: db.coalesce(table199.id, 0),

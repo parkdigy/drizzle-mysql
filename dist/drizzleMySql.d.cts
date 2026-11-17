@@ -1,3 +1,4 @@
+import { sqlNumber, sqlString, sqlBoolean } from './mappedSql.cjs';
 import { coalesce } from './coalesce.cjs';
 import mysql from 'mysql2/promise';
 import type { PoolOptions } from 'mysql2/promise';
@@ -32,9 +33,9 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
     coalesce: typeof coalesce;
     alias: typeof alias;
     sql: typeof sql;
-    sqlNumber(value: SQL | number): SQL<number>;
-    sqlString(value: SQL | string): SQL<string>;
-    sqlBoolean(value: SQL | boolean): SQL<boolean>;
+    sqlNumber: typeof sqlNumber;
+    sqlString: typeof sqlString;
+    sqlBoolean: typeof sqlBoolean;
     current: MySqlConnection<TSchema>['current'];
     trans: MySqlConnection<TSchema>['trans'];
     paginate: MySqlConnection<TSchema>['paginate'];

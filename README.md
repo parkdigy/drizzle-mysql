@@ -522,14 +522,16 @@ await usersQuery.editByPrimaryKey({ updated_at: '2026-01-02 00:00:00' }, id);
 
 ### 집계·SQL 표현식
 
-`db` 인스턴스는 `asc`, `desc`, `count`, `countDistinct`, `avg`, `avgDistinct`, `sum`, `sumDistinct`, `max`, `min`, `not`, `exists`, `notExists`, `arrayContains`, `arrayContained`, `arrayOverlaps` 등 Drizzle 함수를 제공합니다. `db.sqlNumber`, `db.sqlString`, `db.sqlBoolean`은 SQL 표현식 또는 기본 값을 해당 타입으로 매핑하는 표현식을 만듭니다.
+`db` 인스턴스는 `asc`, `desc`, `count`, `countDistinct`, `avg`, `avgDistinct`, `sum`, `sumDistinct`, `max`, `min`, `not`, `exists`, `notExists`, `arrayContains`, `arrayContained`, `arrayOverlaps` 등 Drizzle 함수를 제공합니다. `db.sqlNumber`, `db.sqlString`, `db.sqlBoolean`은 태그드 템플릿으로 SQL을 작성하고 결과를 각각 `number`, `string`, `boolean`으로 매핑합니다. 보간 값은 `db.sql`과 동일하게 처리합니다. 기존 SQL 표현식·기본 값을 받는 함수 호출도 사용할 수 있습니다.
 
 ```ts
 const [summary] = await db.current()
   .select({ total: db.count() })
   .from(users);
 
-const numericExpression = db.sqlNumber(db.sql`1`);
+const numericExpression = db.sqlNumber`${users.id} + 1`;
+const booleanExpression = db.sqlBoolean`${users.id}`;
+const stringExpression = db.sqlString`${users.id}`;
 ```
 
 `db.coalesce(expression, fallback)`는 SQL `COALESCE` 표현식을 만듭니다. 쿼리의 `coalesce(columnName, fallback)`에서는 첫 인자의 컬럼명을 해당 테이블의 컬럼으로 해석합니다. 첫 인자로 컬럼 객체나 SQL 표현식도 전달할 수 있습니다. 기본 문자열·숫자는 바인딩 파라미터로 전달하며, 두 피연산자는 MySQL에서 호환되는 타입이어야 합니다.

@@ -1,4 +1,16 @@
-'use strict';Object.defineProperty(exports,'__esModule',{value:true});var native=require('drizzle-orm'),mysql=require('mysql2/promise'),mysql2=require('drizzle-orm/mysql2'),mysqlCore=require('drizzle-orm/mysql-core'),node_async_hooks=require('node:async_hooks'),alias=require('drizzle-orm/mysql-core/alias'),common=require('drizzle-orm/mysql-core/columns/common');function _interopNamespaceDefault(e){var n=Object.create(null);if(e){Object.keys(e).forEach(function(k){if(k!=='default'){var d=Object.getOwnPropertyDescriptor(e,k);Object.defineProperty(n,k,d.get?d:{enumerable:true,get:function(){return e[k]}});}})}n.default=e;return Object.freeze(n)}var native__namespace=/*#__PURE__*/_interopNamespaceDefault(native);function coalesce(first, second, decoder) {
+'use strict';Object.defineProperty(exports,'__esModule',{value:true});var native=require('drizzle-orm'),mysql=require('mysql2/promise'),mysql2=require('drizzle-orm/mysql2'),mysqlCore=require('drizzle-orm/mysql-core'),node_async_hooks=require('node:async_hooks'),alias=require('drizzle-orm/mysql-core/alias'),common=require('drizzle-orm/mysql-core/columns/common');function _interopNamespaceDefault(e){var n=Object.create(null);if(e){Object.keys(e).forEach(function(k){if(k!=='default'){var d=Object.getOwnPropertyDescriptor(e,k);Object.defineProperty(n,k,d.get?d:{enumerable:true,get:function(){return e[k]}});}})}n.default=e;return Object.freeze(n)}var native__namespace=/*#__PURE__*/_interopNamespaceDefault(native);function createMappedSql(decoder) {
+    return (first, ...values) => {
+        const expression = Array.isArray(first)
+            ? native.sql(first, ...values)
+            : native.is(first, native.SQL)
+                ? first
+                : native.sql `${first}`;
+        return expression.mapWith(decoder);
+    };
+}
+const sqlNumber = createMappedSql(Number);
+const sqlString = createMappedSql(String);
+const sqlBoolean = createMappedSql((value) => value === true || value === 1);function coalesce(first, second, decoder) {
     const expression = native.sql `coalesce(${first}, ${second})`;
     return (decoder === undefined ? expression : expression.mapWith(decoder));
 }/** 합계를 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
@@ -1211,9 +1223,9 @@ function drizzleMySql(options) {
         coalesce,
         alias: mysqlCore.alias,
         sql: native.sql,
-        sqlNumber: (value) => (native.is(value, native.SQL) ? value : native.sql `${value}`).mapWith(Number),
-        sqlString: (value) => (native.is(value, native.SQL) ? value : native.sql `${value}`).mapWith(String),
-        sqlBoolean: (value) => (native.is(value, native.SQL) ? value : native.sql `${value}`).mapWith((v) => v === true || v === 1),
+        sqlNumber,
+        sqlString,
+        sqlBoolean,
         ...connection,
         query: (table) => new MySqlQuery(table, connection.current),
     };
