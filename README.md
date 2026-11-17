@@ -580,6 +580,8 @@ avgDistinctString<string>(user.t.id);
 
 직접 import와 `db` 메서드는 컬럼·SQL 표현식을 받고, 쿼리 메서드는 컬럼명도 받을 수 있습니다.
 
+`min`과 `max`도 결과 타입을 직접 지정할 수 있습니다: `user.min<Date>('update_date')`, `user.max<Date>('update_date')`, `db.min<Date>(user.t.update_date)`, `db.max<Date>(user.t.update_date)`. 직접 import한 함수와 선택 콜백의 `q.min<T>()`·`q.max<T>()`도 동일합니다. 타입을 생략하면 컬럼 기반 추론과 nullable 결과를 유지합니다. 명시한 타입은 런타임 변환·검증을 추가하지 않으므로, SQL `NULL`이 가능하면 `Date | null`처럼 직접 포함하세요.
+
 `db.coalesce(expression, fallback)`는 SQL `COALESCE` 표현식을 만듭니다. 쿼리의 `coalesce(columnName, fallback)`에서는 첫 인자의 컬럼명을 해당 테이블의 컬럼으로 해석합니다. 첫 인자로 컬럼 객체나 SQL 표현식도 전달할 수 있습니다. 기본 문자열·숫자는 바인딩 파라미터로 전달하며, 두 피연산자는 MySQL에서 호환되는 타입이어야 합니다.
 
 ```ts

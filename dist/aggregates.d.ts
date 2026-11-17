@@ -33,3 +33,7 @@ export declare function avgDistinctBoolean(expression: SQLWrapper): SQL<boolean 
 export declare function avgDistinctBoolean<TResult>(expression: SQLWrapper): SQL<TResult>;
 export declare function avgDistinctString(expression: SQLWrapper): SQL<string | null>;
 export declare function avgDistinctString<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function min<TExpression extends SQLWrapper>(expression: TExpression): ReturnType<typeof native.min<TExpression>>;
+export declare function min<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function max<TExpression extends SQLWrapper>(expression: TExpression): ReturnType<typeof native.max<TExpression>>;
+export declare function max<TResult>(expression: SQLWrapper): SQL<TResult>;

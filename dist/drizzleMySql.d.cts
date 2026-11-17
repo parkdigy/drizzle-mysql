@@ -5,7 +5,7 @@ import type { PoolOptions } from 'mysql2/promise';
 import { SQL, sql, Subquery } from 'drizzle-orm';
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import * as native from 'drizzle-orm';
-import { sum, sumDistinct, avg, avgDistinct, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString, avgNumber, avgBoolean, avgString, avgDistinctNumber, avgDistinctBoolean, avgDistinctString } from './aggregates.cjs';
+import { sum, sumDistinct, avg, avgDistinct, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString, avgNumber, avgBoolean, avgString, avgDistinctNumber, avgDistinctBoolean, avgDistinctString, min, max } from './aggregates.cjs';
 import { type MySqlAliases } from './alias.cjs';
 import { type MySqlSchemaConditions } from './conditions.cjs';
 import { TableColumns } from './columns.cjs';
@@ -68,9 +68,11 @@ type MultiColumnOrderHelper = {
     (column: OrderByColumn): SQL;
     (first: OrderByColumn, second: OrderByColumn, ...rest: OrderByColumn[]): SQL[];
 } & AliasOrderByHelper;
-type MySqlNativeHelpers = Omit<Pick<typeof native, 'count' | 'countDistinct' | 'max' | 'min' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'>, 'asc' | 'desc'> & {
+type MySqlNativeHelpers = Omit<Pick<typeof native, 'count' | 'countDistinct' | 'not' | 'exists' | 'notExists' | 'arrayContains' | 'arrayContained' | 'arrayOverlaps'>, 'asc' | 'desc'> & {
     sum: typeof sum;
     sumDistinct: typeof sumDistinct;
+    min: typeof min;
+    max: typeof max;
     avg: typeof avg;
     avgDistinct: typeof avgDistinct;
     asc: MultiColumnOrderHelper;

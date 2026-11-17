@@ -1,4 +1,4 @@
-import*as native from'drizzle-orm';import {sql,is,SQL,isTable,Subquery,getTableColumns,min,max,asc as asc$1,desc as desc$1,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,max,min,not,notExists}from'drizzle-orm';import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createMappedSql(decoder) {
+import*as native from'drizzle-orm';import {sql,is,SQL,isTable,Subquery,getTableColumns,min as min$1,max as max$1,asc as asc$1,desc as desc$1,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,not,notExists}from'drizzle-orm';import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createMappedSql(decoder) {
     return (first, ...values) => {
         const expression = Array.isArray(first)
             ? sql(first, ...values)
@@ -71,6 +71,12 @@ function avgDistinctBoolean(expression) {
 }
 function avgDistinctString(expression) {
     return avgDistinct(expression, String);
+}
+function min(expression) {
+    return native.min(expression);
+}
+function max(expression) {
+    return native.max(expression);
 }function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
@@ -436,10 +442,10 @@ class MySqlQuery {
         return TableColumns(table, ...names);
     }
     min(columnOrName) {
-        return min(this.resolveAggregateColumn(columnOrName));
+        return min$1(this.resolveAggregateColumn(columnOrName));
     }
     max(columnOrName) {
-        return max(this.resolveAggregateColumn(columnOrName));
+        return max$1(this.resolveAggregateColumn(columnOrName));
     }
     resolveAggregateColumn(columnOrName, table = this.t) {
         if (typeof columnOrName !== 'string')
@@ -487,8 +493,8 @@ class MySqlQuery {
         const query = {
             t: table,
             columns: (...names) => sourceColumns(table, names),
-            min: (columnOrName) => min(this.resolveAggregateColumn(columnOrName, table)),
-            max: (columnOrName) => max(this.resolveAggregateColumn(columnOrName, table)),
+            min: (columnOrName) => min$1(this.resolveAggregateColumn(columnOrName, table)),
+            max: (columnOrName) => max$1(this.resolveAggregateColumn(columnOrName, table)),
         };
         return normalizeFields(fields(query), table);
     }
@@ -1307,8 +1313,8 @@ function drizzleMySql(options) {
         avgDistinct,
         sum,
         sumDistinct,
-        max: native.max,
-        min: native.min,
+        max,
+        min,
         not: native.not,
         exists: native.exists,
         notExists: native.notExists,
@@ -1343,4 +1349,4 @@ function drizzleMySql(options) {
         ...connection,
         query: (table) => new MySqlQuery(table, connection.current),
     };
-}export{MySqlQuery,TableColumns,avg,avgBoolean,avgDistinct,avgDistinctBoolean,avgDistinctNumber,avgDistinctString,avgNumber,avgString,coalesce,coalesceBoolean,coalesceNumber,coalesceString,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable,sum,sumBoolean,sumDistinct,sumDistinctBoolean,sumDistinctNumber,sumDistinctString,sumNumber,sumString};
+}export{MySqlQuery,TableColumns,avg,avgBoolean,avgDistinct,avgDistinctBoolean,avgDistinctNumber,avgDistinctString,avgNumber,avgString,coalesce,coalesceBoolean,coalesceNumber,coalesceString,createConditions,drizzleMySql as default,drizzleMySql,max,min,mysqlTable,sum,sumBoolean,sumDistinct,sumDistinctBoolean,sumDistinctNumber,sumDistinctString,sumNumber,sumString};

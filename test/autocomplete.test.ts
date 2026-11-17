@@ -12,7 +12,7 @@ test.each(['../src/index', '../dist/index'])(
         `const table${i} = mysqlTable('table${i}', { id: int('id').notNull().primaryKey(), name: varchar('name', {length: 100}), ${i === 199 ? wideColumns : ''} });`
     ).join('\n');
     const marked = `
-    import { drizzleMySql, mysqlTable, int, varchar, sum, sumDistinct, coalesce, coalesceNumber, coalesceString, coalesceBoolean, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString, avgNumber, avgBoolean, avgString, avgDistinctNumber, avgDistinctBoolean, avgDistinctString } from '${entry}';
+    import { drizzleMySql, mysqlTable, int, varchar, datetime, min, max, sum, sumDistinct, coalesce, coalesceNumber, coalesceString, coalesceBoolean, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString, avgNumber, avgBoolean, avgString, avgDistinctNumber, avgDistinctBoolean, avgDistinctString } from '${entry}';
     ${tables}
     const db = drizzleMySql({ url: '', getTimestamp: () => 0, schema: {
       ${Array.from({ length: 200 }, (_, i) => `table${i}`).join(',')}
@@ -77,6 +77,32 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    const dateTable = mysqlTable('date_test', { updated: datetime('updated', { mode: 'date' }) });
+    const dateQuery = db.query(dateTable);
+    const dateExtrema = dateQuery.select({
+      min_val: dateQuery.min<Date>('updated'), max_val: dateQuery.max<Date>('updated'),
+      db_min_val: db.min<Date>(dateTable.updated), db_max_val: db.max<Date>(dateTable.updated),
+      importedMin: min<Date>(dateTable.updated), importedMax: max<Date>(dateTable.updated),
+      inferredMin: dateQuery.min('updated'), inferredMax: db.max(dateTable.updated),
+    });
+    type ExtremaRow = Awaited<typeof dateExtrema>[number];
+    const extremaRow: ExtremaRow = {min_val:new Date(),max_val:new Date(),db_min_val:new Date(),db_max_val:new Date(),importedMin:new Date(),importedMax:new Date(),inferredMin:null,inferredMax:null};
+    // @ts-expect-error 명시한 Date 타입을 유지한다
+    const invalidExtremaDate: ExtremaRow['min_val'] = '2026-01-01';
+    // @ts-expect-error 타입을 생략해도 컬럼의 Date 타입을 유지한다
+    const invalidInferredExtrema: ExtremaRow['inferredMax'] = 'wrong';
+    // @ts-expect-error 명시한 타입에 null을 자동으로 추가하지 않는다
+    const invalidExtremaNull: ExtremaRow['db_max_val'] = null;
+    // @ts-expect-error 타입을 지정해도 없는 컬럼은 허용하지 않는다
+    dateQuery.min<Date>('missing');
+    // @ts-expect-error 타입을 지정해도 없는 컬럼은 허용하지 않는다
+    dateQuery.max<Date>('missing');
+    const callbackExtrema = dateQuery.select(q => ({low:q.min<Date>('updated'), high:q.max<Date>(q.t.updated)}));
+    const subDates = dateQuery.select().as('dates');
+    db.select(subDates,q => ({low:q.min<Date>('updated'), high:q.max<Date>('updated')}));
+    void [extremaRow,invalidExtremaDate,invalidExtremaNull,invalidInferredExtrema,callbackExtrema];
+
+
     query.select().where(false);
     query.select().where(undefined);
     query.select().where(() => false);

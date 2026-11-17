@@ -17,8 +17,6 @@ export {
   desc,
   count,
   countDistinct,
-  max,
-  min,
   not,
   exists,
   notExists,

@@ -105,3 +105,19 @@ export function avgDistinctString<TResult>(expression: SQLWrapper): SQL<TResult>
 export function avgDistinctString(expression: SQLWrapper): SQL {
   return avgDistinct(expression, String);
 }
+
+export function min<TExpression extends SQLWrapper>(
+  expression: TExpression
+): ReturnType<typeof native.min<TExpression>>;
+export function min<TResult>(expression: SQLWrapper): SQL<TResult>;
+export function min(expression: SQLWrapper): SQL {
+  return native.min(expression);
+}
+
+export function max<TExpression extends SQLWrapper>(
+  expression: TExpression
+): ReturnType<typeof native.max<TExpression>>;
+export function max<TResult>(expression: SQLWrapper): SQL<TResult>;
+export function max(expression: SQLWrapper): SQL {
+  return native.max(expression);
+}
