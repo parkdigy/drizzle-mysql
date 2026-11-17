@@ -12,12 +12,10 @@ const sqlNumber = createMappedSql(Number);
 const sqlString = createMappedSql(String);
 const sqlBoolean = createMappedSql((value) => value === true || value === 1);function coalesce(first, second, decoder) {
     const expression = sql `coalesce(${first}, ${second})`;
-    return (decoder === undefined ? expression : expression.mapWith(decoder));
-}/** 합계를 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
-function sum(expression, decoder) {
+    return decoder === undefined ? expression : expression.mapWith(decoder);
+}function sum(expression, decoder) {
     return native.sum(expression).mapWith(decoder);
 }
-/** 중복을 제외한 합계를 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
 function sumDistinct(expression, decoder) {
     return native.sumDistinct(expression).mapWith(decoder);
 }
@@ -327,6 +325,14 @@ class MySqlQuery {
             throw new Error(`coalesce: unknown column "${first}".`);
         }
         return coalesce(column, fallback, decoder);
+    }
+    sum(columnOrName, decoder) {
+        const expression = typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName;
+        return sum(expression, decoder);
+    }
+    sumDistinct(columnOrName, decoder) {
+        const expression = typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName;
+        return sumDistinct(expression, decoder);
     }
     drizzle = { ...createConditions({}), sqlNumber: (value) => sql `${value}`.mapWith(Number) };
     /********************************************************************************************************************

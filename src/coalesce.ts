@@ -25,9 +25,9 @@ export function coalesce<
   TFirst extends CoalesceValue,
   TSecond extends CoalesceValue,
   TDecoder extends CoalesceDecoder | undefined = undefined,
->(first: TFirst, second: TSecond, decoder?: TDecoder): SQL<CoalesceOutput<TFirst, TSecond, TDecoder>> {
-  const expression = sql<CoalesceResult<TFirst, TSecond>>`coalesce(${first}, ${second})`;
-  return (decoder === undefined ? expression : expression.mapWith(decoder)) as SQL<
-    CoalesceOutput<TFirst, TSecond, TDecoder>
-  >;
+>(first: TFirst, second: TSecond, decoder?: TDecoder): SQL<CoalesceOutput<TFirst, TSecond, TDecoder>>;
+export function coalesce<TResult>(first: CoalesceValue, second: CoalesceValue, decoder?: CoalesceDecoder): SQL<TResult>;
+export function coalesce(first: CoalesceValue, second: CoalesceValue, decoder?: CoalesceDecoder): SQL {
+  const expression = sql`coalesce(${first}, ${second})`;
+  return decoder === undefined ? expression : expression.mapWith(decoder);
 }

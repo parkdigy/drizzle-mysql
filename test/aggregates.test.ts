@@ -1,3 +1,4 @@
+import { drizzle } from 'drizzle-orm/mysql2';
 import { int, mysqlTable } from 'drizzle-orm/mysql-core';
 import type { SQL } from 'drizzle-orm';
 import { avg, avgDistinct, drizzleMySql, sum, sumDistinct } from '../src';
@@ -44,3 +45,41 @@ function checkRequiredDecoders() {
   }
 }
 void checkRequiredDecoders;
+
+test.each(['sum', 'sumDistinct'] as const)('명시적 %s 결과 타입도 기존 SQL과 변환기를 유지한다', async (method) => {
+  const database = drizzle({
+    client: {
+      query: async () => [[['12.5']], []],
+    } as never,
+  });
+  const aggregate = method === 'sum' ? sum : sumDistinct;
+  for (const expression of [aggregate<number>(table.id, Number), db[method]<number>(table.id, Number)]) {
+    const selected = database.select({ total: expression }).from(table);
+    expect(selected.toSQL()).toEqual(
+      database
+        .select({ total: aggregate(table.id, Number) })
+        .from(table)
+        .toSQL()
+    );
+    expect(await selected).toEqual([{ total: 12.5 }]);
+  }
+});
+
+test.each(['sum', 'sumDistinct'] as const)(
+  'MySqlQuery.%s는 컬럼명을 해석하고 집계 변환기를 전달한다',
+  async (method) => {
+    const query = db.query(table);
+    const aggregate = method === 'sum' ? sum : sumDistinct;
+    const selected = query.select(() => ({ total: query[method]('id', Number) })).toSQL();
+    expect(selected).toEqual(query.select({ total: aggregate(table.id, Number) }).toSQL());
+    const database = drizzle({
+      client: {
+        query: async () => [[['12.5']], []],
+      } as never,
+    });
+    expect(await database.select({ total: query[method]<number>('id', Number) }).from(table)).toEqual([
+      { total: 12.5 },
+    ]);
+    expect(() => Reflect.apply(query[method], query, ['missing', Number])).toThrow('unknown column "missing"');
+  }
+);

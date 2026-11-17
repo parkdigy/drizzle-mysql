@@ -1,5 +1,6 @@
+import { type AggregateDecoder } from './aggregates.cjs';
 import { coalesce, type CoalesceOutput, type CoalesceDecoder } from './coalesce.cjs';
-import { SQL, Subquery, max as drizzleMax, min as drizzleMin, type Placeholder, type SQLWrapper } from 'drizzle-orm';
+import { SQL, Subquery, max as drizzleMax, min as drizzleMin, type GetDecoderResult, type Placeholder, type SQLWrapper } from 'drizzle-orm';
 import { MySqlTable, MySqlColumn, type MySqlAsyncSelectBase, type MySqlJoin } from 'drizzle-orm/mysql-core';
 import type { MySqlViewBase } from 'drizzle-orm/mysql-core/view-base';
 import type { SelectedFields } from 'drizzle-orm/operations';
@@ -29,6 +30,11 @@ export declare class MySqlQuery<TTable extends MySqlTable, AD extends MySqlAddDa
     alias<TAlias extends string>(name: TAlias): MySqlAliasTable<TTable, TAlias>;
     coalesce<N extends MySqlColumnName<TTable>, TSecond extends Parameters<typeof coalesce>[1], TDecoder extends CoalesceDecoder | undefined = undefined>(name: N, fallback: TSecond, decoder?: TDecoder): SQL<CoalesceOutput<TTable['_']['columns'][N], TSecond, TDecoder>>;
     coalesce<TFirst extends SQLWrapper, TSecond extends Parameters<typeof coalesce>[1], TDecoder extends CoalesceDecoder | undefined = undefined>(expression: TFirst, fallback: TSecond, decoder?: TDecoder): SQL<CoalesceOutput<TFirst, TSecond, TDecoder>>;
+    coalesce<TResult>(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1], decoder?: CoalesceDecoder): SQL<TResult>;
+    sum<TDecoder extends AggregateDecoder>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: TDecoder): SQL<GetDecoderResult<TDecoder> | null>;
+    sum<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: AggregateDecoder): SQL<TResult>;
+    sumDistinct<TDecoder extends AggregateDecoder>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: TDecoder): SQL<GetDecoderResult<TDecoder> | null>;
+    sumDistinct<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: AggregateDecoder): SQL<TResult>;
     private readonly drizzle;
     /********************************************************************************************************************
      * (PROTECTED) getTx

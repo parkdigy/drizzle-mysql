@@ -72,3 +72,28 @@ test('선택적 decoder는 SQL을 변경하지 않고 mapWith와 동일하게 �
     ]);
   }
 });
+
+test('명시적 결과 타입은 SQL과 decoder 동작을 변경하지 않는다', () => {
+  const inferred = db
+    .query(users)
+    .select({ value: db.coalesce(users.id, 0) })
+    .toSQL();
+  expect(
+    db
+      .query(users)
+      .select({ value: db.coalesce<0 | 1 | 2>(users.id, 0) })
+      .toSQL()
+  ).toEqual(inferred);
+  expect(
+    db
+      .query(users)
+      .select({ value: query.coalesce<0 | 1 | 2>('id', 0) })
+      .toSQL()
+  ).toEqual(inferred);
+  expect(
+    db
+      .query(users)
+      .select({ value: coalesce<0 | 1 | 2>(users.id, 0, Number) })
+      .toSQL()
+  ).toEqual(inferred);
+});

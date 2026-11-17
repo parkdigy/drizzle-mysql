@@ -534,6 +534,17 @@ const booleanExpression = db.sqlBoolean`${users.id}`;
 const stringExpression = db.sqlString`${users.id}`;
 ```
 
+`db.sum<number>(users.id, Number)` 또는 `sum<0 | 1 | 2>(users.id, Number)`처럼 `sum`의 결과 타입을 명시할 수도 있습니다. `sumDistinct`도 `db.sumDistinct<number>(users.id, Number)` 또는 `sumDistinct<0 | 1 | 2>(users.id, Number)`처럼 동일하게 지정할 수 있습니다. 변환기 인자는 여전히 필수이며, 명시한 타입은 런타임 검증이나 변환을 추가하지 않습니다. 집계 결과가 SQL `NULL`일 수 있으면 `sum<number | null>(...)`처럼 타입에 직접 포함하세요. 타입 인자를 생략하면 기존 변환기 기반 추론을 유지합니다.
+
+쿼리 객체에서는 `user.sum('id', Number)`, `user.sumDistinct('id', Number)`처럼 컬럼명으로 집계할 수 있습니다. 컬럼 객체·SQL 표현식도 받을 수 있으며, `user.sum<number>('id', Number)`처럼 결과 타입을 지정할 수도 있습니다. 변환기 인자는 필수입니다.
+
+```ts
+const totals = await user.select(() => ({
+  total: user.sum('id', Number),
+  distinctTotal: user.sumDistinct('id', Number),
+}));
+```
+
 `db.coalesce(expression, fallback)`는 SQL `COALESCE` 표현식을 만듭니다. 쿼리의 `coalesce(columnName, fallback)`에서는 첫 인자의 컬럼명을 해당 테이블의 컬럼으로 해석합니다. 첫 인자로 컬럼 객체나 SQL 표현식도 전달할 수 있습니다. 기본 문자열·숫자는 바인딩 파라미터로 전달하며, 두 피연산자는 MySQL에서 호환되는 타입이어야 합니다.
 
 ```ts
@@ -546,6 +557,8 @@ const rows = await user.select({
 ```
 
 결과 타입은 첫 값의 `null`을 제외한 타입과 대체 값의 타입을 조합합니다. 양쪽 컬럼이 nullable이면 결과도 nullable이며, 타입을 지정하지 않은 `db.sql` 표현식의 결과는 `unknown`입니다. 선택적인 세 번째 인자에 `Number` 같은 변환 함수나 `mapFromDriverValue` 객체를 전달하면 `.mapWith(...)`와 동일하게 적용됩니다. 위 `calculated`의 결과 타입은 `number`입니다. 변환기를 생략하면 기존 타입 추론을 유지합니다.
+
+결과 타입을 직접 지정하려면 `db.coalesce<0 | 1 | 2>(column, 0)` 또는 `user.coalesce<0 | 1 | 2>('id', 0)`처럼 사용합니다. 세 번째 변환기도 함께 사용할 수 있습니다: ``db.coalesce<0 | 1 | 2>(db.sql`...`, 0, Number)``. 명시한 타입은 결과에 대한 타입 선언이며 런타임 값 검증이나 변환을 추가하지 않습니다. `null`이 가능한 결과라면 타입에 직접 포함하세요. 타입 인자를 생략하면 기존 자동 추론을 유지합니다.
 
 ### 공개 타입과 스키마 API
 

@@ -5,4 +5,5 @@ export type CoalesceResult<TFirst, TSecond> = Exclude<ValueData<TFirst>, null> |
 export type CoalesceDecoder = Parameters<SQL<any>['mapWith']>[0];
 export type CoalesceOutput<TFirst, TSecond, TDecoder> = TDecoder extends undefined ? CoalesceResult<TFirst, TSecond> : GetDecoderResult<TDecoder> | (unknown extends CoalesceResult<TFirst, TSecond> ? never : null extends CoalesceResult<TFirst, TSecond> ? null : never);
 export declare function coalesce<TFirst extends CoalesceValue, TSecond extends CoalesceValue, TDecoder extends CoalesceDecoder | undefined = undefined>(first: TFirst, second: TSecond, decoder?: TDecoder): SQL<CoalesceOutput<TFirst, TSecond, TDecoder>>;
+export declare function coalesce<TResult>(first: CoalesceValue, second: CoalesceValue, decoder?: CoalesceDecoder): SQL<TResult>;
 export {};

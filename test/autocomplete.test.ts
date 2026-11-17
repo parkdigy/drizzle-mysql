@@ -12,7 +12,7 @@ test.each(['../src/index', '../dist/index'])(
         `const table${i} = mysqlTable('table${i}', { id: int('id').notNull().primaryKey(), name: varchar('name', {length: 100}), ${i === 199 ? wideColumns : ''} });`
     ).join('\n');
     const marked = `
-    import { drizzleMySql, mysqlTable, int, varchar } from '${entry}';
+    import { drizzleMySql, mysqlTable, int, varchar, sum, sumDistinct, coalesce } from '${entry}';
     ${tables}
     const db = drizzleMySql({ url: '', getTimestamp: () => 0, schema: {
       ${Array.from({ length: 200 }, (_, i) => `table${i}`).join(',')}
@@ -77,6 +77,86 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    const explicitSums = query.select({
+      numeric: db.sum<number>(table199.id, Number),
+      union: db.sum<0 | 1 | 2>(table199.id, Number),
+      nullable: sum<number | null>(table199.id, Number),
+      text: sum<string>(table199.id, { mapFromDriverValue: (value: string) => value }),
+    });
+    type ExplicitSumRow = Awaited<typeof explicitSums>[number];
+    const explicitSumRow: ExplicitSumRow = { numeric: 1, union: 2, nullable: null, text: '1' };
+    // @ts-expect-error 지정한 결과 타입을 유지한다
+    const invalidExplicitSum: ExplicitSumRow['numeric'] = '1';
+    // @ts-expect-error 유니언에 없는 값은 허용하지 않는다
+    const invalidExplicitSumUnion: ExplicitSumRow['union'] = 3;
+    // @ts-expect-error 명시한 타입에 null을 자동 추가하지 않는다
+    const invalidExplicitSumNull: ExplicitSumRow['numeric'] = null;
+    // @ts-expect-error 결과 타입을 지정해도 decoder는 필수다
+    db.sum<number>(table199.id);
+    // @ts-expect-error 직접 가져온 함수도 decoder는 필수다
+    sum<number>(table199.id);
+    void [explicitSumRow, invalidExplicitSum, invalidExplicitSumUnion, invalidExplicitSumNull];
+
+    const explicitDistinctSums = query.select({
+      numeric: db.sumDistinct<number>(table199.id, Number),
+      union: db.sumDistinct<0 | 1 | 2>(table199.id, Number),
+      nullable: sumDistinct<number | null>(table199.id, Number),
+      text: sumDistinct<string>(table199.id, { mapFromDriverValue: (value: string) => value }),
+    });
+    type ExplicitDistinctSumRow = Awaited<typeof explicitDistinctSums>[number];
+    const explicitDistinctSumRow: ExplicitDistinctSumRow = { numeric: 1, union: 2, nullable: null, text: '1' };
+    // @ts-expect-error 지정한 결과 타입을 유지한다
+    const invalidExplicitDistinctSum: ExplicitDistinctSumRow['numeric'] = '1';
+    // @ts-expect-error 유니언에 없는 값은 허용하지 않는다
+    const invalidExplicitDistinctSumUnion: ExplicitDistinctSumRow['union'] = 3;
+    // @ts-expect-error 명시한 타입에 null을 자동 추가하지 않는다
+    const invalidExplicitDistinctSumNull: ExplicitDistinctSumRow['numeric'] = null;
+    // @ts-expect-error 결과 타입을 지정해도 decoder는 필수다
+    db.sumDistinct<number>(table199.id);
+    // @ts-expect-error 직접 가져온 함수도 decoder는 필수다
+    sumDistinct<number>(table199.id);
+    void [explicitDistinctSumRow, invalidExplicitDistinctSum, invalidExplicitDistinctSumUnion, invalidExplicitDistinctSumNull];
+
+    const methodSums = query.select(q => ({
+      val3: query.sum('id', Number),
+      val4: query.sumDistinct('id', Number),
+      explicit: query.sum<0 | 1 | 2>('id', Number),
+      explicitDistinct: query.sumDistinct<number>('id', Number),
+      expression: query.sum(q.t.id, { mapFromDriverValue: (value: string) => String(value) }),
+    }));
+    type MethodSumRow = Awaited<typeof methodSums>[number];
+    const methodSumRow: MethodSumRow = { val3: null, val4: 1, explicit: 2, explicitDistinct: 3, expression: '4' };
+    // @ts-expect-error decoder로 추론한 결과 타입은 유지한다
+    const invalidMethodSum: MethodSumRow['val4'] = '1';
+    // @ts-expect-error 명시한 타입에 없는 값은 허용하지 않는다
+    const invalidMethodSumUnion: MethodSumRow['explicit'] = 3;
+    // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
+    query.sum('missing', Number);
+    // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
+    query.sumDistinct('missing', Number);
+    // @ts-expect-error decoder는 필수다
+    query.sum('id');
+    // @ts-expect-error 결과 타입을 지정해도 decoder는 필수다
+    query.sumDistinct<number>('id');
+    void [methodSumRow, invalidMethodSum, invalidMethodSumUnion];
+
+    const explicitCoalesced = query.select({
+      direct: db.coalesce<0 | 1 | 2>(table199.id, 0),
+      named: query.coalesce<0 | 1 | 2>('id', 0),
+      mapped: db.coalesce<0 | 1 | 2>(db.sql\`\${table199.id}\`, 0, Number),
+      expression: query.coalesce<0 | 1 | 2>(db.sql\`\${table199.id}\`, 0, Number),
+      standalone: coalesce<0 | 1 | 2>(table199.id, 0),
+      nullable: query.coalesce<0 | 1 | 2 | null>('extra0', null),
+    });
+    type ExplicitCoalesced = Awaited<typeof explicitCoalesced>[number];
+    const explicitCoalescedRow: ExplicitCoalesced = { direct: 0, named: 1, mapped: 2, expression: 0, standalone: 1, nullable: null };
+    // @ts-expect-error 지정한 결과 타입에 포함되지 않은 값이다
+    const invalidExplicitCoalesced: ExplicitCoalesced['mapped'] = 3;
+    // @ts-expect-error 결과 타입을 지정해도 잘못된 컬럼명은 허용하지 않는다
+    query.coalesce<0 | 1 | 2>('missing', 0);
+    void [explicitCoalescedRow, invalidExplicitCoalesced];
+
+
     const tagged = query.select({
       val1: db.sqlNumber\`\${table199.id} + 1\`,
       val2: db.sqlBoolean\`\${table199.id}\`,

@@ -1,3 +1,4 @@
+import { sum, sumDistinct, type AggregateDecoder } from './aggregates';
 import { coalesce, type CoalesceOutput, type CoalesceDecoder } from './coalesce';
 import {
   SQL,
@@ -14,6 +15,7 @@ import {
   desc as drizzleDesc,
   max as drizzleMax,
   min as drizzleMin,
+  type GetDecoderResult,
   type Placeholder,
   type SQLWrapper,
 } from 'drizzle-orm';
@@ -105,6 +107,12 @@ export class MySqlQuery<
     decoder?: TDecoder
   ): SQL<CoalesceOutput<TFirst, TSecond, TDecoder>>;
 
+  coalesce<TResult>(
+    first: MySqlColumnName<TTable> | SQLWrapper,
+    fallback: Parameters<typeof coalesce>[1],
+    decoder?: CoalesceDecoder
+  ): SQL<TResult>;
+
   coalesce(first: string | SQLWrapper, fallback: Parameters<typeof coalesce>[1], decoder?: CoalesceDecoder): SQL {
     if (typeof first !== 'string') return coalesce(first, fallback, decoder);
     const columns = getTableColumns(this.t);
@@ -113,6 +121,30 @@ export class MySqlQuery<
       throw new Error(`coalesce: unknown column "${first}".`);
     }
     return coalesce(column, fallback, decoder);
+  }
+
+  sum<TDecoder extends AggregateDecoder>(
+    columnOrName: MySqlColumnName<TTable> | SQLWrapper,
+    decoder: TDecoder
+  ): SQL<GetDecoderResult<TDecoder> | null>;
+
+  sum<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: AggregateDecoder): SQL<TResult>;
+
+  sum(columnOrName: string | SQLWrapper, decoder: AggregateDecoder): SQL {
+    const expression = typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName;
+    return sum(expression, decoder);
+  }
+
+  sumDistinct<TDecoder extends AggregateDecoder>(
+    columnOrName: MySqlColumnName<TTable> | SQLWrapper,
+    decoder: TDecoder
+  ): SQL<GetDecoderResult<TDecoder> | null>;
+
+  sumDistinct<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: AggregateDecoder): SQL<TResult>;
+
+  sumDistinct(columnOrName: string | SQLWrapper, decoder: AggregateDecoder): SQL {
+    const expression = typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName;
+    return sumDistinct(expression, decoder);
   }
 
   private readonly drizzle = { ...createConditions({}), sqlNumber: (value: number) => sql`${value}`.mapWith(Number) };
