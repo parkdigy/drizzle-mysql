@@ -31,10 +31,28 @@ export declare class MySqlQuery<TTable extends MySqlTable, AD extends MySqlAddDa
     coalesce<N extends MySqlColumnName<TTable>, TSecond extends Parameters<typeof coalesce>[1], TDecoder extends CoalesceDecoder | undefined = undefined>(name: N, fallback: TSecond, decoder?: TDecoder): SQL<CoalesceOutput<TTable['_']['columns'][N], TSecond, TDecoder>>;
     coalesce<TFirst extends SQLWrapper, TSecond extends Parameters<typeof coalesce>[1], TDecoder extends CoalesceDecoder | undefined = undefined>(expression: TFirst, fallback: TSecond, decoder?: TDecoder): SQL<CoalesceOutput<TFirst, TSecond, TDecoder>>;
     coalesce<TResult>(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1], decoder?: CoalesceDecoder): SQL<TResult>;
+    coalesceNumber<TFirst extends MySqlColumnName<TTable> | SQLWrapper, TSecond extends Parameters<typeof coalesce>[1]>(first: TFirst, fallback: TSecond): SQL<CoalesceOutput<TFirst extends MySqlColumnName<TTable> ? TTable['_']['columns'][TFirst] : TFirst, TSecond, NumberConstructor>>;
+    coalesceNumber<TResult>(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL<TResult>;
+    coalesceString<TFirst extends MySqlColumnName<TTable> | SQLWrapper, TSecond extends Parameters<typeof coalesce>[1]>(first: TFirst, fallback: TSecond): SQL<CoalesceOutput<TFirst extends MySqlColumnName<TTable> ? TTable['_']['columns'][TFirst] : TFirst, TSecond, StringConstructor>>;
+    coalesceString<TResult>(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL<TResult>;
+    coalesceBoolean<TFirst extends MySqlColumnName<TTable> | SQLWrapper, TSecond extends Parameters<typeof coalesce>[1]>(first: TFirst, fallback: TSecond): SQL<CoalesceOutput<TFirst extends MySqlColumnName<TTable> ? TTable['_']['columns'][TFirst] : TFirst, TSecond, BooleanConstructor>>;
+    coalesceBoolean<TResult>(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL<TResult>;
     sum<TDecoder extends AggregateDecoder>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: TDecoder): SQL<GetDecoderResult<TDecoder> | null>;
     sum<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: AggregateDecoder): SQL<TResult>;
     sumDistinct<TDecoder extends AggregateDecoder>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: TDecoder): SQL<GetDecoderResult<TDecoder> | null>;
     sumDistinct<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper, decoder: AggregateDecoder): SQL<TResult>;
+    sumNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<number | null>;
+    sumNumber<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    sumBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<boolean | null>;
+    sumBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    sumString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
+    sumString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    sumDistinctNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<number | null>;
+    sumDistinctNumber<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    sumDistinctBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<boolean | null>;
+    sumDistinctBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+    sumDistinctString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
+    sumDistinctString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
     private readonly drizzle;
     /********************************************************************************************************************
      * (PROTECTED) getTx

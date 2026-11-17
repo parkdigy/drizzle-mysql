@@ -12,7 +12,7 @@ test.each(['../src/index', '../dist/index'])(
         `const table${i} = mysqlTable('table${i}', { id: int('id').notNull().primaryKey(), name: varchar('name', {length: 100}), ${i === 199 ? wideColumns : ''} });`
     ).join('\n');
     const marked = `
-    import { drizzleMySql, mysqlTable, int, varchar, sum, sumDistinct, coalesce } from '${entry}';
+    import { drizzleMySql, mysqlTable, int, varchar, sum, sumDistinct, coalesce, coalesceNumber, coalesceString, coalesceBoolean, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString } from '${entry}';
     ${tables}
     const db = drizzleMySql({ url: '', getTimestamp: () => 0, schema: {
       ${Array.from({ length: 200 }, (_, i) => `table${i}`).join(',')}
@@ -77,6 +77,114 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    const autoCoalesces = query.select(() => ({
+      n: query.coalesceNumber('id', 0), s: query.coalesceString('id', 0), b: query.coalesceBoolean('id', 0),
+      explicit: query.coalesceNumber<0 | 1 | 2>('id', 0),
+      dbN: db.coalesceNumber<number>(table199.id, 0), dbS: db.coalesceString<string>(table199.id, 0), dbB: db.coalesceBoolean<boolean>(table199.id, 0),
+      importedN: coalesceNumber(table199.id, 0), importedS: coalesceString(table199.id, 0), importedB: coalesceBoolean(table199.id, 0),
+      nullable: query.coalesceNumber('name', a.name),
+    }));
+    type AutoCoalesceRow = Awaited<typeof autoCoalesces>[number];
+    const autoCoalesceRow: AutoCoalesceRow = {n:1,s:'1',b:true,explicit:2,dbN:1,dbS:'1',dbB:false,importedN:2,importedS:'2',importedB:true,nullable:null};
+    // @ts-expect-error 자동 Number 변환 결과는 number다
+    const invalidAutoN: AutoCoalesceRow['n'] = '1';
+    // @ts-expect-error 자동 String 변환 결과는 string이다
+    const invalidAutoS: AutoCoalesceRow['s'] = 1;
+    // @ts-expect-error 자동 Boolean 변환 결과는 boolean이다
+    const invalidAutoB: AutoCoalesceRow['b'] = 1;
+    // @ts-expect-error 지정한 타입을 유지한다
+    const invalidAutoUnion: AutoCoalesceRow['explicit'] = 3;
+    // @ts-expect-error 기본 값이 있으면 null을 제외한다
+    const invalidAutoNull: AutoCoalesceRow['n'] = null;
+    // @ts-expect-error 타입을 지정해도 잘못된 컬럼은 허용하지 않는다
+    query.coalesceString<string>('missing', 0);
+    void [autoCoalesceRow,invalidAutoN,invalidAutoS,invalidAutoB,invalidAutoUnion,invalidAutoNull];
+
+    const explicitTypedSums = query.select(() => ({
+      numeric: query.sumNumber<0 | 1 | 2>('id'),
+      boolean: query.sumBoolean<true>('id'),
+      text: query.sumString<'value'>('id'),
+      directNumber: db.sumNumber<number>(table199.id),
+      directBoolean: db.sumBoolean<boolean>(table199.id),
+      directString: db.sumString<string>(table199.id),
+      namedNumber: sumNumber<number | null>(table199.id),
+      namedBoolean: sumBoolean<boolean | null>(table199.id),
+      namedString: sumString<string | null>(table199.id),
+    }));
+    type ExplicitTypedSumRow = Awaited<typeof explicitTypedSums>[number];
+    const explicitTypedSumRow: ExplicitTypedSumRow = { numeric: 2, boolean: true, text: 'value', directNumber: 1, directBoolean: false, directString: 'x', namedNumber: null, namedBoolean: null, namedString: null };
+    // @ts-expect-error 명시한 유니언을 유지한다
+    const invalidTypedSumNumber: ExplicitTypedSumRow['numeric'] = 3;
+    // @ts-expect-error 명시한 리터럴 타입을 유지한다
+    const invalidTypedSumBoolean: ExplicitTypedSumRow['boolean'] = false;
+    // @ts-expect-error 명시한 리터럴 타입을 유지한다
+    const invalidTypedSumString: ExplicitTypedSumRow['text'] = 'other';
+    // @ts-expect-error 명시한 타입에 null을 자동으로 추가하지 않는다
+    const invalidTypedSumNull: ExplicitTypedSumRow['directNumber'] = null;
+    // @ts-expect-error 타입을 지정해도 존재하지 않는 컬럼은 허용하지 않는다
+    query.sumNumber<number>('missing');
+    void [explicitTypedSumRow, invalidTypedSumNumber, invalidTypedSumBoolean, invalidTypedSumString, invalidTypedSumNull];
+
+    const typedSums = query.select(() => ({
+      numeric: query.sumNumber('id'), boolean: query.sumBoolean('id'), text: query.sumString('id'),
+      directNumber: db.sumNumber(table199.id), directBoolean: db.sumBoolean(table199.id), directString: db.sumString(table199.id),
+      namedNumber: sumNumber(table199.id), namedBoolean: sumBoolean(table199.id), namedString: sumString(table199.id),
+    }));
+    type TypedSumRow = Awaited<typeof typedSums>[number];
+    const typedSumRow: TypedSumRow = { numeric: 1, boolean: true, text: '1', directNumber: 2, directBoolean: false, directString: '2', namedNumber: null, namedBoolean: null, namedString: null };
+    // @ts-expect-error sumNumber는 number로 매핑한다
+    const invalidNumberSum: TypedSumRow['numeric'] = '1';
+    // @ts-expect-error sumBoolean는 boolean으로 매핑한다
+    const invalidBooleanSum: TypedSumRow['boolean'] = 1;
+    // @ts-expect-error sumString는 string으로 매핑한다
+    const invalidStringSum: TypedSumRow['text'] = 1;
+    // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
+    query.sumNumber('missing');
+    void [typedSumRow, invalidNumberSum, invalidBooleanSum, invalidStringSum];
+
+    const explicitTypedDistinctSums = query.select(() => ({
+      numeric: query.sumDistinctNumber<0 | 1 | 2>('id'),
+      boolean: query.sumDistinctBoolean<true>('id'),
+      text: query.sumDistinctString<'value'>('id'),
+      directNumber: db.sumDistinctNumber<number>(table199.id),
+      directBoolean: db.sumDistinctBoolean<boolean>(table199.id),
+      directString: db.sumDistinctString<string>(table199.id),
+      namedNumber: sumDistinctNumber<number | null>(table199.id),
+      namedBoolean: sumDistinctBoolean<boolean | null>(table199.id),
+      namedString: sumDistinctString<string | null>(table199.id),
+    }));
+    type ExplicitTypedDistinctSumRow = Awaited<typeof explicitTypedDistinctSums>[number];
+    const explicitTypedDistinctSumRow: ExplicitTypedDistinctSumRow = { numeric: 2, boolean: true, text: 'value', directNumber: 1, directBoolean: false, directString: 'x', namedNumber: null, namedBoolean: null, namedString: null };
+    // @ts-expect-error 명시한 유니언을 유지한다
+    const invalidTypedDistinctSumNumber: ExplicitTypedDistinctSumRow['numeric'] = 3;
+    // @ts-expect-error 명시한 리터럴 타입을 유지한다
+    const invalidTypedDistinctSumBoolean: ExplicitTypedDistinctSumRow['boolean'] = false;
+    // @ts-expect-error 명시한 리터럴 타입을 유지한다
+    const invalidTypedDistinctSumString: ExplicitTypedDistinctSumRow['text'] = 'other';
+    // @ts-expect-error 명시한 타입에 null을 자동으로 추가하지 않는다
+    const invalidTypedDistinctSumNull: ExplicitTypedDistinctSumRow['directNumber'] = null;
+    // @ts-expect-error 타입을 지정해도 존재하지 않는 컬럼은 허용하지 않는다
+    query.sumDistinctNumber<number>('missing');
+    void [explicitTypedDistinctSumRow, invalidTypedDistinctSumNumber, invalidTypedDistinctSumBoolean, invalidTypedDistinctSumString, invalidTypedDistinctSumNull];
+
+    const typedDistinctSums = query.select(() => ({
+      numeric: query.sumDistinctNumber('id'), boolean: query.sumDistinctBoolean('id'), text: query.sumDistinctString('id'),
+      directNumber: db.sumDistinctNumber(table199.id), directBoolean: db.sumDistinctBoolean(table199.id), directString: db.sumDistinctString(table199.id),
+      namedNumber: sumDistinctNumber(table199.id), namedBoolean: sumDistinctBoolean(table199.id), namedString: sumDistinctString(table199.id),
+    }));
+    type TypedDistinctSumRow = Awaited<typeof typedDistinctSums>[number];
+    const typedDistinctSumRow: TypedDistinctSumRow = { numeric: 1, boolean: true, text: '1', directNumber: 2, directBoolean: false, directString: '2', namedNumber: null, namedBoolean: null, namedString: null };
+    // @ts-expect-error sumDistinctNumber는 number로 매핑한다
+    const invalidNumberDistinctSum: TypedDistinctSumRow['numeric'] = '1';
+    // @ts-expect-error sumDistinctBoolean는 boolean으로 매핑한다
+    const invalidBooleanDistinctSum: TypedDistinctSumRow['boolean'] = 1;
+    // @ts-expect-error sumDistinctString는 string으로 매핑한다
+    const invalidStringDistinctSum: TypedDistinctSumRow['text'] = 1;
+    // @ts-expect-error 존재하지 않는 컬럼은 허용하지 않는다
+    query.sumDistinctNumber('missing');
+    void [typedDistinctSumRow, invalidNumberDistinctSum, invalidBooleanDistinctSum, invalidStringDistinctSum];
+
+
     const explicitSums = query.select({
       numeric: db.sum<number>(table199.id, Number),
       union: db.sum<0 | 1 | 2>(table199.id, Number),

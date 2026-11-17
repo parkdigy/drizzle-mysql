@@ -9,3 +9,15 @@ export declare function sumDistinct<TResult>(expression: SQLWrapper, decoder: Ag
 export declare function avg<TDecoder extends AggregateDecoder>(expression: Parameters<typeof native.avg>[0], decoder: TDecoder): native.SQL<native.GetDecoderResult<TDecoder> | null>;
 /** 중복을 제외한 평균을 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
 export declare function avgDistinct<TDecoder extends AggregateDecoder>(expression: Parameters<typeof native.avgDistinct>[0], decoder: TDecoder): native.SQL<native.GetDecoderResult<TDecoder> | null>;
+export declare function sumNumber(expression: SQLWrapper): SQL<number | null>;
+export declare function sumNumber<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function sumBoolean(expression: SQLWrapper): SQL<boolean | null>;
+export declare function sumBoolean<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function sumString(expression: SQLWrapper): SQL<string | null>;
+export declare function sumString<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function sumDistinctNumber(expression: SQLWrapper): SQL<number | null>;
+export declare function sumDistinctNumber<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function sumDistinctBoolean(expression: SQLWrapper): SQL<boolean | null>;
+export declare function sumDistinctBoolean<TResult>(expression: SQLWrapper): SQL<TResult>;
+export declare function sumDistinctString(expression: SQLWrapper): SQL<string | null>;
+export declare function sumDistinctString<TResult>(expression: SQLWrapper): SQL<TResult>;

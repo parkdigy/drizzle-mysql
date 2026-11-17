@@ -13,6 +13,15 @@ const sqlString = createMappedSql(String);
 const sqlBoolean = createMappedSql((value) => value === true || value === 1);function coalesce(first, second, decoder) {
     const expression = sql `coalesce(${first}, ${second})`;
     return decoder === undefined ? expression : expression.mapWith(decoder);
+}
+function coalesceNumber(first, second) {
+    return coalesce(first, second, Number);
+}
+function coalesceString(first, second) {
+    return coalesce(first, second, String);
+}
+function coalesceBoolean(first, second) {
+    return coalesce(first, second, Boolean);
 }function sum(expression, decoder) {
     return native.sum(expression).mapWith(decoder);
 }
@@ -26,6 +35,24 @@ function avg(expression, decoder) {
 /** 중복을 제외한 평균을 지정한 매퍼로 변환한다. SQL NULL은 유지된다. */
 function avgDistinct(expression, decoder) {
     return native.avgDistinct(expression).mapWith(decoder);
+}
+function sumNumber(expression) {
+    return sum(expression, Number);
+}
+function sumBoolean(expression) {
+    return sum(expression, Boolean);
+}
+function sumString(expression) {
+    return sum(expression, String);
+}
+function sumDistinctNumber(expression) {
+    return sumDistinct(expression, Number);
+}
+function sumDistinctBoolean(expression) {
+    return sumDistinct(expression, Boolean);
+}
+function sumDistinctString(expression) {
+    return sumDistinct(expression, String);
 }function createAlias(schema) {
     /********************************************************************************************************************
      * getDefaultAlias
@@ -326,6 +353,15 @@ class MySqlQuery {
         }
         return coalesce(column, fallback, decoder);
     }
+    coalesceNumber(first, fallback) {
+        return this.coalesce(first, fallback, Number);
+    }
+    coalesceString(first, fallback) {
+        return this.coalesce(first, fallback, String);
+    }
+    coalesceBoolean(first, fallback) {
+        return this.coalesce(first, fallback, Boolean);
+    }
     sum(columnOrName, decoder) {
         const expression = typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName;
         return sum(expression, decoder);
@@ -333,6 +369,24 @@ class MySqlQuery {
     sumDistinct(columnOrName, decoder) {
         const expression = typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName;
         return sumDistinct(expression, decoder);
+    }
+    sumNumber(columnOrName) {
+        return this.sum(columnOrName, Number);
+    }
+    sumBoolean(columnOrName) {
+        return this.sum(columnOrName, Boolean);
+    }
+    sumString(columnOrName) {
+        return this.sum(columnOrName, String);
+    }
+    sumDistinctNumber(columnOrName) {
+        return this.sumDistinct(columnOrName, Number);
+    }
+    sumDistinctBoolean(columnOrName) {
+        return this.sumDistinct(columnOrName, Boolean);
+    }
+    sumDistinctString(columnOrName) {
+        return this.sumDistinct(columnOrName, String);
     }
     drizzle = { ...createConditions({}), sqlNumber: (value) => sql `${value}`.mapWith(Number) };
     /********************************************************************************************************************
@@ -1227,6 +1281,15 @@ function drizzleMySql(options) {
         ...createConditions(options.schema),
         columns: TableColumns,
         coalesce,
+        coalesceNumber,
+        coalesceString,
+        coalesceBoolean,
+        sumNumber,
+        sumBoolean,
+        sumString,
+        sumDistinctNumber,
+        sumDistinctBoolean,
+        sumDistinctString,
         alias: alias$1,
         sql,
         sqlNumber,
@@ -1235,4 +1298,4 @@ function drizzleMySql(options) {
         ...connection,
         query: (table) => new MySqlQuery(table, connection.current),
     };
-}export{MySqlQuery,TableColumns,avg,avgDistinct,coalesce,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable,sum,sumDistinct};
+}export{MySqlQuery,TableColumns,avg,avgDistinct,coalesce,coalesceBoolean,coalesceNumber,coalesceString,createConditions,drizzleMySql as default,drizzleMySql,mysqlTable,sum,sumBoolean,sumDistinct,sumDistinctBoolean,sumDistinctNumber,sumDistinctString,sumNumber,sumString};

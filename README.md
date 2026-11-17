@@ -545,6 +545,26 @@ const totals = await user.select(() => ({
 }));
 ```
 
+`sumNumber`, `sumBoolean`, `sumString`은 변환기를 생략하는 합계 함수입니다. 각각 `sum(expression, Number)`, `sum(expression, Boolean)`, `sum(expression, String)`과 동일하며, 결과 타입은 `number | null`, `boolean | null`, `string | null`입니다. 직접 import, `db.sumNumber(column)` 등의 연결 메서드, `user.sumNumber('id')` 등의 쿼리 메서드에서 사용할 수 있습니다. SQL `NULL`은 유지하며, `sumBoolean`은 JavaScript `Boolean` 변환을 그대로 적용합니다(문자열 `'0'`도 `true`).
+
+```ts
+const totals = await user.select(() => ({
+  numeric: user.sumNumber('id'),
+  boolean: user.sumBoolean('id'),
+  text: user.sumString('id'),
+}));
+```
+
+세 함수 모두 결과 타입을 지정할 수 있습니다: `sumNumber<number>(column)`, `db.sumBoolean<true | false>(column)`, `user.sumString<'A' | 'B'>('id')`. 지정한 타입은 결과에 대한 선언이며 자동 변환기(`Number`, `Boolean`, `String`)는 그대로 적용됩니다. SQL `NULL`이 가능하면 명시한 타입에 `null`을 직접 포함하세요. 타입 인자를 생략하면 기존 nullable 결과 타입을 유지합니다.
+
+중복 값을 제외한 합계에는 `sumDistinctNumber`, `sumDistinctBoolean`, `sumDistinctString`을 사용합니다. 각각 `sumDistinct(expression, Number)`, `sumDistinct(expression, Boolean)`, `sumDistinct(expression, String)`과 동일하며 기본 결과 타입과 변환 규칙은 위 세 함수와 같습니다. 직접 import, `db`, 쿼리 객체에서 모두 사용할 수 있고 결과 타입도 지정할 수 있습니다.
+
+```ts
+sumDistinctNumber<number>(user.t.id);
+db.sumDistinctBoolean<boolean>(user.t.id);
+user.sumDistinctString<string | null>('id');
+```
+
 `db.coalesce(expression, fallback)`는 SQL `COALESCE` 표현식을 만듭니다. 쿼리의 `coalesce(columnName, fallback)`에서는 첫 인자의 컬럼명을 해당 테이블의 컬럼으로 해석합니다. 첫 인자로 컬럼 객체나 SQL 표현식도 전달할 수 있습니다. 기본 문자열·숫자는 바인딩 파라미터로 전달하며, 두 피연산자는 MySQL에서 호환되는 타입이어야 합니다.
 
 ```ts
@@ -559,6 +579,8 @@ const rows = await user.select({
 결과 타입은 첫 값의 `null`을 제외한 타입과 대체 값의 타입을 조합합니다. 양쪽 컬럼이 nullable이면 결과도 nullable이며, 타입을 지정하지 않은 `db.sql` 표현식의 결과는 `unknown`입니다. 선택적인 세 번째 인자에 `Number` 같은 변환 함수나 `mapFromDriverValue` 객체를 전달하면 `.mapWith(...)`와 동일하게 적용됩니다. 위 `calculated`의 결과 타입은 `number`입니다. 변환기를 생략하면 기존 타입 추론을 유지합니다.
 
 결과 타입을 직접 지정하려면 `db.coalesce<0 | 1 | 2>(column, 0)` 또는 `user.coalesce<0 | 1 | 2>('id', 0)`처럼 사용합니다. 세 번째 변환기도 함께 사용할 수 있습니다: ``db.coalesce<0 | 1 | 2>(db.sql`...`, 0, Number)``. 명시한 타입은 결과에 대한 타입 선언이며 런타임 값 검증이나 변환을 추가하지 않습니다. `null`이 가능한 결과라면 타입에 직접 포함하세요. 타입 인자를 생략하면 기존 자동 추론을 유지합니다.
+
+`coalesceNumber`, `coalesceString`, `coalesceBoolean`은 `coalesce`에 각각 `Number`, `String`, `Boolean` 변환기를 자동 적용합니다. 직접 import와 `db` 메서드는 컬럼·SQL 표현식을 받고, 쿼리 메서드는 컬럼명도 받습니다. `user.coalesceNumber('id', 0)`, `user.coalesceNumber<number>('id', 0)`, `db.coalesceString<string>(user.t.id, 0)`처럼 결과 타입 지정도 지원합니다. 타입을 생략하면 기존 `coalesce`와 동일하게 null 허용 여부를 추론합니다. 자동 변환기는 타입 지정 여부와 관계없이 적용되며, `Boolean` 변환은 문자열 `'0'`도 `true`로 처리합니다.
 
 ### 공개 타입과 스키마 API
 

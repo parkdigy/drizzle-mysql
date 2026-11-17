@@ -123,6 +123,36 @@ export class MySqlQuery<
     return coalesce(column, fallback, decoder);
   }
 
+  coalesceNumber<TFirst extends MySqlColumnName<TTable> | SQLWrapper, TSecond extends Parameters<typeof coalesce>[1]>(
+    first: TFirst, fallback: TSecond
+  ): SQL<CoalesceOutput<TFirst extends MySqlColumnName<TTable> ? TTable['_']['columns'][TFirst] : TFirst, TSecond, NumberConstructor>>;
+
+  coalesceNumber<TResult>(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL<TResult>;
+
+  coalesceNumber(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL {
+    return this.coalesce<unknown>(first, fallback, Number);
+  }
+
+  coalesceString<TFirst extends MySqlColumnName<TTable> | SQLWrapper, TSecond extends Parameters<typeof coalesce>[1]>(
+    first: TFirst, fallback: TSecond
+  ): SQL<CoalesceOutput<TFirst extends MySqlColumnName<TTable> ? TTable['_']['columns'][TFirst] : TFirst, TSecond, StringConstructor>>;
+
+  coalesceString<TResult>(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL<TResult>;
+
+  coalesceString(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL {
+    return this.coalesce<unknown>(first, fallback, String);
+  }
+
+  coalesceBoolean<TFirst extends MySqlColumnName<TTable> | SQLWrapper, TSecond extends Parameters<typeof coalesce>[1]>(
+    first: TFirst, fallback: TSecond
+  ): SQL<CoalesceOutput<TFirst extends MySqlColumnName<TTable> ? TTable['_']['columns'][TFirst] : TFirst, TSecond, BooleanConstructor>>;
+
+  coalesceBoolean<TResult>(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL<TResult>;
+
+  coalesceBoolean(first: MySqlColumnName<TTable> | SQLWrapper, fallback: Parameters<typeof coalesce>[1]): SQL {
+    return this.coalesce<unknown>(first, fallback, Boolean);
+  }
+
   sum<TDecoder extends AggregateDecoder>(
     columnOrName: MySqlColumnName<TTable> | SQLWrapper,
     decoder: TDecoder
@@ -145,6 +175,54 @@ export class MySqlQuery<
   sumDistinct(columnOrName: string | SQLWrapper, decoder: AggregateDecoder): SQL {
     const expression = typeof columnOrName === 'string' ? this.resolveAggregateColumn(columnOrName, this.t) : columnOrName;
     return sumDistinct(expression, decoder);
+  }
+
+  sumNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<number | null>;
+
+  sumNumber<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  sumNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return this.sum(columnOrName, Number);
+  }
+
+  sumBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<boolean | null>;
+
+  sumBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  sumBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return this.sum(columnOrName, Boolean);
+  }
+
+  sumString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
+
+  sumString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  sumString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return this.sum(columnOrName, String);
+  }
+
+  sumDistinctNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<number | null>;
+
+  sumDistinctNumber<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  sumDistinctNumber(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return this.sumDistinct(columnOrName, Number);
+  }
+
+  sumDistinctBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<boolean | null>;
+
+  sumDistinctBoolean<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  sumDistinctBoolean(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return this.sumDistinct(columnOrName, Boolean);
+  }
+
+  sumDistinctString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<string | null>;
+
+  sumDistinctString<TResult>(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL<TResult>;
+
+  sumDistinctString(columnOrName: MySqlColumnName<TTable> | SQLWrapper): SQL {
+    return this.sumDistinct(columnOrName, String);
   }
 
   private readonly drizzle = { ...createConditions({}), sqlNumber: (value: number) => sql`${value}`.mapWith(Number) };

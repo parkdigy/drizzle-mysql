@@ -1,5 +1,5 @@
 import { sqlNumber, sqlString, sqlBoolean } from './mappedSql';
-import { coalesce } from './coalesce';
+import { coalesce, coalesceNumber, coalesceString, coalesceBoolean } from './coalesce';
 import mysql from 'mysql2/promise';
 import type { PoolOptions } from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
@@ -7,7 +7,7 @@ import { count, defineRelations, getTableColumns, is, isTable, SQL, sql, Subquer
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as native from 'drizzle-orm';
-import { sum, sumDistinct, avg, avgDistinct } from './aggregates';
+import { sum, sumDistinct, avg, avgDistinct, sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString } from './aggregates';
 import { createAlias, type MySqlAliases } from './alias';
 import { createConditions, type MySqlSchemaConditions } from './conditions';
 import { TableColumns } from './columns';
@@ -44,6 +44,16 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
   a: MySqlAliases<TSchema>;
   columns: typeof TableColumns;
   coalesce: typeof coalesce;
+  coalesceNumber: typeof coalesceNumber;
+  coalesceString: typeof coalesceString;
+  coalesceBoolean: typeof coalesceBoolean;
+  sumNumber: typeof sumNumber;
+  sumBoolean: typeof sumBoolean;
+  sumString: typeof sumString;
+  sumDistinctNumber: typeof sumDistinctNumber;
+  sumDistinctBoolean: typeof sumDistinctBoolean;
+  sumDistinctString: typeof sumDistinctString;
+
   alias: typeof alias;
   sql: typeof sql;
   sqlNumber: typeof sqlNumber;
@@ -262,6 +272,16 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
     ...createConditions(options.schema),
     columns: TableColumns,
     coalesce,
+    coalesceNumber,
+    coalesceString,
+    coalesceBoolean,
+    sumNumber,
+    sumBoolean,
+    sumString,
+    sumDistinctNumber,
+    sumDistinctBoolean,
+    sumDistinctString,
+
     alias,
     sql,
     sqlNumber,

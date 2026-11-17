@@ -1,3 +1,4 @@
+import { coalesceNumber, coalesceString, coalesceBoolean } from '../src';
 import { coalesce, drizzleMySql, int, mysqlTable, varchar } from '../src';
 
 const users = mysqlTable('users', {
@@ -96,4 +97,32 @@ test('명시적 결과 타입은 SQL과 decoder 동작을 변경하지 않는다
       .select({ value: coalesce<0 | 1 | 2>(users.id, 0, Number) })
       .toSQL()
   ).toEqual(inferred);
+});
+
+test.each([
+  ['coalesceNumber', coalesceNumber, Number],
+  ['coalesceString', coalesceString, String],
+  ['coalesceBoolean', coalesceBoolean, Boolean],
+] as const)('%s는 모든 진입점에서 COALESCE와 자동 변환기를 적용한다', async (method, helper, decoder) => {
+  const { drizzle } = await import('drizzle-orm/mysql2');
+  for (const value of ['12.5', '0', 0, 1, null]) {
+    const database = drizzle({
+      client: { query: async () => [[[value]], []] } as never,
+    });
+    for (const expression of [
+      helper(users.id, 0),
+      db[method](users.id, 0),
+      query[method]('id', 0),
+      query[method](users.id, 0),
+      helper<unknown>(users.id, 0),
+      db[method]<unknown>(users.id, 0),
+      query[method]<unknown>('id', 0),
+    ]) {
+      const selected = database.select({ value: expression }).from(users);
+      const expected = database.select({ value: coalesce(users.id, 0).mapWith(decoder) }).from(users);
+      expect(selected.toSQL()).toEqual(expected.toSQL());
+      expect(await selected).toEqual([{ value: value === null ? null : decoder(value) }]);
+    }
+  }
+  expect(() => Reflect.apply(query[method], query, ['missing', 0])).toThrow('unknown column "missing"');
 });

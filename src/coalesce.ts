@@ -31,3 +31,30 @@ export function coalesce(first: CoalesceValue, second: CoalesceValue, decoder?: 
   const expression = sql`coalesce(${first}, ${second})`;
   return decoder === undefined ? expression : expression.mapWith(decoder);
 }
+
+export function coalesceNumber<TFirst extends CoalesceValue, TSecond extends CoalesceValue>(
+  first: TFirst,
+  second: TSecond
+): SQL<CoalesceOutput<TFirst, TSecond, NumberConstructor>>;
+export function coalesceNumber<TResult>(first: CoalesceValue, second: CoalesceValue): SQL<TResult>;
+export function coalesceNumber(first: CoalesceValue, second: CoalesceValue): SQL {
+  return coalesce(first, second, Number);
+}
+
+export function coalesceString<TFirst extends CoalesceValue, TSecond extends CoalesceValue>(
+  first: TFirst,
+  second: TSecond
+): SQL<CoalesceOutput<TFirst, TSecond, StringConstructor>>;
+export function coalesceString<TResult>(first: CoalesceValue, second: CoalesceValue): SQL<TResult>;
+export function coalesceString(first: CoalesceValue, second: CoalesceValue): SQL {
+  return coalesce(first, second, String);
+}
+
+export function coalesceBoolean<TFirst extends CoalesceValue, TSecond extends CoalesceValue>(
+  first: TFirst,
+  second: TSecond
+): SQL<CoalesceOutput<TFirst, TSecond, BooleanConstructor>>;
+export function coalesceBoolean<TResult>(first: CoalesceValue, second: CoalesceValue): SQL<TResult>;
+export function coalesceBoolean(first: CoalesceValue, second: CoalesceValue): SQL {
+  return coalesce(first, second, Boolean);
+}

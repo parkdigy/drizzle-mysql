@@ -1,3 +1,5 @@
+import { sum as nativeSum, sumDistinct as nativeSumDistinct } from 'drizzle-orm';
+import { sumNumber, sumBoolean, sumString, sumDistinctNumber, sumDistinctBoolean, sumDistinctString } from '../src';
 import { drizzle } from 'drizzle-orm/mysql2';
 import { int, mysqlTable } from 'drizzle-orm/mysql-core';
 import type { SQL } from 'drizzle-orm';
@@ -83,3 +85,40 @@ test.each(['sum', 'sumDistinct'] as const)(
     expect(() => Reflect.apply(query[method], query, ['missing', Number])).toThrow('unknown column "missing"');
   }
 );
+
+test.each([
+  ['sumDistinctNumber', sumDistinctNumber, Number],
+  ['sumDistinctBoolean', sumDistinctBoolean, Boolean],
+  ['sumDistinctString', sumDistinctString, String],
+  ['sumNumber', sumNumber, Number],
+  ['sumBoolean', sumBoolean, Boolean],
+  ['sumString', sumString, String],
+] as const)('%s는 자동 변환기를 모든 진입점에 적용한다', async (method, aggregate, decoder) => {
+  const query = db.query(table);
+  for (const value of ['12.5', '0', 0, 1, null]) {
+    const database = drizzle({
+      client: {
+        query: async () => [[[value]], []],
+      } as never,
+    });
+    for (const expression of [
+      aggregate(table.id),
+      db[method](table.id),
+      query[method]('id'),
+      query[method](table.id),
+      aggregate<unknown>(table.id),
+      db[method]<unknown>(table.id),
+      query[method]<unknown>('id'),
+    ]) {
+      const selected = database.select({ total: expression }).from(table);
+      const expected = database
+        .select({
+          total: (method.startsWith('sumDistinct') ? nativeSumDistinct : nativeSum)(table.id).mapWith(decoder),
+        })
+        .from(table);
+      expect(selected.toSQL()).toEqual(expected.toSQL());
+      expect(await selected).toEqual([{ total: value === null ? null : decoder(value) }]);
+    }
+  }
+  expect(() => Reflect.apply(query[method], query, ['missing'])).toThrow('unknown column "missing"');
+});
