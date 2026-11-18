@@ -174,8 +174,10 @@ function max(expression) {
         };
     }
     const objectOperator = (operator, join = 'and') => (table, values) => native[join](...valueConditions(resolveTable(table), values, operator));
-    // Tables use object dispatch at runtime, not the native SQLWrapper/unknown overload.
-    const binaryOperator = (operator) => extendOperator(native[operator], objectOperator(operator));
+    const binaryOperator = (operator) => extendOperator(((left, right) => right === undefined ? undefined : native[operator](left, right)), objectOperator(operator));
+    const optionalOperator = (original) => ((...args) => args.slice(1).some((value) => value === undefined)
+        ? undefined
+        : Reflect.apply(original, undefined, args));
     const nullOperator = (operator, join = 'and') => ((table, input) => {
         const names = typeof input === 'string' ? [input] : input === undefined ? [] : input;
         if (!Array.isArray(names))
@@ -218,12 +220,12 @@ function max(expression) {
         gte: binaryOperator('gte'),
         lt: binaryOperator('lt'),
         lte: binaryOperator('lte'),
-        inArray: extendOperator(native.inArray, objectOperator('inArray')),
-        notInArray: extendOperator(native.notInArray, objectOperator('notInArray')),
-        between: extendOperator(native.between, objectOperator('between')),
-        notBetween: extendOperator(native.notBetween, objectOperator('notBetween')),
-        like: extendOperator(native.like, objectOperator('like')),
-        notLike: extendOperator(native.notLike, objectOperator('notLike')),
+        inArray: extendOperator(optionalOperator(native.inArray), objectOperator('inArray')),
+        notInArray: extendOperator(optionalOperator(native.notInArray), objectOperator('notInArray')),
+        between: extendOperator(optionalOperator(native.between), objectOperator('between')),
+        notBetween: extendOperator(optionalOperator(native.notBetween), objectOperator('notBetween')),
+        like: extendOperator(optionalOperator(native.like), objectOperator('like')),
+        notLike: extendOperator(optionalOperator(native.notLike), objectOperator('notLike')),
         isNull: extendOperator(native.isNull, nullOperator('isNull')),
         isNotNull: extendOperator(native.isNotNull, nullOperator('isNotNull')),
         orGt: objectOperator('gt', 'or'),

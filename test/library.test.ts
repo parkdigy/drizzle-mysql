@@ -620,3 +620,59 @@ test.each([false, true])('where의 조건부 SQL은 활성화 여부(%s)를 유�
       .toSQL()
   ).toEqual(expected);
 });
+
+test('컬럼 eq의 undefined는 WHERE에서 제외한다', () => {
+  const query = db.query(user);
+  const conditions = createConditions({ user });
+  expect(conditions.eq(user.id, undefined)).toBeUndefined();
+  expect(query.select().where(conditions.eq(user.id, undefined)).toSQL().sql).not.toMatch(/where/i);
+  const built = query
+    .select()
+    .where(conditions.and(conditions.eq(user.id, undefined), conditions.eq(user.displayName, 'Ada')))
+    .toSQL();
+  expect(built.params).toEqual(['Ada']);
+  expect(built.sql).not.toMatch(/`id` =/i);
+  expect(query.select().where(conditions.eq(user.id, 0)).toSQL().params).toEqual([0]);
+});
+
+test('직접 비교 조건의 undefined 값을 생략한다', () => {
+  const query = db.query(user);
+  const c = createConditions({ user });
+  const optional: number | undefined = Math.random() > 0.5 ? 1 : undefined;
+  const typed: SQL | undefined = c.gt(user.id, optional);
+  void typed;
+  const omitted = [
+    c.ne(user.id, undefined),
+    c.gt(user.id, undefined),
+    c.gte(user.id, undefined),
+    c.lt(user.id, undefined),
+    c.lte(user.id, undefined),
+    c.inArray(user.id, undefined),
+    c.notInArray(user.id, undefined),
+    c.like(user.displayName, undefined),
+    c.notLike(user.displayName, undefined),
+    c.between(user.id, undefined, 2),
+    c.between(user.id, 1, undefined),
+    c.notBetween(user.id, undefined, 2),
+    c.notBetween(user.id, 1, undefined),
+  ];
+  expect(omitted.every((condition) => condition === undefined)).toBe(true);
+  expect(
+    query
+      .select()
+      .where(c.and(...omitted, c.gt(user.id, 0)))
+      .toSQL().params
+  ).toEqual([0]);
+  expect(
+    query
+      .select()
+      .where(c.and(...omitted))
+      .toSQL().sql
+  ).not.toMatch(/where/i);
+  expect(
+    query
+      .select()
+      .where(c.between(user.id, 1, 2))
+      .toSQL().params
+  ).toEqual([1, 2]);
+});

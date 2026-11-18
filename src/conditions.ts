@@ -123,14 +123,40 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
       native[join](...valueConditions(resolveTable(table), values, operator));
 
   type NativeBinaryOperator = {
-    <TColumn extends Column>(left: TColumn, right: native.GetColumnData<TColumn, 'raw'> | native.SQLWrapper): SQL;
-    <T>(left: SQL.Aliased<T>, right: T | native.SQLWrapper): SQL;
-    <T extends native.SQLWrapper>(left: Exclude<T, MySqlTable>, right: unknown): SQL;
+    <TColumn extends Column, TValue extends native.GetColumnData<TColumn, 'raw'> | native.SQLWrapper | undefined>(
+      left: TColumn,
+      right: TValue
+    ): undefined extends TValue ? SQL | undefined : SQL;
+    <T, TValue extends T | native.SQLWrapper | undefined>(
+      left: SQL.Aliased<T>,
+      right: TValue
+    ): undefined extends TValue ? SQL | undefined : SQL;
+    <T extends native.SQLWrapper, TValue>(
+      left: Exclude<T, MySqlTable>,
+      right: TValue
+    ): undefined extends TValue ? SQL | undefined : SQL;
   };
 
-  // Tables use object dispatch at runtime, not the native SQLWrapper/unknown overload.
   const binaryOperator = <TOperator extends 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte'>(operator: TOperator) =>
-    extendOperator<NativeBinaryOperator, ObjectOperator<TOperator>>(native[operator], objectOperator(operator));
+    extendOperator(
+      ((left: SQLWrapper, right: unknown) =>
+        right === undefined ? undefined : native[operator](left, right)) as NativeBinaryOperator,
+      objectOperator(operator)
+    );
+
+  type OptionalNative<T extends (...args: never[]) => SQL> = T &
+    ((
+      ...args: Parameters<T> extends [infer A, infer B, infer C]
+        ? [A, B | undefined, C | undefined]
+        : Parameters<T> extends [infer A, infer B]
+          ? [A, B | undefined]
+          : never
+    ) => SQL | undefined);
+  const optionalOperator = <T extends (...args: never[]) => SQL>(original: T): OptionalNative<T> =>
+    ((...args: unknown[]) =>
+      args.slice(1).some((value) => value === undefined)
+        ? undefined
+        : Reflect.apply(original, undefined, args)) as unknown as OptionalNative<T>;
 
   type NullOperator = {
     <T extends MySqlTable>(table: T, name: MySqlColumnName<T>): SQL;
@@ -198,12 +224,12 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     gte: binaryOperator('gte'),
     lt: binaryOperator('lt'),
     lte: binaryOperator('lte'),
-    inArray: extendOperator(native.inArray, objectOperator('inArray')),
-    notInArray: extendOperator(native.notInArray, objectOperator('notInArray')),
-    between: extendOperator(native.between, objectOperator('between')),
-    notBetween: extendOperator(native.notBetween, objectOperator('notBetween')),
-    like: extendOperator(native.like, objectOperator('like')),
-    notLike: extendOperator(native.notLike, objectOperator('notLike')),
+    inArray: extendOperator(optionalOperator(native.inArray), objectOperator('inArray')),
+    notInArray: extendOperator(optionalOperator(native.notInArray), objectOperator('notInArray')),
+    between: extendOperator(optionalOperator(native.between), objectOperator('between')),
+    notBetween: extendOperator(optionalOperator(native.notBetween), objectOperator('notBetween')),
+    like: extendOperator(optionalOperator(native.like), objectOperator('like')),
+    notLike: extendOperator(optionalOperator(native.notLike), objectOperator('notLike')),
     isNull: extendOperator(native.isNull, nullOperator('isNull')),
     isNotNull: extendOperator(native.isNotNull, nullOperator('isNotNull')),
     orGt: objectOperator('gt', 'or'),

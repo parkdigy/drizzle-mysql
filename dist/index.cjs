@@ -174,8 +174,10 @@ function max(expression) {
         };
     }
     const objectOperator = (operator, join = 'and') => (table, values) => native__namespace[join](...valueConditions(resolveTable(table), values, operator));
-    // Tables use object dispatch at runtime, not the native SQLWrapper/unknown overload.
-    const binaryOperator = (operator) => extendOperator(native__namespace[operator], objectOperator(operator));
+    const binaryOperator = (operator) => extendOperator(((left, right) => right === undefined ? undefined : native__namespace[operator](left, right)), objectOperator(operator));
+    const optionalOperator = (original) => ((...args) => args.slice(1).some((value) => value === undefined)
+        ? undefined
+        : Reflect.apply(original, undefined, args));
     const nullOperator = (operator, join = 'and') => ((table, input) => {
         const names = typeof input === 'string' ? [input] : input === undefined ? [] : input;
         if (!Array.isArray(names))
@@ -218,12 +220,12 @@ function max(expression) {
         gte: binaryOperator('gte'),
         lt: binaryOperator('lt'),
         lte: binaryOperator('lte'),
-        inArray: extendOperator(native__namespace.inArray, objectOperator('inArray')),
-        notInArray: extendOperator(native__namespace.notInArray, objectOperator('notInArray')),
-        between: extendOperator(native__namespace.between, objectOperator('between')),
-        notBetween: extendOperator(native__namespace.notBetween, objectOperator('notBetween')),
-        like: extendOperator(native__namespace.like, objectOperator('like')),
-        notLike: extendOperator(native__namespace.notLike, objectOperator('notLike')),
+        inArray: extendOperator(optionalOperator(native__namespace.inArray), objectOperator('inArray')),
+        notInArray: extendOperator(optionalOperator(native__namespace.notInArray), objectOperator('notInArray')),
+        between: extendOperator(optionalOperator(native__namespace.between), objectOperator('between')),
+        notBetween: extendOperator(optionalOperator(native__namespace.notBetween), objectOperator('notBetween')),
+        like: extendOperator(optionalOperator(native__namespace.like), objectOperator('like')),
+        notLike: extendOperator(optionalOperator(native__namespace.notLike), objectOperator('notLike')),
         isNull: extendOperator(native__namespace.isNull, nullOperator('isNull')),
         isNotNull: extendOperator(native__namespace.isNotNull, nullOperator('isNotNull')),
         orGt: objectOperator('gt', 'or'),

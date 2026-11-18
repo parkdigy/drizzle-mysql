@@ -239,7 +239,7 @@ const rows = await user.select().where(where);
 
 #### 비교 연산자
 
-`eq`, `ne`, `gt`, `gte`, `lt`, `lte`는 컬럼과 값을 비교합니다. 하나의 값 객체에 여러 컬럼을 넣으면 각 비교가 `AND`로 묶입니다. `undefined` 값은 생략되므로 선택적 검색 조건을 만들 때 유용합니다.
+`eq`, `ne`, `gt`, `gte`, `lt`, `lte`는 컬럼과 값을 비교합니다. 하나의 값 객체에 여러 컬럼을 넣으면 각 비교가 `AND`로 묶입니다. `undefined` 값은 생략되므로 선택적 검색 조건을 만들 때 유용합니다. 컬럼을 직접 전달하는 비교 함수도 값이 `undefined`이면 조건을 생략합니다. `between`과 `notBetween`은 양쪽 경계 중 하나라도 `undefined`이면 전체 조건을 생략합니다.
 
 ```ts
 const filters = {
