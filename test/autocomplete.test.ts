@@ -84,6 +84,16 @@ test.each(['../src/index', '../dist/index'])(
     const rightRow: Awaited<typeof right>[number] = { base: null, first: null, last: 1 };
     void [joinedRow, invalidJoinedRow, outerRow, invalidOuterRow, rightRow];
     const query = db.query(table199);
+    // @ts-expect-error 자동완성용 미완성 컬럼명
+    query.select(a, [db.columns(a, 'id', '/*nestedColumns*/')]);
+    const nestedSelected = query.select(a, [db.columns(a, 'id', 'name')]);
+    type NestedRow = Awaited<typeof nestedSelected>[number];
+    const nestedRow: NestedRow = { id: 1, name: 'Ada' };
+    // @ts-expect-error 선택되지 않은 컬럼은 포함하지 않는다
+    const invalidNestedRow: NestedRow = { id: 1, name: 'Ada', extra0: 1 };
+    // @ts-expect-error 선택된 id는 숫자다
+    const invalidNestedId: NestedRow = { id: 'wrong', name: 'Ada' };
+    void [nestedRow, invalidNestedRow, invalidNestedId];
     const dateTable = mysqlTable('date_test', { updated: datetime('updated', { mode: 'date' }) });
     const dateQuery = db.query(dateTable);
     const dateExtrema = dateQuery.select({
@@ -578,6 +588,7 @@ test.each(['../src/index', '../dist/index'])(
         members: ['columns', 'query', 'current', 'eq'],
         aliases: ['table0', 'table199'],
         columns: ['id', 'name'],
+        nestedColumns: ['id', 'name', 'extra0', 'extra199'],
         thirdGroup: ['id', 'name', 'extra199'],
         fourthGroup: ['id', 'name', 'extra199'],
         subquerySelect: ['id', 'name'],

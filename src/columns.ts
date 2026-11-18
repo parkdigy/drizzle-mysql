@@ -371,7 +371,7 @@ export function TableColumns<
 export function TableColumns<T extends MySqlTable>(table: T): MySqlSelectedTableColumns<T>;
 export function TableColumns<T extends MySqlTable, N extends MySqlColumnSelectionName<T>>(
   table: T,
-  ...names: N[]
+  ...names: (N | NoInfer<MySqlColumnSelectionName<T>>)[]
 ): MySqlSelectedNamedColumnUnion<T, N>;
 export function TableColumns<T extends MySqlTable, N extends string>(
   table: T,
