@@ -20,6 +20,8 @@ type BaseConditions<T extends MySqlTable> = {
   notBetween?: MySqlRangeCompareValues<T>;
   like?: MySqlPatternCompareValues<T>;
   notLike?: MySqlPatternCompareValues<T>;
+  ilike?: MySqlPatternCompareValues<T>;
+  notIlike?: MySqlPatternCompareValues<T>;
   isNull?: MySqlNullConditionInput<T>;
   isNotNull?: MySqlNullConditionInput<T>;
 };

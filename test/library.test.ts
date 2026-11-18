@@ -545,18 +545,24 @@ test('정렬 조건이 전부 제외되면 ORDER BY를 생성하지 않는다', 
     expect(builder.toSQL().sql).not.toMatch(/order by/i);
 });
 
-test('MySQL에서 지원하지 않는 패턴 연산자는 노출하지 않는다', () => {
-  const conditions = createConditions({ user });
-  const query = db.query(user);
-  const assertRemoved = (value: object) => {
-    for (const name of ['ilike', 'notIlike', 'orIlike', 'orNotIlike']) {
-      expect(name in value).toBe(false);
-    }
-  };
-  for (const value of [api, conditions, db, query]) assertRemoved(value);
-  query.select().where((q) => { assertRemoved(q); return undefined; });
-  const subquery = query.select(['id', 'displayName']).as('sq');
-  db.select(subquery).where((q) => { assertRemoved(q); return undefined; });
+test('ilike 계열은 대소문자 무시 collation과 바인딩을 사용한다', () => {
+  const c = createConditions({ user });
+  const q = db.query(user);
+  for (const name of ['ilike', 'notIlike'] as const) {
+    const result = q.select().where(c[name](user.displayName, "A'_%")).toSQL();
+    expect(result.sql).toContain('collate utf8mb4_general_ci');
+    expect(result.sql).toContain(name === 'notIlike' ? ' not like ' : ' like ');
+    expect(result.params).toEqual(["A'_%"]);
+    expect(c[name](user.displayName, undefined)).toBeUndefined();
+    expect(q.select().where(c[name](user, { displayName: 'Ab%' })).toSQL().params).toEqual(['Ab%']);
+  }
+  expect(q.select().where(q.orIlike({ displayName: 'A%' })).toSQL().params).toEqual(['A%']);
+  expect(q.select().where(q.orNotIlike({ displayName: 'B%' })).toSQL().params).toEqual(['B%']);
+  expect(q.select().where(x => x.and({ ilike: { displayName: 'A%' } })).toSQL().params).toEqual(['A%']);
+  const subTable = mysqlTable('pattern_sub', { name: varchar('name', { length: 20 }) });
+  const sub = db.query(subTable).select(['name']).as('s');
+  expect(db.select(sub).where(x => x.ilike({ name: 'C%' })).toSQL().params).toEqual(['C%']);
+  expect(() => c.ilike(user, { displayName: 1 } as never)).toThrow('expected a string pattern');
 });
 
 test.each([false, undefined] as const)('where는 직접 인자와 콜백의 %s를 제외한다', (value) => {

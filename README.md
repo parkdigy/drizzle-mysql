@@ -288,7 +288,7 @@ const recentIds = await user
 
 #### 문자열 패턴
 
-`like`, `notLike`는 문자열 컬럼에 SQL 패턴을 적용합니다. `%`는 임의 길이 문자열, `_`는 한 문자에 대응합니다. MySQL의 `LIKE` 대소문자 구분 여부는 컬럼 collation 설정에 따릅니다.
+`like`, `notLike`는 문자열 컬럼에 SQL 패턴을 적용합니다. `ilike`, `notIlike`와 OR 변형은 양쪽을 `utf8mb4`로 변환하고 `utf8mb4_general_ci` collation을 사용해 대소문자를 구분하지 않습니다. 이 collation의 악센트 비교 규칙이 적용되며 컬럼 변환으로 인덱스 사용이 제한될 수 있습니다. `%`는 임의 길이 문자열, `_`는 한 문자에 대응합니다. MySQL의 `LIKE` 대소문자 구분 여부는 컬럼 collation 설정에 따릅니다.
 
 ```ts
 const matchingUsers = await user.find((query) =>
@@ -374,7 +374,7 @@ user.select().where((q) => q.orLike({ name: '%홍%', email: '%example.com' }));
 user.and({ orEq: { id: 1, name: '홍길동' }, gt: { age: 20 } });
 ```
 
-지원하는 OR 조건은 `orEq`, `orNe`, `orGt`, `orGte`, `orLt`, `orLte`, `orInArray`, `orNotInArray`, `orBetween`, `orNotBetween`, `orLike`, `orNotLike`, `orIsNull`, `orIsNotNull`입니다. 각 함수는 대응하는 일반 조건과 같은 입력 및 검증 규칙을 사용하며, `orBetween`은 각 컬럼의 두 경계 비교를 `AND`로 유지한 채 컬럼 그룹 사이를 `OR`로 결합합니다. `and`와 `or` 조건 객체 안에서도 사용할 수 있습니다.
+지원하는 OR 조건은 `orEq`, `orNe`, `orGt`, `orGte`, `orLt`, `orLte`, `orInArray`, `orNotInArray`, `orBetween`, `orNotBetween`, `orLike`, `orNotLike`, `orIlike`, `orNotIlike`, `orIsNull`, `orIsNotNull`입니다. 각 함수는 대응하는 일반 조건과 같은 입력 및 검증 규칙을 사용하며, `orBetween`은 각 컬럼의 두 경계 비교를 `AND`로 유지한 채 컬럼 그룹 사이를 `OR`로 결합합니다. `and`와 `or` 조건 객체 안에서도 사용할 수 있습니다.
 
 #### Drizzle 컬럼 연산자와 함께 사용
 
@@ -390,7 +390,7 @@ const rows = await user.select().where(columnCondition);
 const count = await user.count(columnCondition);
 ```
 
-지원하는 객체 조건 함수는 `eq`, `ne`, `orEq`, `orNe`, `gt`, `gte`, `lt`, `lte`, `inArray`, `notInArray`, `between`, `notBetween`, `like`, `notLike`, `isNull`, `isNotNull`, `orGt`, `orGte`, `orLt`, `orLte`, `orInArray`, `orNotInArray`, `orBetween`, `orNotBetween`, `orLike`, `orNotLike`, `orIsNull`, `orIsNotNull`, `and`, `or`입니다. 존재하지 않는 스키마 키나 컬럼, 잘못된 값 형식은 조건을 조용히 생략하지 않고 오류로 처리합니다.
+지원하는 객체 조건 함수는 `eq`, `ne`, `orEq`, `orNe`, `gt`, `gte`, `lt`, `lte`, `inArray`, `notInArray`, `between`, `notBetween`, `like`, `notLike`, `ilike`, `notIlike`, `isNull`, `isNotNull`, `orGt`, `orGte`, `orLt`, `orLte`, `orInArray`, `orNotInArray`, `orBetween`, `orNotBetween`, `orLike`, `orNotLike`, `orIlike`, `orNotIlike`, `orIsNull`, `orIsNotNull`, `and`, `or`입니다. 존재하지 않는 스키마 키나 컬럼, 잘못된 값 형식은 조건을 조용히 생략하지 않고 오류로 처리합니다.
 
 ### 별칭과 조인
 

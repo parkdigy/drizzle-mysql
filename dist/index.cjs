@@ -114,6 +114,7 @@ function max(expression) {
         return Object.entries(values);
     };
     const isSQLWrapper = (value) => typeof value === 'object' && value !== null && 'getSQL' in value && typeof value.getSQL === 'function';
+    const insensitivePattern = (column, value, negate = false) => native__namespace.sql `convert(${column} using utf8mb4) collate utf8mb4_general_ci ${native__namespace.sql.raw(negate ? 'not like' : 'like')} convert(${value} using utf8mb4) collate utf8mb4_general_ci`;
     const compareValue = (column, value, operator) => {
         if (value === null) {
             if (operator === 'eq')
@@ -149,6 +150,11 @@ function max(expression) {
                 return operator === 'between'
                     ? native__namespace.between(column, value[0], value[1])
                     : native__namespace.notBetween(column, value[0], value[1]);
+            case 'ilike':
+            case 'notIlike':
+                if (typeof value !== 'string')
+                    throw new Error(`${operator}: expected a string pattern.`);
+                return insensitivePattern(column, value, operator === 'notIlike');
             default:
                 if (typeof value !== 'string')
                     throw new Error(`${operator}: expected a string pattern.`);
@@ -226,6 +232,8 @@ function max(expression) {
         notBetween: extendOperator(optionalOperator(native__namespace.notBetween), objectOperator('notBetween')),
         like: extendOperator(optionalOperator(native__namespace.like), objectOperator('like')),
         notLike: extendOperator(optionalOperator(native__namespace.notLike), objectOperator('notLike')),
+        ilike: extendOperator(optionalOperator((column, pattern) => insensitivePattern(column, pattern)), objectOperator('ilike')),
+        notIlike: extendOperator(optionalOperator((column, pattern) => insensitivePattern(column, pattern, true)), objectOperator('notIlike')),
         isNull: extendOperator(native__namespace.isNull, nullOperator('isNull')),
         isNotNull: extendOperator(native__namespace.isNotNull, nullOperator('isNotNull')),
         orGt: objectOperator('gt', 'or'),
@@ -238,6 +246,8 @@ function max(expression) {
         orNotBetween: objectOperator('notBetween', 'or'),
         orLike: objectOperator('like', 'or'),
         orNotLike: objectOperator('notLike', 'or'),
+        orIlike: objectOperator('ilike', 'or'),
+        orNotIlike: objectOperator('notIlike', 'or'),
         orIsNull: nullOperator('isNull', 'or'),
         orIsNotNull: nullOperator('isNotNull', 'or'),
         and: logicalOperator('and'),
@@ -616,6 +626,8 @@ class MySqlQuery {
                 notBetween: bindCondition('notBetween', conditionTable),
                 like: bindCondition('like', conditionTable),
                 notLike: bindCondition('notLike', conditionTable),
+                ilike: bindCondition('ilike', conditionTable),
+                notIlike: bindCondition('notIlike', conditionTable),
                 isNull: bindCondition('isNull', conditionTable),
                 isNotNull: bindCondition('isNotNull', conditionTable),
                 orGt: bindCondition('orGt', conditionTable),
@@ -628,6 +640,8 @@ class MySqlQuery {
                 orNotBetween: bindCondition('orNotBetween', conditionTable),
                 orLike: bindCondition('orLike', conditionTable),
                 orNotLike: bindCondition('orNotLike', conditionTable),
+                orIlike: bindCondition('orIlike', conditionTable),
+                orNotIlike: bindCondition('orNotIlike', conditionTable),
                 orIsNull: bindCondition('orIsNull', conditionTable),
                 orIsNotNull: bindCondition('orIsNotNull', conditionTable),
                 and: (...conditions) => combineCallbackConditions('and', conditionTable, conditions),
@@ -1034,6 +1048,12 @@ class MySqlQuery {
     orNotBetween(values) {
         return this.drizzle.orNotBetween(this.t, values);
     }
+    orIlike(values) {
+        return this.drizzle.orIlike(this.t, values);
+    }
+    orNotIlike(values) {
+        return this.drizzle.orNotIlike(this.t, values);
+    }
     orLike(values) {
         return this.drizzle.orLike(this.t, values);
     }
@@ -1103,6 +1123,12 @@ class MySqlQuery {
     /********************************************************************************************************************
      * like
      * ******************************************************************************************************************/
+    ilike(values) {
+        return this.drizzle.ilike(this.t, values);
+    }
+    notIlike(values) {
+        return this.drizzle.notIlike(this.t, values);
+    }
     like(values) {
         return this.drizzle.like(this.t, values);
     }

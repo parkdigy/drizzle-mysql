@@ -711,6 +711,8 @@ export class MySqlQuery<
           notBetween: bindCondition('notBetween', conditionTable),
           like: bindCondition('like', conditionTable),
           notLike: bindCondition('notLike', conditionTable),
+          ilike: bindCondition('ilike', conditionTable),
+          notIlike: bindCondition('notIlike', conditionTable),
           isNull: bindCondition('isNull', conditionTable),
           isNotNull: bindCondition('isNotNull', conditionTable),
           orGt: bindCondition('orGt', conditionTable),
@@ -723,6 +725,8 @@ export class MySqlQuery<
           orNotBetween: bindCondition('orNotBetween', conditionTable),
           orLike: bindCondition('orLike', conditionTable),
           orNotLike: bindCondition('orNotLike', conditionTable),
+          orIlike: bindCondition('orIlike', conditionTable),
+          orNotIlike: bindCondition('orNotIlike', conditionTable),
           orIsNull: bindCondition('orIsNull', conditionTable),
           orIsNotNull: bindCondition('orIsNotNull', conditionTable),
           and: (...conditions: unknown[]) => combineCallbackConditions('and', conditionTable, conditions),
@@ -1405,6 +1409,14 @@ export class MySqlQuery<
     return this.drizzle.orNotBetween(this.t, values);
   }
 
+  orIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orIlike(this.t, values);
+  }
+
+  orNotIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.orNotIlike(this.t, values);
+  }
+
   orLike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
     return this.drizzle.orLike(this.t, values);
   }
@@ -1487,6 +1499,14 @@ export class MySqlQuery<
   /********************************************************************************************************************
    * like
    * ******************************************************************************************************************/
+  ilike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.ilike(this.t, values);
+  }
+
+  notIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
+    return this.drizzle.notIlike(this.t, values);
+  }
+
   like(values: MySqlPatternCompareValues<TTable>): SQL | undefined {
     return this.drizzle.like(this.t, values);
   }
@@ -1771,6 +1791,8 @@ type WhereQuery<TQuery> = Omit<
       | 'orNotInArray'
       | 'orBetween'
       | 'orNotBetween'
+      | 'orIlike'
+      | 'orNotIlike'
       | 'orLike'
       | 'orNotLike'
       | 'orIsNull'
@@ -1783,6 +1805,8 @@ type WhereQuery<TQuery> = Omit<
       | 'notInArray'
       | 'between'
       | 'notBetween'
+      | 'ilike'
+      | 'notIlike'
       | 'like'
       | 'notLike'
       | 'isNull'
@@ -1812,6 +1836,8 @@ type BaseTableConditionQuery<TTable extends MySqlTable> = {
   notInArray(values: MySqlArrayCompareValues<TTable>): SQL | undefined;
   between(values: MySqlRangeCompareValues<TTable>): SQL | undefined;
   notBetween(values: MySqlRangeCompareValues<TTable>): SQL | undefined;
+  ilike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
+  notIlike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
   like(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
   notLike(values: MySqlPatternCompareValues<TTable>): SQL | undefined;
   isNull(names: MySqlNullConditionInput<TTable>): SQL | undefined;
@@ -1968,7 +1994,7 @@ type SubqueryAtomicMethods<T extends Subquery> = Pick<
     [K in 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte']: (values: SubqueryValues<T>) => SQL | undefined;
   } & { [K in 'inArray' | 'notInArray']: (values: SubqueryArrayValues<T>) => SQL | undefined } & {
     [K in 'between' | 'notBetween']: (values: SubqueryRangeValues<T>) => SQL | undefined;
-  } & { [K in 'like' | 'notLike']: (values: SubqueryPatternValues<T>) => SQL | undefined } & {
+  } & { [K in 'like' | 'notLike' | 'ilike' | 'notIlike']: (values: SubqueryPatternValues<T>) => SQL | undefined } & {
     isNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
     isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
   },
@@ -1984,6 +2010,8 @@ type SubqueryAtomicMethods<T extends Subquery> = Pick<
   | 'notBetween'
   | 'like'
   | 'notLike'
+  | 'ilike'
+  | 'notIlike'
   | 'isNull'
   | 'isNotNull'
 >;
@@ -2007,7 +2035,7 @@ type BaseSubqueryConditionQuery<T extends Subquery> = {
 } & {
   [K in 'between' | 'notBetween']: (values: SubqueryRangeValues<T>) => SQL | undefined;
 } & {
-  [K in 'like' | 'notLike']: (values: SubqueryPatternValues<T>) => SQL | undefined;
+  [K in 'like' | 'notLike' | 'ilike' | 'notIlike']: (values: SubqueryPatternValues<T>) => SQL | undefined;
 } & {
   isNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;
   isNotNull(names: SourceColumnName<T> | undefined | readonly (SourceColumnName<T> | undefined)[]): SQL | undefined;

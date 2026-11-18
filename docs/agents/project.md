@@ -36,7 +36,7 @@
 - `db.trans(callback)`은 중첩 호출을 포함해 별도 연결의 독립 트랜잭션을 실행한다. 안쪽 커밋은 바깥 롤백 후에도 유지되며, 안쪽 종료 후 바깥 문맥으로 복귀한다. 연결 풀에 추가 연결이 필요하고 바깥이 잠근 행에 접근하면 잠금 대기가 발생할 수 있다. 콜백 인자의 `await trx.rollback()`으로 명시적으로 롤백할 수 있다. 종료된 문맥의 쿼리는 오류를 던지며 중복 커밋·롤백은 하지 않는다. 콜백의 비동기 작업은 완료 전에 모두 기다려야 한다. 연결 종료에는 `db.close()`를 사용한다.
 - `MySqlQuery`는 조회 빌더와 `find`, 기본 키 조회, 존재 여부·개수, CRUD, 선택 빌더를 받는 INSERT…SELECT, 컬럼 정책에 따른 생성·수정 시각 자동 입력, 테이블별 조건 메서드를 제공한다. `createdAt()` / `updatedAt()` 컬럼은 `add`에서 직접 입력할 수 있고, 생략하거나 `undefined`이면 기본 시각을 채운다. `edit`에서는 생성 시각의 직접 입력을 금지하고 기존 값을 유지한다. 수정 시각은 직접 지정할 수 있으며, 생략하거나 `undefined`이면 기본 시각으로 갱신한다. 일반 `edit` / `remove`에는 SQL 조건이 필요하다.
 - `db`와 쿼리 객체의 조건 API는 비교, 배열·범위, 패턴, NULL, 그룹 조건을 제공한다. `query.and/or({ ... })`는 객체 그룹 결합이며 같은 객체 안에 and/or 그룹을 재귀 중첩하지 않는다. 함수 오버로드는 Drizzle SQL 조건에도 사용할 수 있다.
-- 패턴 조건은 `like` / `notLike` 및 OR 변형을 제공한다. `LIKE`의 대소문자 처리는 컬럼 collation에 따른다.
+- 패턴 조건은 `like` / `notLike`와 `ilike` / `notIlike` 및 OR 변형을 제공한다. `ilike` 계열은 `utf8mb4_general_ci`로 비교한다. `LIKE`의 대소문자 처리는 컬럼 collation에 따른다.
 - `db.paginate(builder, page, limit)`는 데이터와 페이지 정보를 반환하고 양의 정수 page/limit를 요구한다. 전달할 query builder는 해당 트랜잭션 문맥 안에서 생성해야 한다.
 - 기본 전체 조회 결과는 SQL 컬럼명을 결과 키로 사용한다. Drizzle이 SQL 컬럼명을 모든 TypeScript 추론에서 보존하지 않을 수 있으므로, 스키마 속성명과 SQL 컬럼명을 일치시키거나 컬럼을 명시적으로 선택·별칭 지정한다.
 - 공개 타입은 `src/@types/index.ts`와 `src/columns.ts`에서 재수출된다. `src/index.ts`의 상대 디렉터리 재수출은 선언 출력 경로가 배포물 구조와 맞는지 함께 점검한다.

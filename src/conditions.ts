@@ -46,6 +46,9 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
   const isSQLWrapper = (value: unknown): value is SQLWrapper =>
     typeof value === 'object' && value !== null && 'getSQL' in value && typeof value.getSQL === 'function';
 
+  const insensitivePattern = (column: SQLWrapper, value: string | SQLWrapper, negate = false): SQL =>
+    native.sql`convert(${column} using utf8mb4) collate utf8mb4_general_ci ${native.sql.raw(negate ? 'not like' : 'like')} convert(${value} using utf8mb4) collate utf8mb4_general_ci`;
+
   const compareValue = (column: Column, value: unknown, operator: ValueOperators): SQL => {
     if (value === null) {
       if (operator === 'eq') return native.isNull(column);
@@ -79,6 +82,10 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
         return operator === 'between'
           ? native.between(column, value[0], value[1])
           : native.notBetween(column, value[0], value[1]);
+      case 'ilike':
+      case 'notIlike':
+        if (typeof value !== 'string') throw new Error(`${operator}: expected a string pattern.`);
+        return insensitivePattern(column, value, operator === 'notIlike');
       default:
         if (typeof value !== 'string') throw new Error(`${operator}: expected a string pattern.`);
         return native[operator](column, value);
@@ -230,6 +237,8 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     notBetween: extendOperator(optionalOperator(native.notBetween), objectOperator('notBetween')),
     like: extendOperator(optionalOperator(native.like), objectOperator('like')),
     notLike: extendOperator(optionalOperator(native.notLike), objectOperator('notLike')),
+    ilike: extendOperator(optionalOperator((column: SQLWrapper, pattern: string | SQLWrapper) => insensitivePattern(column, pattern)), objectOperator('ilike')),
+    notIlike: extendOperator(optionalOperator((column: SQLWrapper, pattern: string | SQLWrapper) => insensitivePattern(column, pattern, true)), objectOperator('notIlike')),
     isNull: extendOperator(native.isNull, nullOperator('isNull')),
     isNotNull: extendOperator(native.isNotNull, nullOperator('isNotNull')),
     orGt: objectOperator('gt', 'or'),
@@ -242,6 +251,8 @@ export function createConditions<TSchema extends Record<string, MySqlTable>>(sch
     orNotBetween: objectOperator('notBetween', 'or'),
     orLike: objectOperator('like', 'or'),
     orNotLike: objectOperator('notLike', 'or'),
+    orIlike: objectOperator('ilike', 'or'),
+    orNotIlike: objectOperator('notIlike', 'or'),
     orIsNull: nullOperator('isNull', 'or'),
     orIsNotNull: nullOperator('isNotNull', 'or'),
     and: logicalOperator('and'),

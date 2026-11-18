@@ -464,24 +464,14 @@ test.each(['../src/index', '../dist/index'])(
     void [mappedCoalescedRow, invalidMappedCoalesced, invalidMappedNamed];
 
 
-    // @ts-expect-error MySQL에서 지원하지 않는 연산자
-    db.ilike;
-    // @ts-expect-error MySQL에서 지원하지 않는 연산자
-    query.ilike;
-    // @ts-expect-error MySQL에서 지원하지 않는 연산자
-    db.notIlike;
-    // @ts-expect-error MySQL에서 지원하지 않는 연산자
-    query.notIlike;
-    // @ts-expect-error MySQL에서 지원하지 않는 연산자
-    db.orIlike;
-    // @ts-expect-error MySQL에서 지원하지 않는 연산자
-    query.orIlike;
-    // @ts-expect-error MySQL에서 지원하지 않는 연산자
-    db.orNotIlike;
-    // @ts-expect-error MySQL에서 지원하지 않는 연산자
-    query.orNotIlike;
-    // @ts-expect-error MySQL 객체 조건에서 지원하지 않는 연산자
-    query.and({ ilike: { name: 'A%' } });
+    db.ilike(table199.name, 'A%');
+    db.notIlike(table199.name, 'A%');
+    query.orIlike({ name: 'A%' });
+    query.orNotIlike({ name: 'A%' });
+    query.and({ ilike: { name: 'A%' }, orNotIlike: { name: 'B%' } });
+    query.select().where(q => q.ilike({ name: 'A%' }));
+    // @ts-expect-error 숫자 컬럼에는 패턴을 적용할 수 없다
+    query.ilike({ id: '1%' });
 
     const isOrderByName = false;
     query.select().orderBy(query.desc('id'), isOrderByName && query.asc('name'), isOrderByName ? query.asc('name') : undefined);

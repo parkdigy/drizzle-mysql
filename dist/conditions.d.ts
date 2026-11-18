@@ -1,6 +1,6 @@
 import * as native from 'drizzle-orm';
 import { MySqlTable } from 'drizzle-orm/mysql-core';
-import type { Column, SQL } from 'drizzle-orm';
+import type { Column, SQL, SQLWrapper } from 'drizzle-orm';
 import type { MySqlAndConditions, MySqlColumnName, MySqlNullConditionInput, MySqlOrConditions } from './@types/index.js';
 export declare function createConditions<TSchema extends Record<string, MySqlTable>>(schema: TSchema): {
     eq: {
@@ -83,6 +83,14 @@ export declare function createConditions<TSchema extends Record<string, MySqlTab
         <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
         <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
     } & typeof native.notLike & ((args_0: native.Column<native.ColumnBaseConfig<native.ColumnType>, object> | native.SQLWrapper<unknown> | native.SQL<unknown> | native.SQL.Aliased<unknown>, args_1: string | native.SQLWrapper<unknown> | undefined) => SQL | undefined);
+    ilike: {
+        <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    } & ((column: SQLWrapper, pattern: string | SQLWrapper) => native.SQL<unknown>) & ((args_0: native.SQLWrapper<unknown>, args_1: string | native.SQLWrapper<unknown> | undefined) => SQL | undefined);
+    notIlike: {
+        <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    } & ((column: SQLWrapper, pattern: string | SQLWrapper) => native.SQL<unknown>) & ((args_0: native.SQLWrapper<unknown>, args_1: string | native.SQLWrapper<unknown> | undefined) => SQL | undefined);
     isNull: {
         <T extends MySqlTable>(table: T, name: MySqlColumnName<T>): SQL;
         <T extends MySqlTable>(table: T, names: MySqlNullConditionInput<T>): SQL | undefined;
@@ -132,6 +140,14 @@ export declare function createConditions<TSchema extends Record<string, MySqlTab
         <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
     };
     orNotLike: {
+        <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orIlike: {
+        <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
+        <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
+    };
+    orNotIlike: {
         <T extends MySqlTable>(table: T, values: import("./index.js").MySqlPatternCompareValues<T> | undefined): SQL | undefined;
         <K extends keyof TSchema & string>(table: K, values: import("./index.js").MySqlPatternCompareValues<TSchema[K]> | undefined): SQL | undefined;
     };
