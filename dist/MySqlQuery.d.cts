@@ -23,6 +23,7 @@ export declare class MySqlQuery<TTable extends MySqlTable, AD extends MySqlAddDa
      * ******************************************************************************************************************/
     constructor(table: TTable, current: (() => MySql2Database) & {
         getTimestamp?: () => unknown;
+        normalizeTimestamp?: (value: unknown) => unknown;
     }, getTimestamp?: (() => unknown) | undefined);
     /********************************************************************************************************************
      * alias

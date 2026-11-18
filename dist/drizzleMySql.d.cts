@@ -86,6 +86,7 @@ declare function createConnection<TSchema extends Record<string, MySqlTable>>(op
         $client: mysql.PoolConnection;
     })) & {
         getTimestamp: () => unknown;
+        normalizeTimestamp: (now: unknown) => unknown;
     };
     trans: <T>(callback: (trx: MySqlTransactionHandle) => Promise<T>) => Promise<T>;
     paginate: <TResult extends unknown[]>(builder: {

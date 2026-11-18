@@ -1,4 +1,4 @@
-'use strict';Object.defineProperty(exports,'__esModule',{value:true});var native=require('drizzle-orm'),mysql=require('mysql2/promise'),mysql2=require('drizzle-orm/mysql2'),mysqlCore=require('drizzle-orm/mysql-core'),node_async_hooks=require('node:async_hooks'),alias=require('drizzle-orm/mysql-core/alias'),common=require('drizzle-orm/mysql-core/columns/common');function _interopNamespaceDefault(e){var n=Object.create(null);if(e){Object.keys(e).forEach(function(k){if(k!=='default'){var d=Object.getOwnPropertyDescriptor(e,k);Object.defineProperty(n,k,d.get?d:{enumerable:true,get:function(){return e[k]}});}})}n.default=e;return Object.freeze(n)}var native__namespace=/*#__PURE__*/_interopNamespaceDefault(native);function createMappedSql(decoder) {
+'use strict';Object.defineProperty(exports,'__esModule',{value:true});var native=require('drizzle-orm'),mysql=require('mysql2/promise'),mysql2=require('drizzle-orm/mysql2'),codecs=require('drizzle-orm/mysql2/codecs'),mysqlCore=require('drizzle-orm/mysql-core'),node_async_hooks=require('node:async_hooks'),alias=require('drizzle-orm/mysql-core/alias'),common=require('drizzle-orm/mysql-core/columns/common');function _interopNamespaceDefault(e){var n=Object.create(null);if(e){Object.keys(e).forEach(function(k){if(k!=='default'){var d=Object.getOwnPropertyDescriptor(e,k);Object.defineProperty(n,k,d.get?d:{enumerable:true,get:function(){return e[k]}});}})}n.default=e;return Object.freeze(n)}var native__namespace=/*#__PURE__*/_interopNamespaceDefault(native);function createMappedSql(decoder) {
     return (first, ...values) => {
         const expression = Array.isArray(first)
             ? native.sql(first, ...values)
@@ -826,6 +826,9 @@ class MySqlQuery {
         let generated = false;
         for (const [key, column] of Object.entries(columns)) {
             const policy = policies[key] ?? {};
+            if (values[key] instanceof Date && /^(?:datetime|timestamp)(?:\(|$)/i.test(column.getSQLType())) {
+                values[key] = this.current.normalizeTimestamp?.(values[key]) ?? values[key];
+            }
             const auto = 'autoIncrement' in column && column.autoIncrement === true;
             const rule = operation === 'insert' ? policy.insert : policy.update;
             const primary = column.primary;
@@ -1206,13 +1209,15 @@ const desc = createOrderByHelper(native__namespace.desc);
 function createConnection(options) {
     const { url, schema, getTimestamp: configuredTimestamp, ...connectionOptions } = options;
     const pool = mysql.createPool(url ? { ...connectionOptions, uri: url } : connectionOptions);
-    const raw = mysql2.drizzle({ client: pool, relations: native.defineRelations(schema) });
-    const transactionDatabase = (client) => mysql2.drizzle({ client, relations: native.defineRelations(schema) });
-    const context = new node_async_hooks.AsyncLocalStorage();
     const timezone = connectionOptions.timezone ?? (url ? new URL(url).searchParams.get('timezone') : null);
+    const codecs$1 = timezone === 'local'
+        ? { ...codecs.mysql2Codecs, datetime: { normalize: (value) => new Date(value.replace(' ', 'T')) }, timestamp: { normalize: (value) => new Date(value.replace(' ', 'T')) } }
+        : codecs.mysql2Codecs;
+    const raw = mysql2.drizzle({ client: pool, relations: native.defineRelations(schema), codecs: codecs$1 });
+    const transactionDatabase = (client) => mysql2.drizzle({ client, relations: native.defineRelations(schema), codecs: codecs$1 });
+    const context = new node_async_hooks.AsyncLocalStorage();
     const timestampGenerator = configuredTimestamp ?? (() => new Date());
-    const getTimestamp = () => {
-        const now = timestampGenerator();
+    const normalizeTimestamp = (now) => {
         if (timezone !== 'local' || !(now instanceof Date))
             return now;
         // Drizzle encodes Date values as UTC before mysql2 can apply its timezone option.
@@ -1220,12 +1225,13 @@ function createConnection(options) {
         const local = `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
         return native.sql `${local}`;
     };
+    const getTimestamp = () => normalizeTimestamp(timestampGenerator());
     const current = Object.assign(() => {
         const tx = context.getStore();
         if (tx && !tx.active)
             throw new Error('Transaction has already ended.');
         return tx?.database ?? raw;
-    }, { getTimestamp });
+    }, { getTimestamp, normalizeTimestamp });
     const trans = async (callback) => {
         const connection = await pool.getConnection();
         try {

@@ -3,6 +3,7 @@ import { coalesce, coalesceNumber, coalesceString, coalesceBoolean } from './coa
 import mysql from 'mysql2/promise';
 import type { PoolOptions } from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
+import { mysql2Codecs } from 'drizzle-orm/mysql2/codecs';
 import { count, defineRelations, getTableColumns, is, isTable, SQL, sql, Subquery } from 'drizzle-orm';
 import { alias, type MySqlTable } from 'drizzle-orm/mysql-core';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -151,25 +152,28 @@ export type DrizzleMySql<TSchema extends Record<string, MySqlTable>> = MySqlData
 function createConnection<TSchema extends Record<string, MySqlTable>>(options: DrizzleMySqlOptions<TSchema>) {
   const { url, schema, getTimestamp: configuredTimestamp, ...connectionOptions } = options;
   const pool = mysql.createPool(url ? { ...connectionOptions, uri: url } : connectionOptions);
-  const raw = drizzle({ client: pool, relations: defineRelations(schema) });
-  const transactionDatabase = (client: mysql.PoolConnection) => drizzle({ client, relations: defineRelations(schema) });
+  const timezone = connectionOptions.timezone ?? (url ? new URL(url).searchParams.get('timezone') : null);
+  const codecs = timezone === 'local'
+    ? { ...mysql2Codecs, datetime: { normalize: (value: string) => new Date(value.replace(' ', 'T')) }, timestamp: { normalize: (value: string) => new Date(value.replace(' ', 'T')) } }
+    : mysql2Codecs;
+  const raw = drizzle({ client: pool, relations: defineRelations(schema), codecs });
+  const transactionDatabase = (client: mysql.PoolConnection) => drizzle({ client, relations: defineRelations(schema), codecs });
   type TransactionContext = { database: ReturnType<typeof transactionDatabase>; active: boolean };
   const context = new AsyncLocalStorage<TransactionContext>();
-  const timezone = connectionOptions.timezone ?? (url ? new URL(url).searchParams.get('timezone') : null);
   const timestampGenerator = configuredTimestamp ?? (() => new Date());
-  const getTimestamp = () => {
-    const now = timestampGenerator();
+  const normalizeTimestamp = (now: unknown) => {
     if (timezone !== 'local' || !(now instanceof Date)) return now;
     // Drizzle encodes Date values as UTC before mysql2 can apply its timezone option.
     const pad = (value: number, length = 2) => String(value).padStart(length, '0');
     const local = `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
     return sql`${local}`;
   };
+  const getTimestamp = () => normalizeTimestamp(timestampGenerator());
   const current = Object.assign(() => {
     const tx = context.getStore();
     if (tx && !tx.active) throw new Error('Transaction has already ended.');
     return tx?.database ?? raw;
-  }, { getTimestamp });
+  }, { getTimestamp, normalizeTimestamp });
   const trans = async <T>(callback: (trx: MySqlTransactionHandle) => Promise<T>): Promise<T> => {
     const connection = await pool.getConnection();
     try {

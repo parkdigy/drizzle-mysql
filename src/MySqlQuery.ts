@@ -82,7 +82,7 @@ export class MySqlQuery<
    * ******************************************************************************************************************/
   constructor(
     table: TTable,
-    private readonly current: (() => MySql2Database) & { getTimestamp?: () => unknown },
+    private readonly current: (() => MySql2Database) & { getTimestamp?: () => unknown; normalizeTimestamp?: (value: unknown) => unknown },
     private readonly getTimestamp?: () => unknown
   ) {
     this.t = table;
@@ -1108,6 +1108,9 @@ export class MySqlQuery<
     let generated = false;
     for (const [key, column] of Object.entries(columns)) {
       const policy = policies[key] ?? {};
+      if (values[key] instanceof Date && /^(?:datetime|timestamp)(?:\(|$)/i.test(column.getSQLType())) {
+        values[key] = this.current.normalizeTimestamp?.(values[key]) ?? values[key];
+      }
       const auto = 'autoIncrement' in column && column.autoIncrement === true;
       const rule = operation === 'insert' ? policy.insert : policy.update;
       const primary = column.primary;

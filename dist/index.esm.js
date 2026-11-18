@@ -1,4 +1,4 @@
-import*as native from'drizzle-orm';import {sql,is,SQL,isTable,Subquery,getTableColumns,min as min$1,max as max$1,asc as asc$1,desc as desc$1,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,not,notExists}from'drizzle-orm';import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createMappedSql(decoder) {
+import*as native from'drizzle-orm';import {sql,is,SQL,isTable,Subquery,getTableColumns,min as min$1,max as max$1,asc as asc$1,desc as desc$1,eq,and,count,or,defineRelations}from'drizzle-orm';export{asc,count,countDistinct,desc,exists,not,notExists}from'drizzle-orm';import mysql from'mysql2/promise';import {drizzle}from'drizzle-orm/mysql2';import {mysql2Codecs}from'drizzle-orm/mysql2/codecs';import {MySqlTable,mysqlTable as mysqlTable$1,alias as alias$1,getTableConfig,MySqlSelectBase,MySqlColumn}from'drizzle-orm/mysql-core';export{bigint,binary,blob,boolean,char,check,customType,date,datetime,decimal,double,float,foreignKey,index,int,json,longblob,longtext,mediumblob,mediumint,mediumtext,mysqlDatabase,mysqlEnum,mysqlSchema,mysqlTableCreator,mysqlView,primaryKey,real,serial,smallint,text,time,timestamp,tinyblob,tinyint,tinytext,unique,uniqueIndex,varbinary,varchar,year}from'drizzle-orm/mysql-core';import {AsyncLocalStorage}from'node:async_hooks';import {alias}from'drizzle-orm/mysql-core/alias';import {MySqlColumnBuilder}from'drizzle-orm/mysql-core/columns/common';function createMappedSql(decoder) {
     return (first, ...values) => {
         const expression = Array.isArray(first)
             ? sql(first, ...values)
@@ -826,6 +826,9 @@ class MySqlQuery {
         let generated = false;
         for (const [key, column] of Object.entries(columns)) {
             const policy = policies[key] ?? {};
+            if (values[key] instanceof Date && /^(?:datetime|timestamp)(?:\(|$)/i.test(column.getSQLType())) {
+                values[key] = this.current.normalizeTimestamp?.(values[key]) ?? values[key];
+            }
             const auto = 'autoIncrement' in column && column.autoIncrement === true;
             const rule = operation === 'insert' ? policy.insert : policy.update;
             const primary = column.primary;
@@ -1206,13 +1209,15 @@ const desc = createOrderByHelper(native.desc);
 function createConnection(options) {
     const { url, schema, getTimestamp: configuredTimestamp, ...connectionOptions } = options;
     const pool = mysql.createPool(url ? { ...connectionOptions, uri: url } : connectionOptions);
-    const raw = drizzle({ client: pool, relations: defineRelations(schema) });
-    const transactionDatabase = (client) => drizzle({ client, relations: defineRelations(schema) });
-    const context = new AsyncLocalStorage();
     const timezone = connectionOptions.timezone ?? (url ? new URL(url).searchParams.get('timezone') : null);
+    const codecs = timezone === 'local'
+        ? { ...mysql2Codecs, datetime: { normalize: (value) => new Date(value.replace(' ', 'T')) }, timestamp: { normalize: (value) => new Date(value.replace(' ', 'T')) } }
+        : mysql2Codecs;
+    const raw = drizzle({ client: pool, relations: defineRelations(schema), codecs });
+    const transactionDatabase = (client) => drizzle({ client, relations: defineRelations(schema), codecs });
+    const context = new AsyncLocalStorage();
     const timestampGenerator = configuredTimestamp ?? (() => new Date());
-    const getTimestamp = () => {
-        const now = timestampGenerator();
+    const normalizeTimestamp = (now) => {
         if (timezone !== 'local' || !(now instanceof Date))
             return now;
         // Drizzle encodes Date values as UTC before mysql2 can apply its timezone option.
@@ -1220,12 +1225,13 @@ function createConnection(options) {
         const local = `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
         return sql `${local}`;
     };
+    const getTimestamp = () => normalizeTimestamp(timestampGenerator());
     const current = Object.assign(() => {
         const tx = context.getStore();
         if (tx && !tx.active)
             throw new Error('Transaction has already ended.');
         return tx?.database ?? raw;
-    }, { getTimestamp });
+    }, { getTimestamp, normalizeTimestamp });
     const trans = async (callback) => {
         const connection = await pool.getConnection();
         try {
