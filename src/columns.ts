@@ -125,6 +125,245 @@ export function TableColumns<
   const AN extends readonly MySqlColumnSelectionName<A>[],
   B extends MySqlTable,
   const BN extends readonly MySqlColumnSelectionName<B>[],
+  C extends MySqlTable,
+  const CN extends readonly MySqlColumnSelectionName<C>[],
+  D extends MySqlTable,
+  const DN extends readonly MySqlColumnSelectionName<D>[],
+  E extends MySqlTable,
+  const EN extends readonly MySqlColumnSelectionName<E>[],
+  F extends MySqlTable,
+  const FN extends readonly MySqlColumnSelectionName<F>[],
+  G extends MySqlTable,
+  const GN extends readonly MySqlColumnSelectionName<G>[],
+  H extends MySqlTable,
+  const HN extends readonly MySqlColumnSelectionName<H>[],
+  I extends MySqlTable,
+  const IN extends readonly MySqlColumnSelectionName<I>[],
+  J extends MySqlTable,
+  const JN extends readonly MySqlColumnSelectionName<J>[],
+>(
+  a: readonly [A, ...AN],
+  b: readonly [B, ...BN],
+  c: readonly [C, ...CN],
+  d: readonly [D, ...DN],
+  e: readonly [E, ...EN],
+  f: readonly [F, ...FN],
+  g: readonly [G, ...GN],
+  h: readonly [H, ...HN],
+  i: readonly [I, ...IN],
+  j: readonly [J, ...JN]
+): MySqlMergedGroupColumns<
+  readonly [
+    readonly [A, ...AN],
+    readonly [B, ...BN],
+    readonly [C, ...CN],
+    readonly [D, ...DN],
+    readonly [E, ...EN],
+    readonly [F, ...FN],
+    readonly [G, ...GN],
+    readonly [H, ...HN],
+    readonly [I, ...IN],
+    readonly [J, ...JN],
+  ]
+>;
+export function TableColumns<
+  A extends MySqlTable,
+  const AN extends readonly MySqlColumnSelectionName<A>[],
+  B extends MySqlTable,
+  const BN extends readonly MySqlColumnSelectionName<B>[],
+  C extends MySqlTable,
+  const CN extends readonly MySqlColumnSelectionName<C>[],
+  D extends MySqlTable,
+  const DN extends readonly MySqlColumnSelectionName<D>[],
+  E extends MySqlTable,
+  const EN extends readonly MySqlColumnSelectionName<E>[],
+  F extends MySqlTable,
+  const FN extends readonly MySqlColumnSelectionName<F>[],
+  G extends MySqlTable,
+  const GN extends readonly MySqlColumnSelectionName<G>[],
+  H extends MySqlTable,
+  const HN extends readonly MySqlColumnSelectionName<H>[],
+  I extends MySqlTable,
+  const IN extends readonly MySqlColumnSelectionName<I>[],
+>(
+  a: readonly [A, ...AN],
+  b: readonly [B, ...BN],
+  c: readonly [C, ...CN],
+  d: readonly [D, ...DN],
+  e: readonly [E, ...EN],
+  f: readonly [F, ...FN],
+  g: readonly [G, ...GN],
+  h: readonly [H, ...HN],
+  i: readonly [I, ...IN]
+): MySqlMergedGroupColumns<
+  readonly [
+    readonly [A, ...AN],
+    readonly [B, ...BN],
+    readonly [C, ...CN],
+    readonly [D, ...DN],
+    readonly [E, ...EN],
+    readonly [F, ...FN],
+    readonly [G, ...GN],
+    readonly [H, ...HN],
+    readonly [I, ...IN],
+  ]
+>;
+export function TableColumns<
+  A extends MySqlTable,
+  const AN extends readonly MySqlColumnSelectionName<A>[],
+  B extends MySqlTable,
+  const BN extends readonly MySqlColumnSelectionName<B>[],
+  C extends MySqlTable,
+  const CN extends readonly MySqlColumnSelectionName<C>[],
+  D extends MySqlTable,
+  const DN extends readonly MySqlColumnSelectionName<D>[],
+  E extends MySqlTable,
+  const EN extends readonly MySqlColumnSelectionName<E>[],
+  F extends MySqlTable,
+  const FN extends readonly MySqlColumnSelectionName<F>[],
+  G extends MySqlTable,
+  const GN extends readonly MySqlColumnSelectionName<G>[],
+  H extends MySqlTable,
+  const HN extends readonly MySqlColumnSelectionName<H>[],
+>(
+  a: readonly [A, ...AN],
+  b: readonly [B, ...BN],
+  c: readonly [C, ...CN],
+  d: readonly [D, ...DN],
+  e: readonly [E, ...EN],
+  f: readonly [F, ...FN],
+  g: readonly [G, ...GN],
+  h: readonly [H, ...HN]
+): MySqlMergedGroupColumns<
+  readonly [
+    readonly [A, ...AN],
+    readonly [B, ...BN],
+    readonly [C, ...CN],
+    readonly [D, ...DN],
+    readonly [E, ...EN],
+    readonly [F, ...FN],
+    readonly [G, ...GN],
+    readonly [H, ...HN],
+  ]
+>;
+export function TableColumns<
+  A extends MySqlTable,
+  const AN extends readonly MySqlColumnSelectionName<A>[],
+  B extends MySqlTable,
+  const BN extends readonly MySqlColumnSelectionName<B>[],
+  C extends MySqlTable,
+  const CN extends readonly MySqlColumnSelectionName<C>[],
+  D extends MySqlTable,
+  const DN extends readonly MySqlColumnSelectionName<D>[],
+  E extends MySqlTable,
+  const EN extends readonly MySqlColumnSelectionName<E>[],
+  F extends MySqlTable,
+  const FN extends readonly MySqlColumnSelectionName<F>[],
+  G extends MySqlTable,
+  const GN extends readonly MySqlColumnSelectionName<G>[],
+>(
+  a: readonly [A, ...AN],
+  b: readonly [B, ...BN],
+  c: readonly [C, ...CN],
+  d: readonly [D, ...DN],
+  e: readonly [E, ...EN],
+  f: readonly [F, ...FN],
+  g: readonly [G, ...GN]
+): MySqlMergedGroupColumns<
+  readonly [
+    readonly [A, ...AN],
+    readonly [B, ...BN],
+    readonly [C, ...CN],
+    readonly [D, ...DN],
+    readonly [E, ...EN],
+    readonly [F, ...FN],
+    readonly [G, ...GN],
+  ]
+>;
+export function TableColumns<
+  A extends MySqlTable,
+  const AN extends readonly MySqlColumnSelectionName<A>[],
+  B extends MySqlTable,
+  const BN extends readonly MySqlColumnSelectionName<B>[],
+  C extends MySqlTable,
+  const CN extends readonly MySqlColumnSelectionName<C>[],
+  D extends MySqlTable,
+  const DN extends readonly MySqlColumnSelectionName<D>[],
+  E extends MySqlTable,
+  const EN extends readonly MySqlColumnSelectionName<E>[],
+  F extends MySqlTable,
+  const FN extends readonly MySqlColumnSelectionName<F>[],
+>(
+  a: readonly [A, ...AN],
+  b: readonly [B, ...BN],
+  c: readonly [C, ...CN],
+  d: readonly [D, ...DN],
+  e: readonly [E, ...EN],
+  f: readonly [F, ...FN]
+): MySqlMergedGroupColumns<
+  readonly [
+    readonly [A, ...AN],
+    readonly [B, ...BN],
+    readonly [C, ...CN],
+    readonly [D, ...DN],
+    readonly [E, ...EN],
+    readonly [F, ...FN],
+  ]
+>;
+export function TableColumns<
+  A extends MySqlTable,
+  const AN extends readonly MySqlColumnSelectionName<A>[],
+  B extends MySqlTable,
+  const BN extends readonly MySqlColumnSelectionName<B>[],
+  C extends MySqlTable,
+  const CN extends readonly MySqlColumnSelectionName<C>[],
+  D extends MySqlTable,
+  const DN extends readonly MySqlColumnSelectionName<D>[],
+  E extends MySqlTable,
+  const EN extends readonly MySqlColumnSelectionName<E>[],
+>(
+  a: readonly [A, ...AN],
+  b: readonly [B, ...BN],
+  c: readonly [C, ...CN],
+  d: readonly [D, ...DN],
+  e: readonly [E, ...EN]
+): MySqlMergedGroupColumns<
+  readonly [readonly [A, ...AN], readonly [B, ...BN], readonly [C, ...CN], readonly [D, ...DN], readonly [E, ...EN]]
+>;
+export function TableColumns<
+  A extends MySqlTable,
+  const AN extends readonly MySqlColumnSelectionName<A>[],
+  B extends MySqlTable,
+  const BN extends readonly MySqlColumnSelectionName<B>[],
+  C extends MySqlTable,
+  const CN extends readonly MySqlColumnSelectionName<C>[],
+  D extends MySqlTable,
+  const DN extends readonly MySqlColumnSelectionName<D>[],
+>(
+  a: readonly [A, ...AN],
+  b: readonly [B, ...BN],
+  c: readonly [C, ...CN],
+  d: readonly [D, ...DN]
+): MySqlMergedGroupColumns<
+  readonly [readonly [A, ...AN], readonly [B, ...BN], readonly [C, ...CN], readonly [D, ...DN]]
+>;
+export function TableColumns<
+  A extends MySqlTable,
+  const AN extends readonly MySqlColumnSelectionName<A>[],
+  B extends MySqlTable,
+  const BN extends readonly MySqlColumnSelectionName<B>[],
+  C extends MySqlTable,
+  const CN extends readonly MySqlColumnSelectionName<C>[],
+>(
+  a: readonly [A, ...AN],
+  b: readonly [B, ...BN],
+  c: readonly [C, ...CN]
+): MySqlMergedGroupColumns<readonly [readonly [A, ...AN], readonly [B, ...BN], readonly [C, ...CN]]>;
+export function TableColumns<
+  A extends MySqlTable,
+  const AN extends readonly MySqlColumnSelectionName<A>[],
+  B extends MySqlTable,
+  const BN extends readonly MySqlColumnSelectionName<B>[],
 >(
   a: readonly [A, ...AN],
   b: readonly [B, ...BN]
