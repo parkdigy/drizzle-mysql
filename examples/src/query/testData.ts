@@ -1,6 +1,8 @@
 import { MySqlQuery } from './MySqlQuery';
 import db from '../mysql';
 
+const ll = console.log;
+
 export class TestData extends MySqlQuery<'testData'> {
   constructor() {
     super('testData');
@@ -10,17 +12,17 @@ export class TestData extends MySqlQuery<'testData'> {
    * selectTest
    * ******************************************************************************************************************/
   async selectTest() {
-    console.log('::::: TestData::selectTest() :::::');
+    ll('::::: TestData::selectTest() :::::');
 
-    console.log(await this.select(['id', 'name', 'email']));
+    ll(await this.select(['id', 'name', 'email']));
 
-    console.log(await this.select({ id_2: 'id', name_2: 'name', email_2: 'email' }));
+    ll(await this.select({ id_2: 'id', name_2: 'name', email_2: 'email' }));
 
-    console.log(await this.select({ min_id: this.min('id'), max_id: this.max('id') }));
+    ll(await this.select({ min_id: this.min('id'), max_id: this.max('id') }));
 
-    console.log(await this.select((q) => q.columns('id', 'name')));
+    ll(await this.select((q) => q.columns('id', 'name')));
 
-    console.log(
+    ll(
       await this.select((q) => [
         q.columns('id', 'name'),
         {
@@ -29,17 +31,17 @@ export class TestData extends MySqlQuery<'testData'> {
       ])
     );
 
-    console.log(await this.select().orderBy(this.desc('id')));
+    ll(await this.select().orderBy(this.desc('id')));
 
     const isOrderByName = false;
-    console.log(
+    ll(
       await this.select().orderBy(
         this.desc('id'),
         isOrderByName && this.asc('name'),
         isOrderByName ? this.asc('name') : undefined
       )
     );
-    console.log(
+    ll(
       await this.select().orderBy((q) => [
         q.desc('id'),
         isOrderByName && q.asc('name'),
@@ -47,64 +49,64 @@ export class TestData extends MySqlQuery<'testData'> {
       ])
     );
 
-    console.log(await this.select().orderBy(this.asc('id')));
+    ll(await this.select().orderBy(this.asc('id')));
 
-    console.log(await this.select(['id']).orderBy((q) => q.desc('id', 'name')));
+    ll(await this.select(['id']).orderBy((q) => q.desc('id', 'name')));
 
     const td1 = this.alias('td1');
     const td2 = this.alias('td2');
-    console.log(
+    ll(
       await this.select(td1, ['id'])
         .crossJoin(td2)
         .orderBy((q) => q.desc('id'))
         .groupBy((t) => [t.id])
     );
 
-    console.log(
+    ll(
       await this.select(['id'])
         .having(this.eq('id', 1))
         .orderBy((q) => q.desc('id'))
         .groupBy((t) => [t.id])
     );
 
-    console.log(
+    ll(
       await this.select(['id'])
         .groupBy((t) => [t.id])
         .orderBy((q) => q.desc('id'))
     );
 
-    console.log(
+    ll(
       await this.select(['id'])
         .$dynamic()
         .orderBy((q) => q.desc('id'))
         .groupBy((t) => [t.id])
     );
 
-    console.log(
+    ll(
       await this.select(['id'])
         .union(this.select(['id']))
         .orderBy((q) => q.desc('id'))
     );
 
-    console.log(
+    ll(
       await this.select(['id'])
         .unionAll(this.select(['id']))
         .orderBy((q) => q.desc('id'))
     );
 
-    console.log(
+    ll(
       await this.select(['id'])
         .intersect(this.select(['id']))
         .orderBy((q) => q.desc('id'))
     );
 
-    console.log(
+    ll(
       await this.select(['id'])
         .except(this.select(['id']))
         .orderBy((q) => q.desc('id'))
     );
 
-    console.log(
+    ll(
       await this.select(['id'])
         .groupBy((t) => [t.id])
         .orderBy((q) => q.desc('id'))
@@ -118,11 +120,11 @@ export class TestData extends MySqlQuery<'testData'> {
     this.select().orderBy((q) => q.asc('id', 'name'));
     this.select().orderBy((q) => [q.asc('id', 'name'), q.desc('email', 'is_lock')]);
 
-    console.log(await this.select(['id']).orderBy((q) => q.asc('id')));
+    ll(await this.select(['id']).orderBy((q) => q.asc('id')));
 
-    console.log(await this.select(['id']).orderBy((q) => [q.asc('name'), q.asc('id')]));
+    ll(await this.select(['id']).orderBy((q) => [q.asc('name'), q.asc('id')]));
 
-    console.log(await this.select(['id']).orderBy((q) => db.desc(q.t.id)));
+    ll(await this.select(['id']).orderBy((q) => db.desc(q.t.id)));
 
     this.select().where((q) =>
       q.and(q.and({ eq: { is_lock: true }, gt: { id: 0 } }), q.or({ isNull: 'email', eq: { name: 'Ada' } }))
@@ -133,64 +135,64 @@ export class TestData extends MySqlQuery<'testData'> {
    * selectColumnsTest
    * ******************************************************************************************************************/
   async selectColumnsTest() {
-    console.log('::::: TestData::selectColumnsTest() :::::');
+    ll('::::: TestData::selectColumnsTest() :::::');
 
-    console.log(await this.select([this.columns('id', 'name', 'email')]));
+    ll(await this.select([this.columns('id', 'name', 'email')]));
 
-    console.log(await this.select({ min_id: this.min('id'), max_id: this.max('id') }));
+    ll(await this.select({ min_id: this.min('id'), max_id: this.max('id') }));
   }
 
   /********************************************************************************************************************
    * aliasSelectTest
    * ******************************************************************************************************************/
   async aliasSelectTest() {
-    console.log('::::: TestData::aliasSelectTest() :::::');
+    ll('::::: TestData::aliasSelectTest() :::::');
 
     const td = db.a.testData('td');
 
-    console.log(await this.select(td, { id: td.id, name: td.name }));
+    ll(await this.select(td, { id: td.id, name: td.name }));
 
-    console.log(await this.select(td, ['id', 'name']));
+    ll(await this.select(td, ['id', 'name']));
 
-    console.log(await this.select(td, ['id', 'name as as_name', 'email AS as_email']));
+    ll(await this.select(td, ['id', 'name as as_name', 'email AS as_email']));
 
-    console.log(await this.select(td).orderBy(this.desc(td, 'id')));
+    ll(await this.select(td).orderBy(this.desc(td, 'id')));
 
-    console.log(await this.select(td).orderBy(this.asc(td, 'id')));
+    ll(await this.select(td).orderBy(this.asc(td, 'id')));
 
-    console.log(await this.select(td, ['id']).orderBy((q) => q.desc('id')));
+    ll(await this.select(td, ['id']).orderBy((q) => q.desc('id')));
 
-    console.log(await this.select(td, ['id']).orderBy((q) => db.asc(q.t.id)));
+    ll(await this.select(td, ['id']).orderBy((q) => db.asc(q.t.id)));
   }
 
   /********************************************************************************************************************
    * subQueryTest
    * ******************************************************************************************************************/
   async subQueryTest() {
-    console.log('::::: TestData::subQueryTest() :::::');
+    ll('::::: TestData::subQueryTest() :::::');
 
     {
       const builder = this.select(['id']).orderBy(this.desc('id'));
 
-      console.log(await this.select({ id: 'id', sub_query_value: builder }).where(this.eq('id', 2)));
+      ll(await this.select({ id: 'id', sub_query_value: builder }).where(this.eq('id', 2)));
 
-      console.log(await this.select().where(this.eq('id', builder)));
+      ll(await this.select().where(this.eq('id', builder)));
 
       const j = builder.as('j');
-      console.log(await this.select([this.columns('name'), db.columns(j, 'id')]).innerJoin(j, db.eq(j.id, this.t.id)));
-      console.log(await this.select().innerJoin(j, (q) => q.eq({ id: q.t.id })));
+      ll(await this.select([this.columns('name'), db.columns(j, 'id')]).innerJoin(j, db.eq(j.id, this.t.id)));
+      ll(await this.select().innerJoin(j, (q) => q.eq({ id: q.t.id })));
 
       const td = db.a.testData('td');
       const td2 = db.a.testData('td2');
-      console.log(await this.select().where((q) => q.eq({ id: 1 })));
-      console.log(
+      ll(await this.select().where((q) => q.eq({ id: 1 })));
+      ll(
         await this.select([this.columns('id', 'name'), db.columns(td, 'id as td_id'), db.columns(td2, 'id as td2_id')])
           .innerJoin(td, db.eq(td.id, this.t.id))
           .innerJoin(td2, db.eq(td2.id, this.t.id))
           .where((q) => q.eq({ id: 2 }))
           .orderBy((q) => q.desc('name'))
       );
-      console.log(await this.select().innerJoin(td, (q) => q.eq({ id: q.t.id })));
+      ll(await this.select().innerJoin(td, (q) => q.eq({ id: q.t.id })));
     }
 
     {
@@ -208,7 +210,7 @@ export class TestData extends MySqlQuery<'testData'> {
           eq: { id: ac2.id },
         })
       );
-      console.log(await this.select(ac2, ['id', 'name', { app_info: appInfoBuilder }]));
+      ll(await this.select(ac2, ['id', 'name', { app_info: appInfoBuilder }]));
     }
   }
 
@@ -216,39 +218,39 @@ export class TestData extends MySqlQuery<'testData'> {
    * selectDistinctTest
    * ******************************************************************************************************************/
   async selectDistinctTest() {
-    console.log(await this.selectDistinct(['name']));
+    ll(await this.selectDistinct(['name']));
   }
 
   /********************************************************************************************************************
    * findTest
    * ******************************************************************************************************************/
   async findTest() {
-    console.log('::::: TestData::findTest() :::::');
+    ll('::::: TestData::findTest() :::::');
 
-    console.log(await this.find(['id', 'name', 'email']));
+    ll(await this.find(['id', 'name', 'email']));
 
-    console.log(await this.find(['id', 'name', 'email'], this.eq({ id: 2 })));
+    ll(await this.find(['id', 'name', 'email'], this.eq({ id: 2 })));
 
-    console.log(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }));
+    ll(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }));
 
-    console.log(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, this.eq({ id: 2 })));
+    ll(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, this.eq({ id: 2 })));
 
-    console.log(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, (q) => q.eq({ id: 2 })));
+    ll(await this.find({ id_2: 'id', name_2: 'name', email_2: 'email' }, (q) => q.eq({ id: 2 })));
 
-    console.log(await this.find({ min_id: this.min('id'), max_id: this.max('id') }));
+    ll(await this.find({ min_id: this.min('id'), max_id: this.max('id') }));
 
-    console.log(await this.findByPrimaryKey(['id', 'name', 'email'], 2));
+    ll(await this.findByPrimaryKey(['id', 'name', 'email'], 2));
 
-    console.log(await this.findByPrimaryKey({ id_2: 'id' }, 2));
+    ll(await this.findByPrimaryKey({ id_2: 'id' }, 2));
 
-    console.log(await this.findByPrimaryKey({ min_id: this.min('id'), max_id: this.max('id') }, 2));
+    ll(await this.findByPrimaryKey({ min_id: this.min('id'), max_id: this.max('id') }, 2));
   }
 
   /********************************************************************************************************************
    * conditionTest
    * ******************************************************************************************************************/
   async conditionTest() {
-    console.log('::::: TestData::conditionTest() :::::');
+    ll('::::: TestData::conditionTest() :::::');
 
     this.eq({ id: 1, name: 'name' });
 
@@ -327,11 +329,11 @@ export class TestData extends MySqlQuery<'testData'> {
    * selectConditionTest
    * ******************************************************************************************************************/
   async selectConditionTest() {
-    console.log('::::: TestData::selectConditionTest() :::::');
+    ll('::::: TestData::selectConditionTest() :::::');
 
-    console.log(await this.select().where(this.eq({ id: 1 })));
+    ll(await this.select().where(this.eq({ id: 1 })));
 
-    console.log(
+    ll(
       await this.select().where(
         this.and({
           eq: { id: 1 },
@@ -340,22 +342,22 @@ export class TestData extends MySqlQuery<'testData'> {
       )
     );
 
-    console.log(await this.select(['id']).where((q) => q.eq({ name: 'name' })));
-    console.log(await this.select(['id']).where((q) => db.eq(q.t.name, 'name')));
+    ll(await this.select(['id']).where((q) => q.eq({ name: 'name' })));
+    ll(await this.select(['id']).where((q) => db.eq(q.t.name, 'name')));
 
     const td = db.a.testData('td');
-    console.log(await this.select(td, ['id']).where((q) => q.eq({ name: 'name' })));
-    console.log(await this.select(td, ['id']).where((q) => db.eq(q.t.name, 'name')));
+    ll(await this.select(td, ['id']).where((q) => q.eq({ name: 'name' })));
+    ll(await this.select(td, ['id']).where((q) => db.eq(q.t.name, 'name')));
   }
 
   /********************************************************************************************************************
    * addTest
    * ******************************************************************************************************************/
   async addTest() {
-    console.log('::::: TestData::addTest() :::::');
+    ll('::::: TestData::addTest() :::::');
 
     const dt = new Date().toISOString();
-    console.log(
+    ll(
       await this.add({
         name: `name ${dt}`,
         email: `email${dt}@test.com`,
@@ -367,96 +369,96 @@ export class TestData extends MySqlQuery<'testData'> {
    * addDataTest
    * ******************************************************************************************************************/
   async addDataTest() {
-    console.log('::::: TestData::addDataTest() :::::');
+    ll('::::: TestData::addDataTest() :::::');
 
     const dt = new Date().toISOString();
     const addData = this.addData({
       name: `name ${dt}`,
       email: `email${dt}@test.com`,
     });
-    console.log(await this.add(addData));
+    ll(await this.add(addData));
   }
 
   /********************************************************************************************************************
    * addBySelectTest
    * ******************************************************************************************************************/
   async addBySelectTest() {
-    console.log('::::: TestData::addBySelectTest() :::::');
+    ll('::::: TestData::addBySelectTest() :::::');
 
     const builder = this.select({
       name: 'name',
       email: 'email',
       is_lock: this.t.is_lock,
     }).where(this.eq({ id: 2 }));
-    console.log(await this.add(builder));
+    ll(await this.add(builder));
   }
 
   /********************************************************************************************************************
    * editTest
    * ******************************************************************************************************************/
   async editTest() {
-    console.log('::::: TestData::editTest() :::::');
+    ll('::::: TestData::editTest() :::::');
 
-    console.log(await this.edit({ is_lock: true }, this.eq({ id: 1 })));
+    ll(await this.edit({ is_lock: true }, this.eq({ id: 1 })));
 
-    console.log(await this.edit({ is_lock: true }, (q) => q.eq({ id: 1 })));
+    ll(await this.edit({ is_lock: true }, (q) => q.eq({ id: 1 })));
   }
 
   /********************************************************************************************************************
    * editByPrimaryKeyTest
    * ******************************************************************************************************************/
   async editByPrimaryKeyTest() {
-    console.log('::::: TestData::editByPrimaryKeyTest() :::::');
+    ll('::::: TestData::editByPrimaryKeyTest() :::::');
 
-    console.log(await this.editByPrimaryKey({ is_lock: true }, 1));
+    ll(await this.editByPrimaryKey({ is_lock: true }, 1));
   }
 
   /********************************************************************************************************************
    * editDataTest
    * ******************************************************************************************************************/
   async editDataTest() {
-    console.log('::::: TestData::editDataTest() :::::');
+    ll('::::: TestData::editDataTest() :::::');
 
     const editData = this.editData({
       is_lock: true,
     });
-    console.log(await this.editByPrimaryKey(editData, 1));
+    ll(await this.editByPrimaryKey(editData, 1));
   }
 
   /********************************************************************************************************************
    * removeTest
    * ******************************************************************************************************************/
   async removeTest() {
-    console.log('::::: TestData::removeTest() :::::');
+    ll('::::: TestData::removeTest() :::::');
 
-    console.log(await this.remove(this.eq({ id: 1 })));
+    ll(await this.remove(this.eq({ id: 1 })));
   }
 
   /********************************************************************************************************************
    * removeByPrimaryKeyTest
    * ******************************************************************************************************************/
   async removeByPrimaryKeyTest() {
-    console.log('::::: TestData::removeByPrimaryKeyTest() :::::');
+    ll('::::: TestData::removeByPrimaryKeyTest() :::::');
 
-    console.log(await this.removeByPrimaryKey(1));
+    ll(await this.removeByPrimaryKey(1));
   }
 
   /********************************************************************************************************************
    * paginateTest
    * ******************************************************************************************************************/
   async paginateTest() {
-    console.log('::::: TestData::paginateTest() :::::');
+    ll('::::: TestData::paginateTest() :::::');
 
     const builder = this.select().orderBy(this.desc('id'));
-    console.log(await db.paginate(builder, 1, 2));
-    console.log(await db.paginate(builder, 2, 2));
+    ll(await db.paginate(builder, 1, 2));
+    ll(await db.paginate(builder, 2, 2));
   }
 
   /********************************************************************************************************************
    * otherTest
    * ******************************************************************************************************************/
   async otherTest() {
-    console.log('::::: TestData::otherTest() :::::');
+    ll('::::: TestData::otherTest() :::::');
   }
 }
 

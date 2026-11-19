@@ -2121,6 +2121,10 @@ const normalizeFields = (fields: unknown, table?: MySqlTable | Subquery): FieldS
     if (typeof field === 'string') {
       const column = table && (is(table, Subquery) ? sourceColumns(table) : getTableColumns(table))[field];
       if (!column) throw new Error(`select: unknown column "${field}".`);
+      if (is(column, MySqlColumn) && column.name === name) {
+        result[name] = column;
+        continue;
+      }
       const decoder = is(column, MySqlColumn)
         ? column
         : is(column, SQL.Aliased)
@@ -2134,8 +2138,8 @@ const normalizeFields = (fields: unknown, table?: MySqlTable | Subquery): FieldS
       continue;
     }
     if (is(field, SQL.Aliased)) continue;
-    if (is(field, MySqlColumn) && field.name !== name) {
-      result[name] = sql`${field}`.mapWith(field).as(name);
+    if (is(field, MySqlColumn)) {
+      if (field.name !== name) result[name] = sql`${field}`.mapWith(field).as(name);
       continue;
     }
     if (typeof field === 'object' && field !== null && 'getSQL' in field && typeof field.getSQL === 'function') {

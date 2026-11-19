@@ -88,7 +88,7 @@ test('alias 선택 배열에서 문자열 컬럼과 query builder 선택 객체�
   const sql = selected.toSQL();
 
   expect(sql.sql).toContain(
-    'select `id` as `id`, `name` as `name`, (select \'info\' as `app_info` from `users` where `users`.`id` = `ac2`.`id`) as `app_info`',
+    'select `id`, `name`, (select \'info\' as `app_info` from `users` where `users`.`id` = `ac2`.`id`) as `app_info`',
   );
   expect(sql.sql).toContain('from `users` `ac2`');
   expect(sql.params).toEqual([]);
@@ -237,4 +237,13 @@ test.each([false, true])('다중 JOIN에서 래퍼를 중복 적용하지 않는
   expect(joinCallbackCalls).toBe(12);
   expect(whereCallbackCalls).toBe(1);
   expect(orderCallbackCalls).toBe(1);
+});
+
+
+test('컬럼명과 결과명이 같으면 불필요한 별칭을 붙이지 않는다', () => {
+  expect(db.query(users).select(u, db.columns(u, 'id', 'name')).toSQL().sql).toBe('select `id`, `name` from `users` `u`');
+  expect(db.select(u, { id: 'id', label: 'name' }).toSQL().sql).toBe('select `id`, `name` as `label` from `users` `u`');
+  expect(db.select(u, { renamed: u.id }).toSQL().sql).toBe('select `id` as `renamed` from `users` `u`');
+  const joined = db.query(users).select(u, db.columns(u, 'id')).leftJoin(users, db.eq(u.id, users.id)).toSQL();
+  expect(joined.sql).toMatch(/select `u`\.`id` from/i);
 });

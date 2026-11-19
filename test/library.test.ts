@@ -289,7 +289,7 @@ test('서브쿼리 별칭의 컬럼을 columns 선택자로 고른다', () => {
     .innerJoin(subquery, db.eq(subquery.id, user.id))
     .toSQL();
 
-  expect(selected.sql).toMatch(/select `latest`\.`id` as `id` from `users` inner join \(select `id` from `users` order by `users`\.`id` desc limit \?\) `latest` on `latest`\.`id` = `users`\.`id`/i);
+  expect(selected.sql).toMatch(/select `latest`\.`id` from `users` inner join \(select `id` from `users` order by `users`\.`id` desc limit \?\) `latest` on `latest`\.`id` = `users`\.`id`/i);
   expect(selected.params).toEqual([1]);
   expect(() => TableColumns(subquery, 'missing' as never)).toThrow('columns: unknown column "missing".');
 });
@@ -424,7 +424,7 @@ test('서브쿼리와 일반 컬럼을 한 선택 객체에서 함께 사용한�
   const row: Row = { id: 1, sub_query_value: 1 };
   const selected = statement.toSQL();
 
-  expect(selected.sql).toMatch(/select .*`id` as `id`.*\(select `id` from `users` order by `users`\.`id` desc limit \?\) as `sub_query_value` from `users`/i);
+  expect(selected.sql).toMatch(/select .*`id`.*\(select `id` from `users` order by `users`\.`id` desc limit \?\) as `sub_query_value` from `users`/i);
   expect(selected.params).toEqual([1]);
   expect(row).toEqual({ id: 1, sub_query_value: 1 });
   const rawSqlSelection = query.select({ id: 'id', sub_query_value: sql`(${builder})` }).toSQL();
