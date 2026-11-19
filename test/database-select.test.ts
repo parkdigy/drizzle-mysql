@@ -10,6 +10,30 @@ const u = db.a.users('u');
 
 afterAll(() => db.close());
 
+test('서브쿼리 표현식을 다른 결과 키로 선택하면 새 별칭과 디코더를 유지한다', () => {
+  const source = db
+    .select(u, { id: u.id, sales_amount: db.sqlNumber`sum(${u.id})` })
+    .groupBy(u.id)
+    .as('l');
+  const query = db.select(source, {
+    id: source.id,
+    sales_amount_reward: source.sales_amount,
+    sales_amount_no_reward: db.sqlNumber(0),
+  });
+  expect(query.toSQL().sql).toContain('`l`.`sales_amount` as `sales_amount_reward`');
+  expect(query.toSQL().params).toEqual([0]);
+  const selected = (query as unknown as {
+    getSelectedFields(): { sales_amount_reward: { sql: { decoder: { mapFromDriverValue(value: string): number } } } };
+  }).getSelectedFields();
+  expect(selected.sales_amount_reward.sql.decoder.mapFromDriverValue('23')).toBe(23);
+
+  const nested = query.as('next');
+  expect(db.select(nested, { amount: nested.sales_amount_reward }).toSQL().sql).toContain(
+    '`next`.`sales_amount_reward` as `amount`'
+  );
+  expect(db.select(source, { sales_amount: source.sales_amount }).toSQL().sql).not.toContain('as `sales_amount` as');
+});
+
 test('연결 select는 테이블명과 alias에서 기존 선택 및 빌더 동작을 유지한다', () => {
   expect(db.select('users').toSQL()).toEqual(db.query(users).select().toSQL());
   expect(db.select(u).toSQL()).toEqual(db.query(users).select(u).toSQL());

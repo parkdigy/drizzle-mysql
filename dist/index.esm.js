@@ -1197,8 +1197,14 @@ const normalizeFields = (fields, table) => {
             result[name] = field.as(name);
             continue;
         }
-        if (is(field, SQL.Aliased))
+        if (is(field, SQL.Aliased)) {
+            const isSelectionField = field.isSelectionField;
+            if (isSelectionField && field.fieldAlias !== name) {
+                const decoder = field.sql.decoder;
+                result[name] = sql `${field}`.mapWith(decoder).as(name);
+            }
             continue;
+        }
         if (is(field, MySqlColumn)) {
             if (field.name !== name)
                 result[name] = sql `${field}`.mapWith(field).as(name);

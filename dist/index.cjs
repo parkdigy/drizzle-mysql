@@ -1197,8 +1197,14 @@ const normalizeFields = (fields, table) => {
             result[name] = field.as(name);
             continue;
         }
-        if (native.is(field, native.SQL.Aliased))
+        if (native.is(field, native.SQL.Aliased)) {
+            const isSelectionField = field.isSelectionField;
+            if (isSelectionField && field.fieldAlias !== name) {
+                const decoder = field.sql.decoder;
+                result[name] = native.sql `${field}`.mapWith(decoder).as(name);
+            }
             continue;
+        }
         if (native.is(field, mysqlCore.MySqlColumn)) {
             if (field.name !== name)
                 result[name] = native.sql `${field}`.mapWith(field).as(name);

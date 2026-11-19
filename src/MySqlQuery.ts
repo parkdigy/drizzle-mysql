@@ -2137,7 +2137,14 @@ const normalizeFields = (fields: unknown, table?: MySqlTable | Subquery): FieldS
       result[name] = field.as(name);
       continue;
     }
-    if (is(field, SQL.Aliased)) continue;
+    if (is(field, SQL.Aliased)) {
+      const isSelectionField = (field as SQL.Aliased & { isSelectionField?: boolean }).isSelectionField;
+      if (isSelectionField && field.fieldAlias !== name) {
+        const decoder = (field.sql as unknown as { decoder: { mapFromDriverValue(value: unknown): unknown } }).decoder;
+        result[name] = sql`${field}`.mapWith(decoder).as(name);
+      }
+      continue;
+    }
     if (is(field, MySqlColumn)) {
       if (field.name !== name) result[name] = sql`${field}`.mapWith(field).as(name);
       continue;
