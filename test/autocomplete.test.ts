@@ -43,6 +43,10 @@ test.each(['../src/index', '../dist/index'])(
     db.select('table199', ['/*directNamedFirst*/']);
     // @ts-expect-error 테이블 이름 선택의 자동완성용 미완성 컬럼명
     db.select('table199', ['id', '/*directNamedNext*/']);
+    // @ts-expect-error 자동완성용 미완성 컬럼명
+    db.selectDistinct(a, ['id', '/*distinctNext*/']);
+    // @ts-expect-error 자동완성용 미완성 컬럼명
+    db.selectDistinct('table199', ['/*distinctNamed*/']);
     const directAliasArray = db.select(a, ['id', 'extra199']);
     type DirectAliasRow = Awaited<typeof directAliasArray>[number];
     const validDirectAliasRow: DirectAliasRow = { id: 1, extra199: null };
@@ -571,6 +575,8 @@ test.each(['../src/index', '../dist/index'])(
     const service = ts.createLanguageService(host);
     try {
       for (const [name, expected] of Object.entries({
+        distinctNext: ['id', 'name', 'extra0', 'extra199'],
+        distinctNamed: ['id', 'name', 'extra0', 'extra199'],
         directNamedFirst: ['id', 'name', 'extra0', 'extra199'],
         directNamedNext: ['id', 'name', 'extra0', 'extra199'],
         directFirst: ['id', 'name', 'extra0', 'extra199'],

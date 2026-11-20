@@ -271,3 +271,21 @@ test('컬럼명과 결과명이 같으면 불필요한 별칭을 붙이지 않�
   const joined = db.query(users).select(u, db.columns(u, 'id')).leftJoin(users, db.eq(u.id, users.id)).toSQL();
   expect(joined.sql).toMatch(/select `u`\.`id` from/i);
 });
+
+
+test('연결 selectDistinct는 테이블, 별칭과 서브쿼리에서 중복 제거 조회를 만든다', () => {
+  const byName = db.selectDistinct('users', ['id', 'name']);
+  expect(byName.toSQL().sql).toMatch(/^select distinct /i);
+  expect(byName.toSQL()).toEqual(db.query(users).selectDistinct(['id', 'name']).toSQL());
+  const byAlias = db.selectDistinct(u, (q) => q.columns('name'));
+  expect(byAlias.toSQL()).toEqual(db.query(u).selectDistinct((q) => q.columns('name')).toSQL());
+  const subquery = db.select(users, ['id', 'name']).as('sq');
+  expect(db.selectDistinct(subquery, ['name']).toSQL().sql).toMatch(/^select distinct .* from \(select /i);
+  expect(() => db.selectDistinct('missing' as 'users')).toThrow('selectDistinct: unknown table "missing".');
+  if (false) {
+    const row: Awaited<typeof byAlias>[number] = { name: 'Ada' };
+    // @ts-expect-error 선택하지 않은 id는 결과에 없다.
+    const invalid: Awaited<typeof byAlias>[number] = { id: 1, name: 'Ada' };
+    void [row, invalid];
+  }
+});

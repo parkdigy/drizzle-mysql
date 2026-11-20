@@ -81,6 +81,17 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
     source: TSource,
     ...args: TArgs
   ): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
+  selectDistinct<
+    TSource extends (keyof TSchema & string) | MySqlTable,
+    const TArgs extends readonly [fields?: SelectInput<SelectTable<TSchema, TSource>>],
+  >(
+    table: TSource,
+    ...args: TArgs
+  ): SelectFrom<SelectTable<TSchema, TSource>, ResolveSelectInput<SelectTable<TSchema, TSource>, TArgs[0]>>;
+  selectDistinct<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(
+    source: TSource,
+    ...args: TArgs
+  ): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
   query<TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable>;
 }
 
@@ -248,19 +259,24 @@ export function drizzleMySql<TSchema extends Record<string, MySqlTable>>(
   options: DrizzleMySqlOptions<TSchema>
 ): DrizzleMySql<TSchema> {
   const connection = createConnection(options);
-  function select(tableOrName: string | MySqlTable | Subquery, fields?: unknown): unknown {
+  function selectSource(tableOrName: string | MySqlTable | Subquery, fields: unknown, distinct: boolean): unknown {
     const table = typeof tableOrName === 'string' ? options.schema[tableOrName] : tableOrName;
-    if (!table) throw new Error(`select: unknown table "${tableOrName}".`);
+    if (!table) throw new Error(`${distinct ? 'selectDistinct' : 'select'}: unknown table "${tableOrName}".`);
+    const query = new MySqlQuery(table as MySqlTable, connection.current);
     if (is(table, Subquery)) {
-      return new MySqlQuery(table as unknown as MySqlTable, connection.current).select(
-        table,
-        fields as SubquerySelectInput<Subquery>
-      );
+      return distinct ? query.selectDistinct(table, fields as SubquerySelectInput<Subquery>) : query.select(table, fields as SubquerySelectInput<Subquery>);
     }
-    return new MySqlQuery(table, connection.current).select(fields as never);
+    return distinct ? query.selectDistinct(fields as never) : query.select(fields as never);
+  }
+  function select(table: string | MySqlTable | Subquery, fields?: unknown): unknown {
+    return selectSource(table, fields, false);
+  }
+  function selectDistinct(table: string | MySqlTable | Subquery, fields?: unknown): unknown {
+    return selectSource(table, fields, true);
   }
   return {
     select: select as MySqlDatabaseHelpers<TSchema>['select'],
+    selectDistinct: selectDistinct as MySqlDatabaseHelpers<TSchema>['selectDistinct'],
     asc,
     desc,
     count: native.count,

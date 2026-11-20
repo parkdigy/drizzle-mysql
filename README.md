@@ -90,6 +90,7 @@ await user.select().orderBy(q => [
 
 ```ts
 const rows = await db.select('users', ['id', 'name']).where((q) => q.gt({ id: 0 }));
+const distinctNames = await db.selectDistinct('users', ['name']);
 const u = db.a.users('u');
 const aliasedRows = await db.select(u, (q) => q.columns('id', 'name as displayName'));
 ```

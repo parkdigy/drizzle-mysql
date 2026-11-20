@@ -57,6 +57,8 @@ interface MySqlDatabaseHelpers<TSchema extends Record<string, MySqlTable>> exten
     close: MySqlConnection<TSchema>['close'];
     select<TSource extends (keyof TSchema & string) | MySqlTable, const TArgs extends readonly [fields?: SelectInput<SelectTable<TSchema, TSource>>]>(table: TSource, ...args: TArgs): SelectFrom<SelectTable<TSchema, TSource>, ResolveSelectInput<SelectTable<TSchema, TSource>, TArgs[0]>>;
     select<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(source: TSource, ...args: TArgs): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
+    selectDistinct<TSource extends (keyof TSchema & string) | MySqlTable, const TArgs extends readonly [fields?: SelectInput<SelectTable<TSchema, TSource>>]>(table: TSource, ...args: TArgs): SelectFrom<SelectTable<TSchema, TSource>, ResolveSelectInput<SelectTable<TSchema, TSource>, TArgs[0]>>;
+    selectDistinct<TSource extends Subquery, const TArgs extends readonly [fields?: SubquerySelectInput<TSource>]>(source: TSource, ...args: TArgs): SelectFrom<TSource, ResolveSubquerySelectInput<TSource, TArgs[0]>>;
     query<TTable extends MySqlTable>(table: TTable): MySqlQuery<TTable>;
 }
 type OrderByColumn = Parameters<typeof native.asc>[0];

@@ -1339,17 +1339,25 @@ function createConnection(options) {
 }
 function drizzleMySql(options) {
     const connection = createConnection(options);
-    function select(tableOrName, fields) {
+    function selectSource(tableOrName, fields, distinct) {
         const table = typeof tableOrName === 'string' ? options.schema[tableOrName] : tableOrName;
         if (!table)
-            throw new Error(`select: unknown table "${tableOrName}".`);
+            throw new Error(`${distinct ? 'selectDistinct' : 'select'}: unknown table "${tableOrName}".`);
+        const query = new MySqlQuery(table, connection.current);
         if (native.is(table, native.Subquery)) {
-            return new MySqlQuery(table, connection.current).select(table, fields);
+            return distinct ? query.selectDistinct(table, fields) : query.select(table, fields);
         }
-        return new MySqlQuery(table, connection.current).select(fields);
+        return distinct ? query.selectDistinct(fields) : query.select(fields);
+    }
+    function select(table, fields) {
+        return selectSource(table, fields, false);
+    }
+    function selectDistinct(table, fields) {
+        return selectSource(table, fields, true);
     }
     return {
         select: select,
+        selectDistinct: selectDistinct,
         asc,
         desc,
         count: native__namespace.count,
